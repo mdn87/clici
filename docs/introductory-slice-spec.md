@@ -1,6 +1,6 @@
 # clici Introductory Slice and Windows Platform Proof of Concept
 
-- **Status:** Implemented platform scaffold; manual cross-application proof pending
+- **Status:** Implementation aligned; manual cross-application proof pending
 - **Version:** 0.1
 - **Last updated:** 2026-08-05
 - **Target platform:** Windows 10 or later
@@ -253,13 +253,17 @@ or last-written content. The clipboard adapter may expose the sequence number as
 advisory metadata, but suppression shall not use it as a decision input because
 clipboard brokers may advance it before clici receives its notification.
 
-**CLIP-008** A different successfully read candidate clipboard change shall
+**CLIP-008** The pending marker shall be single-use. Every successfully read
+candidate shall clear it after suppression evaluation, whether or not the
+candidate matches. Clearing the pending marker shall not clear the one-deep
+last-written fingerprint; matching last-written content remains suppressed
+under CLIP-009.
 
 **CLIP-009** The one-deep last-written fingerprint shall survive consumption or
-clearing of the pending marker. Any later candidate matching that content shall
-remain suppressed until clici writes different output or the process exits.
-This deliberate false negative prevents repeated removal from deeply indented
-content.
+clearing of the pending marker, pause and resume, enabled-state changes, and
+configuration updates. Any later candidate matching that content shall remain
+suppressed until clici writes different output or the process exits. This
+deliberate false negative prevents repeated removal from deeply indented content.
 
 **CLIP-010** The initial write adapter may replace the clipboard with Unicode
 text without preserving every accompanying non-text format. This limitation
@@ -308,6 +312,11 @@ configuration GUI and live reload are outside this slice.
 Setting `maximumColumnZeroLineRatio` to `0` intentionally disables all
 normalization: the exclusive eligibility comparison rejects every nonnegative
 column-zero ratio.
+
+No migration is provided for the pre-0.1
+`minimumMarginLinePercentage` and `maximumColumnZeroLinePercentage` property
+names. If present, they are ignored and the ratio fields use defaults until the
+file is updated.
 
 ### 6.5 Logging and privacy
 
