@@ -159,6 +159,28 @@ public sealed class MarginNormalizerTests
     }
 
     [Fact]
+    public void StandaloneCrTerminatorsArePreservedWhenNormalized()
+    {
+        const string input = "  First\r  Second\r    Nested";
+
+        var result = _normalizer.Normalize(input);
+
+        Assert.Equal(MarginNormalizationStatus.Normalized, result.Status);
+        Assert.Equal("First\rSecond\r  Nested", result.Text);
+    }
+
+    [Fact]
+    public void MixedLineTerminatorsArePreservedExactlyWhenNormalized()
+    {
+        const string input = "  First\r\n  Second\n    Nested\r  Last\r\n";
+
+        var result = _normalizer.Normalize(input);
+
+        Assert.Equal(MarginNormalizationStatus.Normalized, result.Status);
+        Assert.Equal("First\r\nSecond\n  Nested\rLast\r\n", result.Text);
+    }
+
+    [Fact]
     public void TrailingNewlineIsPreserved()
     {
         const string input = "  First\r\n  Second\r\n";

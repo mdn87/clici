@@ -1,0 +1,65 @@
+[
+  {
+    "id": "FX-01",
+    "purpose": "Standard two-space common margin",
+    "input": "  [FX-01] First line\r\n  Second line\r\n    Nested line\r\n",
+    "expectedStatus": "Normalized",
+    "expectedOutput": "[FX-01] First line\r\nSecond line\r\n  Nested line\r\n"
+  },
+  {
+    "id": "FX-02",
+    "purpose": "Mixed two- and four-space indentation",
+    "input": "  [FX-02] Root\r\n    Nested\r\n  Root again",
+    "expectedStatus": "Normalized",
+    "expectedOutput": "[FX-02] Root\r\n  Nested\r\nRoot again"
+  },
+  {
+    "id": "FX-03",
+    "purpose": "Deep common margin that remains eligible after one rewrite",
+    "input": "      [FX-03] First\r\n      Second\r\n      Third",
+    "expectedStatus": "Normalized",
+    "expectedOutput": "    [FX-03] First\r\n    Second\r\n    Third"
+  },
+  {
+    "id": "FX-04",
+    "purpose": "Column-zero ratio equals the exclusive maximum",
+    "input": "  [FX-04] One\r\n  Two\r\n  Three\r\n  Four\r\nColumn zero",
+    "expectedStatus": "NotEligible",
+    "expectedOutput": "  [FX-04] One\r\n  Two\r\n  Three\r\n  Four\r\nColumn zero"
+  },
+  {
+    "id": "FX-05",
+    "purpose": "Too few margin-prefixed lines",
+    "input": "  [FX-05] One\r\n  Two\r\n  Three\r\n  Four\r\n  Five\r\n  Six\r\n One\r\n One\r\n One\r\n One",
+    "expectedStatus": "NotEligible",
+    "expectedOutput": "  [FX-05] One\r\n  Two\r\n  Three\r\n  Four\r\n  Five\r\n  Six\r\n One\r\n One\r\n One\r\n One"
+  },
+  {
+    "id": "FX-06",
+    "purpose": "Tabs and one-space prefixes are not the margin",
+    "input": "\t[FX-06] Tab\r\n One space\r\n\tTab again",
+    "expectedStatus": "NotEligible",
+    "expectedOutput": "\t[FX-06] Tab\r\n One space\r\n\tTab again"
+  },
+  {
+    "id": "FX-07",
+    "purpose": "Blank lines and trailing newline",
+    "input": "  [FX-07] First\r\n\r\n \t\r\n  Second\r\n",
+    "expectedStatus": "Normalized",
+    "expectedOutput": "[FX-07] First\r\n\r\n \t\r\nSecond\r\n"
+  },
+  {
+    "id": "FX-08",
+    "purpose": "Unicode text",
+    "input": "  [FX-08] naïve café ☕\r\n  日本語 🚀",
+    "expectedStatus": "Normalized",
+    "expectedOutput": "[FX-08] naïve café ☕\r\n日本語 🚀"
+  },
+  {
+    "id": "FX-09",
+    "purpose": "Single-line text",
+    "input": "  [FX-09] One line",
+    "expectedStatus": "NotEligible",
+    "expectedOutput": "  [FX-09] One line"
+  }
+]

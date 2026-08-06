@@ -21,4 +21,10 @@
     <ProjectReference Include="..\..\src\clici.Core\clici.Core.csproj" />
   </ItemGroup>
 
+  <ItemGroup>
+    <None Include="..\..\tools\proof\fixtures.json"
+          Link="proof-fixtures.json"
+          CopyToOutputDirectory="PreserveNewest" />
+  </ItemGroup>
+
 </Project>
