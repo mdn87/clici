@@ -13,6 +13,8 @@ The normative requirements and Windows proof plan are in the
 [introductory-slice specification](docs/introductory-slice-spec.md).
 The ordered execution work is in the
 [v0.1 implementation-completion and proof plan](docs/v0.1-implementation-and-proof-plan.md).
+The step-by-step operator procedure is in the
+[v0.1 Windows test runbook](docs/v0.1-test-runbook.md).
 
 ## Example
 
