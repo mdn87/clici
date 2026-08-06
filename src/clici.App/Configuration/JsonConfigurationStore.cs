@@ -36,7 +36,8 @@ internal sealed class JsonConfigurationStore
                 return new ConfigurationLoadResult(
                     defaults,
                     !TrySave(defaults),
-                    null);
+                    null,
+                    true);
             }
 
             var json = File.ReadAllText(FilePath);
@@ -48,14 +49,16 @@ internal sealed class JsonConfigurationStore
             return new ConfigurationLoadResult(
                 validation.Configuration,
                 validation.UsedFallback,
-                null);
+                null,
+                true);
         }
         catch (Exception exception)
         {
             return new ConfigurationLoadResult(
                 new CliciConfiguration(),
                 true,
-                exception.GetType().Name);
+                exception.GetType().Name,
+                false);
         }
     }
 
@@ -91,4 +94,5 @@ internal sealed class JsonConfigurationStore
 internal sealed record ConfigurationLoadResult(
     CliciConfiguration Configuration,
     bool UsedFallback,
-    string? ExceptionType);
+    string? ExceptionType,
+    bool PersistenceAllowed);

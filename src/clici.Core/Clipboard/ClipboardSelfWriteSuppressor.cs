@@ -6,45 +6,41 @@ namespace Clici.Core.Clipboard;
 public sealed class ClipboardSelfWriteSuppressor
 {
     private readonly object _sync = new();
-    private PendingWrite? _pendingWrite;
+    private ContentFingerprint? _pendingWrite;
+    private ContentFingerprint? _lastWrittenContent;
 
-    public void MarkPendingWrite(uint sequenceNumber, string text)
+    public void MarkPendingWrite(string text)
     {
         ArgumentNullException.ThrowIfNull(text);
 
         lock (_sync)
         {
-            _pendingWrite = new PendingWrite(
-                sequenceNumber,
+            var fingerprint = new ContentFingerprint(
                 text.Length,
                 SHA256.HashData(Encoding.UTF8.GetBytes(text)));
+            _pendingWrite = fingerprint;
+            _lastWrittenContent = fingerprint;
         }
     }
 
-    public bool TryConsume(uint sequenceNumber, string text)
+    public bool ShouldSuppress(string text)
     {
         ArgumentNullException.ThrowIfNull(text);
 
         lock (_sync)
         {
-            if (_pendingWrite is null)
-            {
-                return false;
-            }
-
-            var candidateHash = SHA256.HashData(Encoding.UTF8.GetBytes(text));
-            var isMatch = _pendingWrite.SequenceNumber == sequenceNumber &&
-                          _pendingWrite.TextLength == text.Length &&
-                          CryptographicOperations.FixedTimeEquals(
-                              _pendingWrite.TextHash,
-                              candidateHash);
+            var candidate = new ContentFingerprint(
+                text.Length,
+                SHA256.HashData(Encoding.UTF8.GetBytes(text)));
+            var pendingContentMatches = _pendingWrite?.Matches(candidate) == true;
+            var lastWrittenContentMatches = _lastWrittenContent?.Matches(candidate) == true;
 
             _pendingWrite = null;
-            return isMatch;
+            return pendingContentMatches || lastWrittenContentMatches;
         }
     }
 
-    public void Clear()
+    public void ClearPending()
     {
         lock (_sync)
         {
@@ -52,8 +48,12 @@ public sealed class ClipboardSelfWriteSuppressor
         }
     }
 
-    private sealed record PendingWrite(
-        uint SequenceNumber,
+    private sealed record ContentFingerprint(
         int TextLength,
-        byte[] TextHash);
+        byte[] TextHash)
+    {
+        public bool Matches(ContentFingerprint candidate) =>
+            TextLength == candidate.TextLength &&
+            CryptographicOperations.FixedTimeEquals(TextHash, candidate.TextHash);
+    }
 }

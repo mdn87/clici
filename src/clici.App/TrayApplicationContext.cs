@@ -12,6 +12,7 @@ internal sealed class TrayApplicationContext : ApplicationContext
     private readonly JsonConfigurationStore _configurationStore;
     private readonly ClipboardNormalizationCoordinator _coordinator;
     private readonly IDiagnosticLogger _logger;
+    private readonly bool _configurationPersistenceAllowed;
     private readonly ToolStripMenuItem _enabledMenuItem;
     private readonly ToolStripMenuItem _pauseMenuItem;
     private readonly ContextMenuStrip _trayMenu;
@@ -25,6 +26,7 @@ internal sealed class TrayApplicationContext : ApplicationContext
         _configurationStore = new JsonConfigurationStore();
         var loadResult = _configurationStore.Load();
         _configuration = loadResult.Configuration;
+        _configurationPersistenceAllowed = loadResult.PersistenceAllowed;
         _logger = new DiagnosticLogger(
             _configurationStore.DirectoryPath,
             _configuration.DiagnosticLogging);
@@ -123,7 +125,14 @@ internal sealed class TrayApplicationContext : ApplicationContext
         };
         _coordinator.UpdateConfiguration(_configuration);
 
-        if (!_configurationStore.TrySave(_configuration))
+        if (!_configurationPersistenceAllowed)
+        {
+            _logger.Failure(
+                "configuration-save",
+                null,
+                "suppressed-after-load-failure");
+        }
+        else if (!_configurationStore.TrySave(_configuration))
         {
             _logger.Failure("configuration-save", null, "write-failed");
         }

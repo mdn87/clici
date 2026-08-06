@@ -60,7 +60,8 @@ copying anomaly. A false negative is preferable to a destructive rewrite.
 - Unicode clipboard text.
 - CRLF, LF, mixed line endings, and trailing-newline preservation.
 - Bounded handling of clipboard contention.
-- Suppression of clici's own clipboard rewrite notification.
+- Content-authoritative suppression of clici's own and last-written output.
+- One running clici instance per Windows session.
 - Per-user JSON configuration.
 - Optional local diagnostic logging with no clipboard content.
 - Tray controls for enable, pause, configuration access, and exit.
@@ -91,6 +92,10 @@ notification area. It loads configuration from:
 If the file does not exist, clici creates it with safe defaults. If it cannot be
 read or parsed, clici continues with defaults rather than terminating.
 
+Before creating the tray icon or clipboard listener, clici acquires a
+session-local named mutex. A second instance in the same Windows session exits
+immediately.
+
 ### 5.2 Normal operation
 
 The user uses the source application and clipboard normally:
@@ -100,7 +105,7 @@ clipboard update
   -> identify foreground process
   -> require approved process
   -> read text safely
-  -> suppress a matching self-write
+  -> suppress matching pending or last-written content
   -> evaluate normalization
   -> rewrite only a changed, normalized result
 ```
@@ -111,7 +116,10 @@ There is no notification for routine successful normalization.
 
 The tray menu shall provide:
 
-- **Enabled** — turns normalization on or off and persists the choice.
+- **Enabled** — turns normalization on or off and persists the choice when the
+  configuration was loaded successfully and remains writable. After a malformed
+  or unreadable file causes fallback, the toggle affects only the current run
+  and shall not overwrite that file.
 - **Pause normalization / Resume normalization** — suspends normalization for
   the current process lifetime without changing the persisted enabled setting.
 - **Open configuration file** — opens the JSON file using the Windows shell.
@@ -223,9 +231,9 @@ keyboard hook.
 
 **CLIP-003** Clipboard access exceptions shall not terminate the application.
 
-**CLIP-004** Clipboard access shall retry at most four times with short bounded
-delays. The current delay is 20 milliseconds between attempts, for at most 60
-milliseconds of retry delay per operation.
+**CLIP-004** Clipboard access shall attempt an operation at most four times with
+short bounded delays. The current delay is 20 milliseconds between attempts,
+for at most 60 milliseconds of retry delay per operation.
 
 **CLIP-005** clici shall rewrite the clipboard only when:
 
@@ -236,17 +244,24 @@ milliseconds of retry delay per operation.
 5. normalization returns `Normalized`; and
 6. the normalized string is not equal to the source string.
 
-**CLIP-006** A successful clici write shall record the resulting clipboard
-sequence number, text length, and a SHA-256 text fingerprint in memory.
+**CLIP-006** A successful clici write shall record a pending marker containing
+the text length and SHA-256 text fingerprint. It shall also retain a one-deep
+last-written fingerprint.
 
-**CLIP-007** The next notification shall be suppressed only when its sequence
-number, text length, and fingerprint all match the pending self-write. The
-pending marker shall be single-use.
+**CLIP-007** Text length and fingerprint shall be sufficient to match pending
+or last-written content. The clipboard adapter may expose the sequence number as
+advisory metadata, but suppression shall not use it as a decision input because
+clipboard brokers may advance it before clici receives its notification.
 
 **CLIP-008** A different successfully read candidate clipboard change shall
-clear the pending marker and shall not be suppressed.
 
-**CLIP-009** The initial write adapter may replace the clipboard with Unicode
+**CLIP-009** The one-deep last-written fingerprint shall survive consumption or
+clearing of the pending marker. Any later candidate matching that content shall
+remain suppressed until clici writes different output or the process exits.
+This deliberate false negative prevents repeated removal from deeply indented
+content.
+
+**CLIP-010** The initial write adapter may replace the clipboard with Unicode
 text without preserving every accompanying non-text format. This limitation
 must remain documented, and replacement must stay isolated behind an interface.
 
@@ -262,8 +277,8 @@ application-data directory, never beside the executable.
 | `enabled` | Boolean | `true` | Boolean JSON value |
 | `allowedProcessNames` | String array | Seeded terminal candidates | Trimmed and deduplicated case-insensitively |
 | `excludedProcessNames` | String array | Empty | Trimmed and deduplicated case-insensitively |
-| `minimumMarginLinePercentage` | Number | `0.70` | Inclusive range `0` through `1` |
-| `maximumColumnZeroLinePercentage` | Number | `0.20` | Inclusive configured range `0` through `1`; eligibility comparison remains exclusive |
+| `minimumMarginLineRatio` | Number | `0.70` | Inclusive range `0` through `1` |
+| `maximumColumnZeroLineRatio` | Number | `0.20` | Inclusive configured range `0` through `1`; eligibility comparison remains exclusive |
 | `marginSpacesToRemove` | Integer | `2` | Inclusive range `1` through `16` |
 | `diagnosticLogging` | Boolean | `false` | Boolean JSON value |
 
@@ -273,15 +288,26 @@ defaults.
 **CONF-004** Null process arrays shall fall back to empty arrays. Empty arrays
 are valid and may intentionally disable all process matches.
 
+Trimming, removing blank names, and case-insensitive deduplication are
+normalization, not fallback. They shall not set `UsedFallback` or log a
+configuration-load failure by themselves.
+
 **CONF-005** A malformed configuration document shall cause the complete
 in-memory configuration to fall back safely. clici shall not overwrite the
-malformed file automatically.
+malformed file automatically or when a tray toggle requests persistence. Tray
+toggles remain effective for the current run.
 
-**CONF-006** Configuration writes shall use a temporary file followed by
-replacement of the destination.
+**CONF-006** When the source configuration was parsed successfully,
+user-initiated configuration writes may persist its validated and normalized
+form. Writes shall use a temporary file followed by replacement of the
+destination.
 
 **CONF-007** Manual file edits take effect after application restart. A
 configuration GUI and live reload are outside this slice.
+
+Setting `maximumColumnZeroLineRatio` to `0` intentionally disables all
+normalization: the exclusive eligibility comparison rejects every nonnegative
+column-zero ratio.
 
 ### 6.5 Logging and privacy
 
@@ -322,6 +348,10 @@ dispose the tray icon, and terminate the application context.
 
 **LIFE-004** Repeated cleanup calls shall be safe.
 
+**LIFE-005** clici shall acquire a session-local named mutex before initializing
+WinForms. If the mutex already exists, the second instance shall exit without
+creating a tray icon or clipboard listener.
+
 ## 7. Architecture boundaries
 
 | Component | Responsibility | Platform dependency |
@@ -334,6 +364,7 @@ dispose the tray icon, and terminate the application context.
 | `clici.App/Processes` | Foreground-window owner lookup | Windows |
 | `clici.App/Configuration` | Per-user JSON persistence | Filesystem |
 | `clici.App/Logging` | Opt-in content-free diagnostics | Filesystem |
+| `clici.App/Lifecycle` | Same-session single-instance enforcement | Windows |
 | `TrayApplicationContext` | Tray menu and application lifecycle | Windows/WinForms |
 
 The core project shall target plain `net10.0`. It shall not reference WinForms,
@@ -350,14 +381,15 @@ broader feature work.
 | POC-02 | Can clipboard changes be observed without polling or a keyboard hook? | Native listener receives real copy events. | Registration smoke-tested; real-copy matrix pending |
 | POC-03 | Can the foreground window owner reliably scope normalization? | Allowed terminal copies are considered; disallowed app copies are untouched. | Implemented; application matrix pending |
 | POC-04 | Can eligible text be replaced without breaking ordinary paste? | End-to-end copy/paste succeeds in target terminals and common destinations. | Pending manual matrix |
-| POC-05 | Can contention and self-generated notifications fail safely? | Bounded retry behavior and single-use suppression are demonstrated. | Implemented; suppression unit-tested |
+| POC-05 | Can contention and self-generated notifications fail safely? | Bounded retries, content-authoritative suppression, and persistent last-write protection are demonstrated. | Implemented; suppression unit-tested |
 | POC-06 | Can the native listener be cleaned up deterministically? | Registration/unregistration smoke test and exit-path inspection succeed. | Demonstrated |
 | POC-07 | Can normalization stay independent of Windows APIs? | Core builds independently and all policy tests run without WinForms. | Demonstrated |
 | POC-08 | Are extra clipboard formats preserved adequately? | Rich-format clipboard tests retain required formats. | Not proven; explicitly deferred |
+| POC-09 | Can multiple instances be prevented from rewriting each other's output? | A second same-session process exits before creating a listener. | Implemented; manual process check pending |
 
-The POC is considered **engineering-complete** when POC-01 through POC-07 have
-evidence. POC-08 is not required for the introductory slice, but its limitation
-must be visible before wider distribution.
+The POC is considered **engineering-complete** when POC-01 through POC-07 and
+POC-09 have evidence. POC-08 is not required for the introductory slice, but
+its limitation must be visible before wider distribution.
 
 ## 9. Acceptance criteria
 
@@ -378,14 +410,18 @@ must be visible before wider distribution.
 - **AC-011:** CRLF, LF, Unicode, and trailing newlines are preserved.
 - **AC-012:** Custom thresholds and custom margin widths are honored.
 - **AC-013:** Already normalized content is unchanged.
-- **AC-014:** Self-write suppression requires both matching sequence and text
-  fingerprint and is consumed once.
+- **AC-014:** Pending self-write suppression requires matching content but not
+  a matching clipboard sequence, and last-written protection survives unrelated
+  changes.
 - **AC-015:** Process matching is case-insensitive, supports an `.exe` suffix,
   and gives exclusions precedence.
 - **AC-016:** Invalid configuration values fall back safely.
 - **AC-017:** The full solution restores and builds in Release with no warnings
   caused by the slice.
 - **AC-018:** The core project has no Windows UI dependency.
+- **AC-019:** Process-name cleanup is reported as normalization rather than
+  configuration fallback.
+- **AC-020:** A zero maximum column-zero ratio makes all text ineligible.
 
 ### 9.2 Manual Windows proof matrix
 
@@ -398,17 +434,27 @@ validated:
 4. Exercise Codex and Claude Code in their actual host terminals.
 5. Paste into Notepad, Windows Terminal, and a code editor.
 6. Confirm copies from a disallowed foreground application remain unchanged.
-7. Add an allowed process to the excluded list and confirm exclusion wins.
-8. Disable and re-enable clici from the tray menu.
-9. Pause and resume clici without changing the persisted enabled state.
-10. Open the configuration file and folder from the tray menu.
-11. Introduce a malformed configuration file, restart, and confirm safe
-    fallback without overwriting the malformed file.
-12. Perform rapid successive copies and confirm no stale self-write suppression.
-13. Exercise clipboard contention and confirm the app remains responsive.
-14. Exit from the tray and confirm the process terminates and the listener is
+7. While a terminal remains foreground, trigger a background application to
+   write eligible text and record whether foreground-only targeting causes a
+   false positive.
+8. Add an allowed process to the excluded list and confirm exclusion wins.
+9. Disable and re-enable clici from the tray menu.
+10. Pause and resume clici without changing the persisted enabled state.
+11. Open the configuration file and folder from the tray menu.
+12. Introduce a malformed configuration file, restart, toggle Enabled, and
+    confirm safe fallback without overwriting the malformed file.
+13. Perform rapid successive copies and confirm no stale self-write suppression
+    or repeated margin removal.
+14. Enable Windows clipboard history, repeat normalization, and record the
+    duplicate Win+V history entry created by each clipboard rewrite.
+15. Repeat copy and normalization checks in an RDP or other remote-clipboard
+    session.
+16. Start two clici processes and confirm the second exits without creating a
+    second tray icon or listener.
+17. Exercise clipboard contention and confirm the app remains responsive.
+18. Exit from the tray and confirm the process terminates and the listener is
     unregistered.
-15. Copy a rich clipboard item that contains text plus other formats and record
+19. Copy a rich clipboard item that contains text plus other formats and record
     the observed format loss for follow-up.
 
 ## 10. Quality attributes
@@ -418,6 +464,7 @@ validated:
 - Default to no rewrite when process, clipboard, configuration, or eligibility
   state is uncertain.
 - Never perform partial whitespace normalization.
+- Never rewrite content that matches clici's one-deep last-written fingerprint.
 - Never wait indefinitely for the clipboard.
 
 ### Performance
@@ -444,8 +491,13 @@ validated:
 The following require evidence from the manual proof matrix before design:
 
 - which process names are reliable across terminal and agent launch modes;
-- whether window-class, process-tree, or executable-path context is needed;
+- whether `GetClipboardOwner` or another clipboard-origin signal should augment
+  or replace foreground-window targeting, particularly for background writers
+  and fast focus changes;
+- whether window-class, process-tree, or executable-path context is also needed;
 - how to preserve non-text clipboard formats safely;
+- how Windows clipboard history, cloud clipboard, clipboard managers, and RDP
+  affect notification ordering and duplicate history entries;
 - whether clipboard work should move off the UI message loop;
 - whether start-with-Windows should use Startup, Task Scheduler, or another
   mechanism;

@@ -19,9 +19,9 @@ public sealed record CliciConfiguration
 
     public string[] ExcludedProcessNames { get; init; } = [];
 
-    public double MinimumMarginLinePercentage { get; init; } = 0.70;
+    public double MinimumMarginLineRatio { get; init; } = 0.70;
 
-    public double MaximumColumnZeroLinePercentage { get; init; } = 0.20;
+    public double MaximumColumnZeroLineRatio { get; init; } = 0.20;
 
     public int MarginSpacesToRemove { get; init; } = 2;
 
@@ -29,7 +29,7 @@ public sealed record CliciConfiguration
 
     public MarginNormalizationOptions ToNormalizationOptions() =>
         new(
-            MinimumMarginLinePercentage,
-            MaximumColumnZeroLinePercentage,
+            MinimumMarginLineRatio,
+            MaximumColumnZeroLineRatio,
             MarginSpacesToRemove);
 }

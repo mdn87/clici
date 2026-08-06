@@ -228,4 +228,17 @@ public sealed class MarginNormalizerTests
         Assert.Equal(MarginNormalizationStatus.EligibleUnchanged, result.Status);
         Assert.Equal(input, result.Text);
     }
+
+    [Fact]
+    public void ZeroMaximumColumnZeroRatioDisablesNormalization()
+    {
+        const string input = "  one\n  two";
+
+        var result = _normalizer.Normalize(
+            input,
+            new MarginNormalizationOptions(0.70, 0, 2));
+
+        Assert.Equal(MarginNormalizationStatus.NotEligible, result.Status);
+        Assert.Equal(input, result.Text);
+    }
 }

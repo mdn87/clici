@@ -36,13 +36,13 @@ internal sealed class ClipboardNormalizationCoordinator
     public void UpdateConfiguration(CliciConfiguration configuration)
     {
         _configuration = ConfigurationValidator.Validate(configuration).Configuration;
-        _selfWriteSuppressor.Clear();
+        _selfWriteSuppressor.ClearPending();
     }
 
     public void SetPaused(bool paused)
     {
         _paused = paused;
-        _selfWriteSuppressor.Clear();
+        _selfWriteSuppressor.ClearPending();
     }
 
     public void HandleClipboardChanged()
@@ -96,9 +96,7 @@ internal sealed class ClipboardNormalizationCoordinator
                 return;
             }
 
-            if (_selfWriteSuppressor.TryConsume(
-                    readResult.SequenceNumber,
-                    readResult.Text))
+            if (_selfWriteSuppressor.ShouldSuppress(readResult.Text))
             {
                 return;
             }
@@ -117,9 +115,7 @@ internal sealed class ClipboardNormalizationCoordinator
             var writeResult = _clipboardService.TryWriteText(result.Text);
             if (writeResult.Status == ClipboardAccessStatus.Success)
             {
-                _selfWriteSuppressor.MarkPendingWrite(
-                    writeResult.SequenceNumber,
-                    result.Text);
+                _selfWriteSuppressor.MarkPendingWrite(result.Text);
                 return;
             }
 

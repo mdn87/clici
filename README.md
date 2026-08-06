@@ -50,7 +50,7 @@ Unicode text is preserved. If the confidence checks fail, the original .NET
 string is returned unchanged. Clipboard replacement is skipped when the result
 equals the source.
 
-The percentages and margin width are configurable.
+The confidence ratios and margin width are configurable.
 
 ## Windows and process scope
 
@@ -112,8 +112,8 @@ The default file is equivalent to:
     "codex"
   ],
   "excludedProcessNames": [],
-  "minimumMarginLinePercentage": 0.7,
-  "maximumColumnZeroLinePercentage": 0.2,
+  "minimumMarginLineRatio": 0.7,
+  "maximumColumnZeroLineRatio": 0.2,
   "marginSpacesToRemove": 2,
   "diagnosticLogging": false
 }
@@ -170,11 +170,17 @@ Find the clici icon in the Windows notification area. Right-click it and choose
   qualifying clipboard item also contains non-text formats, those formats may
   be lost. Clipboard replacement is isolated behind `IClipboardService` so
   multi-format preservation can be added without touching normalization.
-- Clipboard contention is retried four times with short bounded delays; clici
-  fails safely if another process continues to hold the clipboard.
+- Clipboard operations are attempted up to four times with short bounded
+  delays; clici fails safely if another process continues to hold the clipboard.
 - Process matching uses the process that owns the foreground window at the time
-  of the clipboard notification. Terminal host and shell behavior varies, so
-  the default names may need local adjustment.
+  of the clipboard notification. A background writer can therefore be
+  misattributed when a terminal is foreground, and a fast focus change can miss
+  a terminal copy. Terminal host and shell behavior also varies, so the default
+  names may need local adjustment.
+- Every successful normalization is a new clipboard write and may create a
+  duplicate entry in Windows clipboard history or synced clipboard tools.
+- clici allows one running instance per Windows session; a second instance exits
+  before creating a tray icon or clipboard listener.
 - Configuration editing is file-based and changes require a restart.
 - There is no installer, startup registration, auto-update, or global keyboard
   hook.
@@ -184,6 +190,8 @@ Find the clici icon in the Windows notification area. Right-click it and choose
 - exercise clipboard behavior across Windows Terminal, PowerShell, cmd, Codex,
   and Claude Code;
 - preserve additional clipboard formats during eligible text replacement;
+- evaluate clipboard-owner correlation, Windows clipboard history, and RDP
+  behavior;
 - add optional start-with-Windows support;
 - add packaging only after runtime behavior is validated;
 - evaluate process-targeting refinements before considering any keyboard hook.

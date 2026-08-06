@@ -8,17 +8,21 @@ public static class ConfigurationValidator
     {
         if (candidate is null)
         {
-            return new ConfigurationValidationResult(new CliciConfiguration(), true);
+            return new ConfigurationValidationResult(
+                new CliciConfiguration(),
+                true,
+                false);
         }
 
         var usedFallback = false;
+        var wasNormalized = false;
         var minimumMargin = ValidateRatio(
-            candidate.MinimumMarginLinePercentage,
-            Defaults.MinimumMarginLinePercentage,
+            candidate.MinimumMarginLineRatio,
+            Defaults.MinimumMarginLineRatio,
             ref usedFallback);
         var maximumColumnZero = ValidateRatio(
-            candidate.MaximumColumnZeroLinePercentage,
-            Defaults.MaximumColumnZeroLinePercentage,
+            candidate.MaximumColumnZeroLineRatio,
+            Defaults.MaximumColumnZeroLineRatio,
             ref usedFallback);
         var marginSpaces = candidate.MarginSpacesToRemove;
 
@@ -28,19 +32,26 @@ public static class ConfigurationValidator
             usedFallback = true;
         }
 
-        var allowed = NormalizeProcessNames(candidate.AllowedProcessNames, ref usedFallback);
-        var excluded = NormalizeProcessNames(candidate.ExcludedProcessNames, ref usedFallback);
+        var allowed = NormalizeProcessNames(
+            candidate.AllowedProcessNames,
+            ref usedFallback,
+            ref wasNormalized);
+        var excluded = NormalizeProcessNames(
+            candidate.ExcludedProcessNames,
+            ref usedFallback,
+            ref wasNormalized);
 
         return new ConfigurationValidationResult(
             candidate with
             {
                 AllowedProcessNames = allowed,
                 ExcludedProcessNames = excluded,
-                MinimumMarginLinePercentage = minimumMargin,
-                MaximumColumnZeroLinePercentage = maximumColumnZero,
+                MinimumMarginLineRatio = minimumMargin,
+                MaximumColumnZeroLineRatio = maximumColumnZero,
                 MarginSpacesToRemove = marginSpaces
             },
-            usedFallback);
+            usedFallback,
+            wasNormalized);
     }
 
     private static double ValidateRatio(double candidate, double fallback, ref bool usedFallback)
@@ -56,7 +67,8 @@ public static class ConfigurationValidator
 
     private static string[] NormalizeProcessNames(
         string[]? processNames,
-        ref bool usedFallback)
+        ref bool usedFallback,
+        ref bool wasNormalized)
     {
         if (processNames is null)
         {
@@ -72,7 +84,11 @@ public static class ConfigurationValidator
 
         if (normalized.Length != processNames.Length)
         {
-            usedFallback = true;
+            wasNormalized = true;
+        }
+        else if (!normalized.SequenceEqual(processNames, StringComparer.Ordinal))
+        {
+            wasNormalized = true;
         }
 
         return normalized;
@@ -81,4 +97,5 @@ public static class ConfigurationValidator
 
 public sealed record ConfigurationValidationResult(
     CliciConfiguration Configuration,
-    bool UsedFallback);
+    bool UsedFallback,
+    bool WasNormalized);

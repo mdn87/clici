@@ -23,8 +23,8 @@ public sealed class ConfigurationAndProcessTests
     {
         var candidate = new CliciConfiguration
         {
-            MinimumMarginLinePercentage = double.NaN,
-            MaximumColumnZeroLinePercentage = 2,
+            MinimumMarginLineRatio = double.NaN,
+            MaximumColumnZeroLineRatio = 2,
             MarginSpacesToRemove = 0,
             AllowedProcessNames = [" pwsh ", "PWSH", ""],
             ExcludedProcessNames = null!
@@ -33,11 +33,27 @@ public sealed class ConfigurationAndProcessTests
         var result = ConfigurationValidator.Validate(candidate);
 
         Assert.True(result.UsedFallback);
-        Assert.Equal(0.70, result.Configuration.MinimumMarginLinePercentage);
-        Assert.Equal(0.20, result.Configuration.MaximumColumnZeroLinePercentage);
+        Assert.True(result.WasNormalized);
+        Assert.Equal(0.70, result.Configuration.MinimumMarginLineRatio);
+        Assert.Equal(0.20, result.Configuration.MaximumColumnZeroLineRatio);
         Assert.Equal(2, result.Configuration.MarginSpacesToRemove);
         Assert.Equal(["pwsh"], result.Configuration.AllowedProcessNames);
         Assert.Empty(result.Configuration.ExcludedProcessNames);
+    }
+
+    [Fact]
+    public void ProcessNameCleanupIsNormalizationRatherThanFallback()
+    {
+        var candidate = new CliciConfiguration
+        {
+            AllowedProcessNames = [" pwsh ", "PWSH", ""]
+        };
+
+        var result = ConfigurationValidator.Validate(candidate);
+
+        Assert.False(result.UsedFallback);
+        Assert.True(result.WasNormalized);
+        Assert.Equal(["pwsh"], result.Configuration.AllowedProcessNames);
     }
 
     [Fact]
