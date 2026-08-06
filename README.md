@@ -9,6 +9,9 @@ This behavior is **margin normalization**, not whitespace trimming. clici
 removes one confidently detected common margin while preserving meaningful
 nested indentation.
 
+The normative requirements and Windows proof plan are in the
+[introductory-slice specification](docs/introductory-slice-spec.md).
+
 ## Example
 
 Before:
