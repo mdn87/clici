@@ -5,6 +5,7 @@
 - **Last updated:** 2026-08-05
 - **Target platform:** Windows 10 or later
 - **Runtime:** .NET 10, WinForms
+- **Execution plan:** [v0.1 implementation-completion and Windows proof plan](v0.1-implementation-and-proof-plan.md)
 
 ## 1. Purpose
 
