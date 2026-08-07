@@ -33,13 +33,33 @@ if (-not (Test-Path -LiteralPath $publishedExe -PathType Leaf)) {
 }
 
 # 3. Optional Authenticode signing (guarded — no-op without a thumbprint).
+$script:SignToolPath = $null
+function Get-SignTool {
+    if ($script:SignToolPath) { return $script:SignToolPath }
+
+    $command = Get-Command signtool.exe -ErrorAction SilentlyContinue
+    if ($command) { $script:SignToolPath = $command.Source; return $script:SignToolPath }
+
+    # Fall back to the newest x64 signtool under the Windows 10/11 SDK.
+    $binRoot = Join-Path ${env:ProgramFiles(x86)} "Windows Kits\10\bin"
+    if (Test-Path -LiteralPath $binRoot) {
+        $candidate = Get-ChildItem -LiteralPath $binRoot -Recurse -Filter "signtool.exe" -ErrorAction SilentlyContinue |
+            Where-Object { $_.FullName -match "\\x64\\signtool\.exe$" } |
+            Sort-Object FullName -Descending |
+            Select-Object -First 1
+        if ($candidate) { $script:SignToolPath = $candidate.FullName; return $script:SignToolPath }
+    }
+
+    throw "signtool.exe not found. Install the Windows SDK or add signtool to PATH."
+}
 function Invoke-Sign([string] $path) {
     if ([string]::IsNullOrWhiteSpace($CertThumbprint)) {
         Write-Warning "No signing thumbprint set; skipping signature for $path."
         return
     }
+    $signtool = Get-SignTool
     # Self-signed personal use: no public timestamp. Add /tr + /td when a real cert is used.
-    & signtool.exe sign /sha1 $CertThumbprint /fd SHA256 $path
+    & $signtool sign /sha1 $CertThumbprint /fd SHA256 $path
     if ($LASTEXITCODE -ne 0) { throw "signtool failed for '$path' ($LASTEXITCODE)." }
     Write-Host "Signed $path"
 }
