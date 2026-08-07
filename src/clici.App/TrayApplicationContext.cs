@@ -1,6 +1,7 @@
 using System.Diagnostics;
 using Clici.App.Clipboard;
 using Clici.App.Configuration;
+using Clici.App.Lifecycle;
 using Clici.App.Logging;
 using Clici.App.Processes;
 using Clici.Core.Configuration;
@@ -15,6 +16,8 @@ internal sealed class TrayApplicationContext : ApplicationContext
     private readonly bool _configurationPersistenceAllowed;
     private readonly ToolStripMenuItem _enabledMenuItem;
     private readonly ToolStripMenuItem _pauseMenuItem;
+    private readonly ToolStripMenuItem _startWithWindowsMenuItem;
+    private readonly IStartupRegistration _startupRegistration;
     private readonly ContextMenuStrip _trayMenu;
     private readonly Icon _trayIcon;
     private readonly NotifyIcon _notifyIcon;
@@ -59,9 +62,21 @@ internal sealed class TrayApplicationContext : ApplicationContext
         };
         _pauseMenuItem.CheckedChanged += PauseMenuItemOnCheckedChanged;
 
+        _startupRegistration = new StartupRegistration(
+            new RegistryStartupRegistryStore(),
+            Application.ExecutablePath);
+
+        _startWithWindowsMenuItem = new ToolStripMenuItem("Start with Windows")
+        {
+            CheckOnClick = true
+        };
+        RefreshStartWithWindowsChecked();
+        _startWithWindowsMenuItem.CheckedChanged += StartWithWindowsMenuItemOnCheckedChanged;
+
         _trayMenu = new ContextMenuStrip();
         _trayMenu.Items.Add(_enabledMenuItem);
         _trayMenu.Items.Add(_pauseMenuItem);
+        _trayMenu.Items.Add(_startWithWindowsMenuItem);
         _trayMenu.Items.Add(new ToolStripSeparator());
         _trayMenu.Items.Add(
             "Open configuration file",
@@ -148,6 +163,47 @@ internal sealed class TrayApplicationContext : ApplicationContext
         _pauseMenuItem.Text = _pauseMenuItem.Checked
             ? "Resume normalization"
             : "Pause normalization";
+    }
+
+    private void StartWithWindowsMenuItemOnCheckedChanged(
+        object? sender,
+        EventArgs eventArgs)
+    {
+        try
+        {
+            if (_startWithWindowsMenuItem.Checked)
+            {
+                _startupRegistration.Enable();
+            }
+            else
+            {
+                _startupRegistration.Disable();
+            }
+        }
+        catch (Exception exception)
+        {
+            _logger.Failure("startup-registration", null, exception.GetType().Name);
+            RefreshStartWithWindowsChecked();
+        }
+    }
+
+    private void RefreshStartWithWindowsChecked()
+    {
+        bool enabled;
+        try
+        {
+            enabled = _startupRegistration.IsEnabled();
+        }
+        catch (Exception exception)
+        {
+            _logger.Failure("startup-registration", null, exception.GetType().Name);
+            return;
+        }
+
+        // Detach while correcting the checkbox so we do not re-enter the handler.
+        _startWithWindowsMenuItem.CheckedChanged -= StartWithWindowsMenuItemOnCheckedChanged;
+        _startWithWindowsMenuItem.Checked = enabled;
+        _startWithWindowsMenuItem.CheckedChanged += StartWithWindowsMenuItemOnCheckedChanged;
     }
 
     private void ClipboardListenerOnClipboardChanged(object? sender, EventArgs eventArgs) =>
