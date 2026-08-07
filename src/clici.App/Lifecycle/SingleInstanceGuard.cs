@@ -20,7 +20,12 @@ internal sealed class SingleInstanceGuard : IDisposable
         try
         {
             mutex = new Mutex(false, mutexName);
-            if (!mutex.WaitOne(0, false))
+            // A zero timeout races the kernel: when a prior owner's thread/process has just
+            // exited, Thread.Join()/process teardown returning does not guarantee the mutex is
+            // yet marked abandoned, so WaitOne(0) can spuriously return false (~3% observed).
+            // A short bounded wait lets a genuinely-abandoned mutex surface as
+            // AbandonedMutexException, while a live second instance still returns false promptly.
+            if (!mutex.WaitOne(TimeSpan.FromMilliseconds(250), false))
             {
                 mutex.Dispose();
                 return null;
