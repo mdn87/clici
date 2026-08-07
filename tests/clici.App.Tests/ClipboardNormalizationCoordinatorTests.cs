@@ -12,6 +12,52 @@ public sealed class ClipboardNormalizationCoordinatorTests
     private const string Expected = "first\r\nsecond";
 
     [Fact]
+    public void EligibleProcessNormalizesMarginedTextAndWritesItBack()
+    {
+        var clipboard = new FakeClipboardService(
+            new ClipboardReadResult(
+                ClipboardAccessStatus.Success,
+                Source,
+                1,
+                null));
+        var logger = new RecordingLogger();
+        var coordinator = CreateCoordinator(
+            clipboard,
+            new StubProcessProvider(true, "pwsh"),
+            logger,
+            new CliciConfiguration());
+
+        coordinator.HandleClipboardChanged();
+
+        var write = Assert.Single(clipboard.Writes);
+        Assert.Equal(Expected, write.Text);
+        Assert.Contains(
+            logger.Decisions,
+            decision => decision.ProcessName == "pwsh"
+                && decision.Status == MarginNormalizationStatus.Normalized);
+    }
+
+    [Fact]
+    public void IneligibleForegroundProcessIsSkippedWithoutWritingClipboard()
+    {
+        var clipboard = new FakeClipboardService(
+            new ClipboardReadResult(
+                ClipboardAccessStatus.Success,
+                Source,
+                1,
+                null));
+        var coordinator = CreateCoordinator(
+            clipboard,
+            new StubProcessProvider(true, "notepad"),
+            new RecordingLogger(),
+            new CliciConfiguration());
+
+        coordinator.HandleClipboardChanged();
+
+        Assert.Empty(clipboard.Writes);
+    }
+
+    [Fact]
     public void OversizedTextIsSkippedBeforeNormalization()
     {
         var clipboard = new FakeClipboardService(
@@ -107,27 +153,40 @@ public sealed class ClipboardNormalizationCoordinatorTests
         IClipboardService clipboard,
         IDiagnosticLogger logger,
         CliciConfiguration configuration) =>
-        new(
+        CreateCoordinator(
             clipboard,
-            new AllowedProcessProvider(),
+            new StubProcessProvider(true, "pwsh"),
             logger,
             configuration);
 
-    private sealed class AllowedProcessProvider : IForegroundProcessProvider
+    private static ClipboardNormalizationCoordinator CreateCoordinator(
+        IClipboardService clipboard,
+        IForegroundProcessProvider processProvider,
+        IDiagnosticLogger logger,
+        CliciConfiguration configuration) =>
+        new(
+            clipboard,
+            processProvider,
+            logger,
+            configuration);
+
+    private sealed class StubProcessProvider(bool succeeded, string? processName)
+        : IForegroundProcessProvider
     {
         public ForegroundProcessResult TryGetForegroundProcess() =>
-            new(true, "pwsh", null);
+            new(succeeded, processName, null);
     }
 
     private sealed class RecordingLogger : IDiagnosticLogger
     {
         public List<string> Events { get; } = [];
 
+        public List<(string? ProcessName, MarginNormalizationStatus Status)> Decisions { get; } = [];
+
         public void Decision(
             string? processName,
-            MarginNormalizationResult result)
-        {
-        }
+            MarginNormalizationResult result) =>
+            Decisions.Add((processName, result.Status));
 
         public void Failure(
             string operation,
