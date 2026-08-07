@@ -43,3 +43,7 @@ Desktop.ini
 ## Local agent/session state
 .Codex/
 .codex/
+
+## Local code-signing certificates (never commit)
+tools/.certs/
+*.pfx
