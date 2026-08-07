@@ -28,7 +28,9 @@ Compression=lzma2
 SolidCompression=yes
 WizardStyle=modern
 ; Detect a running instance through clici's own SingleInstanceGuard mutex and
-; close it gracefully before install/uninstall (see spike in the build task).
+; close it gracefully before install/uninstall. No [Code] taskkill fallback is
+; implemented yet; add one only if the build-task spike shows AppMutex +
+; CloseApplications cannot close the hidden-window tray app (see runbook step 13).
 AppMutex=Local\clici
 CloseApplications=yes
 CloseApplicationsFilter=clici.exe
