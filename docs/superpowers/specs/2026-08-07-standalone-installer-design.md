@@ -47,10 +47,12 @@ sign-in, and code signing. This spec covers closing that gap.
 
 ### Phase 1 — Installer & packaging
 
-**Versioning (single source of truth).** Add `Directory.Build.props` at repo root with
-`<Version>0.1.0</Version>` (feeding `AssemblyVersion`/`FileVersion`). The build script
-reads this and passes `/DAppVersion=<version>` to Inno so the exe, installer, and ARP
-entry all report one version.
+**Versioning (single source of truth).** **Extend** the existing root
+`Directory.Build.props` (which already sets `ImplicitUsings`/`Nullable`/`Deterministic`)
+by adding `<Version>0.1.0</Version>` to its `PropertyGroup` — do **not** overwrite the
+file. This feeds `AssemblyVersion`/`FileVersion`. The build script reads this value and
+passes `/DAppVersion=<version>` to Inno so the exe, installer, and ARP entry all report
+one version.
 
 **Publish profiles.** Add `src/clici.App/Properties/PublishProfiles/win-x64.pubxml`
 (and `win-arm64.pubxml`) with:
@@ -74,8 +76,13 @@ This moves publish settings out of the PowerShell script; `dotnet publish
 - `[Registry]` writes `HKCU\Software\Microsoft\Windows\CurrentVersion\Run`, value
   `clici` = `"{app}\clici.exe"`, gated on the `startup` task, with `uninsdeletevalue`
   so uninstall removes it.
-- `[Code]` stops any running `clici.exe` before install and before uninstall to avoid
-  file locks (Exec taskkill or CloseApplications).
+- **Stop-before-install/uninstall (graceful first).** Prefer Inno's `AppMutex=Local\clici`
+  — clici's `SingleInstanceGuard` already holds that exact named mutex for the process
+  lifetime, so Inno can detect the running instance through it and prompt/close rather
+  than hard-killing. A raw `taskkill /IM clici.exe` risks landing mid-write during
+  `_configurationStore.TrySave`. **Plan a short spike**: verify `AppMutex` (± `CloseApplications`)
+  actually closes a hidden-window tray app; only if that proves insufficient, fall back
+  to `[Code]` `Exec` `taskkill` as a last resort. Do not pick one blind.
 
 **Build orchestrator** `tools/Build-Installer.ps1`:
 1. `dotnet publish` with the chosen profile → `artifacts/publish/<rid>/clici.exe`.
@@ -84,6 +91,15 @@ This moves publish settings out of the PowerShell script; `dotnet publish
 4. (Optional) sign `setup.exe`.
 5. Output `artifacts/installer/clici-<version>-<rid>-setup.exe`.
 - Fails fast if `ISCC.exe` is not found, with guidance to install Inno Setup.
+
+**README update.** Once `setup.exe` is the official install path, update README's
+"Install for the current Windows user" section (currently leads with
+`tools/Install-Clici.ps1`) to lead with the installer and mark the PowerShell script as
+a dev-only convenience. Folded into Phase 1 deliverables.
+
+**Installer runbook** `docs/installer-test-runbook.md` — the manual verification runbook
+(mirroring the existing `docs/v0.1-test-runbook.md`), named explicitly here so the path
+is not ambiguous.
 
 ### Phase 2 — In-app "Start with Windows" toggle
 
@@ -105,7 +121,9 @@ its actual state.
 
 **`tools/New-SelfSignedCodeSigningCert.ps1`** creates a self-signed code-signing
 certificate, installs it to `CurrentUser\My` and to Trusted Root / Trusted Publishers
-(so SmartScreen/UAC trust it locally), and exports a PFX to a gitignored path.
+(so SmartScreen/UAC trust it locally), and exports a PFX to **`tools/.certs/`**. The
+**same change adds a `.gitignore` rule** (`tools/.certs/` and `*.pfx`) so an exported
+cert can never be committed — `.gitignore` has no such rule today.
 
 **Signing step** in `Build-Installer.ps1` runs `signtool` on `clici.exe` (before
 packaging) and `setup.exe` (after), driven by env vars / a cert reference
@@ -137,7 +155,8 @@ Uninstall (Add/Remove Programs)
 ## Error handling
 
 - Tray toggle failures are caught, logged, and revert the checkbox to actual state.
-- Installer stops a running `clici.exe` before replacing/removing files.
+- Installer detects a running `clici.exe` via `AppMutex=Local\clici` and closes it
+  gracefully before replacing/removing files (taskkill only as a spiked fallback).
 - Signing is optional and guarded; absence produces a warning, not a failure.
 - `Build-Installer.ps1` validates ISCC presence and publish/exe outputs, failing fast
   with actionable messages.
@@ -151,7 +170,7 @@ Uninstall (Add/Remove Programs)
   - `IsEnabled()` reflects presence/value.
   - Store exceptions surface so the tray layer can catch/log/revert.
 
-**Manual (installer runbook, mirroring `docs/v0.1-test-runbook.md`):**
+**Manual (installer runbook `docs/installer-test-runbook.md`, mirroring `docs/v0.1-test-runbook.md`):**
 - Run `setup.exe`; confirm install location, Start Menu shortcut, ARP entry, and Run
   key (when the startup task is checked).
 - Launch; verify tray icon and that the "Start with Windows" checkbox matches the Run
@@ -162,12 +181,15 @@ Uninstall (Add/Remove Programs)
 
 ## Deliverables by phase
 
-1. **Phase 1:** `Directory.Build.props`, publish profiles, `installer/clici.iss`,
-   `tools/Build-Installer.ps1`, installer runbook doc.
+1. **Phase 1:** extend root `Directory.Build.props` (`<Version>`), publish profiles,
+   `installer/clici.iss` (with `AppMutex=Local\clici` graceful-close, spiked),
+   `tools/Build-Installer.ps1`, `docs/installer-test-runbook.md`, and the README
+   install-section update (lead with `setup.exe`, mark `Install-Clici.ps1` dev-only).
 2. **Phase 2:** `IStartupRegistration` + `StartupRegistration` + `IStartupRegistryStore`
    (+ registry impl), tray menu wiring, unit tests.
-3. **Phase 3:** `tools/New-SelfSignedCodeSigningCert.ps1`, optional signtool wiring in
-   `Build-Installer.ps1`.
+3. **Phase 3:** `tools/New-SelfSignedCodeSigningCert.ps1` (exports PFX to `tools/.certs/`)
+   **plus the `.gitignore` rule** for `tools/.certs/` / `*.pfx`, and optional signtool
+   wiring in `Build-Installer.ps1`.
 
 ## Open risks
 
