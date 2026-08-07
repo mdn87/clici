@@ -58,6 +58,125 @@ public sealed class ClipboardNormalizationCoordinatorTests
     }
 
     [Fact]
+    public void PausedCoordinatorDoesNotWriteEvenForEligibleMarginedText()
+    {
+        var clipboard = new FakeClipboardService(
+            new ClipboardReadResult(
+                ClipboardAccessStatus.Success,
+                Source,
+                1,
+                null));
+        var coordinator = CreateCoordinator(
+            clipboard,
+            new RecordingLogger(),
+            new CliciConfiguration());
+
+        coordinator.SetPaused(true);
+        coordinator.HandleClipboardChanged();
+
+        Assert.Empty(clipboard.Writes);
+    }
+
+    [Fact]
+    public void ForegroundProcessFailureIsLoggedAndNothingIsWritten()
+    {
+        var clipboard = new FakeClipboardService(
+            new ClipboardReadResult(
+                ClipboardAccessStatus.Success,
+                Source,
+                1,
+                null));
+        var logger = new RecordingLogger();
+        var coordinator = CreateCoordinator(
+            clipboard,
+            new StubProcessProvider(false, null, "InvalidOperationException"),
+            logger,
+            new CliciConfiguration());
+
+        coordinator.HandleClipboardChanged();
+
+        Assert.Empty(clipboard.Writes);
+        Assert.Contains(
+            logger.Failures,
+            failure => failure.Operation == "foreground-process"
+                && failure.ExceptionType == "InvalidOperationException");
+    }
+
+    [Fact]
+    public void ClipboardReadFailureIsLoggedWithoutWriting()
+    {
+        var clipboard = new FakeClipboardService(
+            new ClipboardReadResult(
+                ClipboardAccessStatus.Busy,
+                null,
+                1,
+                "ExternalException"));
+        var logger = new RecordingLogger();
+        var coordinator = CreateCoordinator(
+            clipboard,
+            logger,
+            new CliciConfiguration());
+
+        coordinator.HandleClipboardChanged();
+
+        Assert.Empty(clipboard.Writes);
+        Assert.Contains(
+            logger.Failures,
+            failure => failure.Operation == "clipboard-read"
+                && failure.ExceptionType == "ExternalException");
+    }
+
+    [Fact]
+    public void ClipboardWriteFailureIsLogged()
+    {
+        var clipboard = new FakeClipboardService(
+            [
+                new ClipboardReadResult(
+                    ClipboardAccessStatus.Success,
+                    Source,
+                    1,
+                    null)
+            ],
+            [
+                new ClipboardWriteResult(
+                    ClipboardAccessStatus.Failed,
+                    1,
+                    "ExternalException")
+            ]);
+        var logger = new RecordingLogger();
+        var coordinator = CreateCoordinator(
+            clipboard,
+            logger,
+            new CliciConfiguration());
+
+        coordinator.HandleClipboardChanged();
+
+        Assert.Contains(
+            logger.Failures,
+            failure => failure.Operation == "clipboard-write"
+                && failure.ExceptionType == "ExternalException");
+    }
+
+    [Fact]
+    public void AThrowingClipboardServiceIsCaughtAndLoggedRatherThanEscaping()
+    {
+        var logger = new RecordingLogger();
+        var coordinator = CreateCoordinator(
+            new ThrowingClipboardService(),
+            logger,
+            new CliciConfiguration());
+
+        // Must not throw: HandleClipboardChanged runs inside WndProc, so an
+        // escaping exception would surface on the Windows message pump.
+        coordinator.HandleClipboardChanged();
+
+        Assert.Contains(
+            logger.Failures,
+            failure => failure.Operation == "clipboard-notification"
+                && failure.ExceptionType == nameof(InvalidOperationException));
+    }
+
+    [Fact]
     public void OversizedTextIsSkippedBeforeNormalization()
     {
         var clipboard = new FakeClipboardService(
@@ -170,11 +289,25 @@ public sealed class ClipboardNormalizationCoordinatorTests
             logger,
             configuration);
 
-    private sealed class StubProcessProvider(bool succeeded, string? processName)
+    private sealed class StubProcessProvider(
+        bool succeeded,
+        string? processName,
+        string? exceptionType = null)
         : IForegroundProcessProvider
     {
         public ForegroundProcessResult TryGetForegroundProcess() =>
-            new(succeeded, processName, null);
+            new(succeeded, processName, exceptionType);
+    }
+
+    private sealed class ThrowingClipboardService : IClipboardService
+    {
+        public ClipboardReadResult TryReadText() =>
+            throw new InvalidOperationException("clipboard exploded");
+
+        public ClipboardWriteResult TryWriteText(
+            string text,
+            ClipboardReadResult source) =>
+            throw new InvalidOperationException("clipboard exploded");
     }
 
     private sealed class RecordingLogger : IDiagnosticLogger
@@ -182,6 +315,8 @@ public sealed class ClipboardNormalizationCoordinatorTests
         public List<string> Events { get; } = [];
 
         public List<(string? ProcessName, MarginNormalizationStatus Status)> Decisions { get; } = [];
+
+        public List<(string Operation, string? ProcessName, string? ExceptionType)> Failures { get; } = [];
 
         public void Decision(
             string? processName,
@@ -191,9 +326,8 @@ public sealed class ClipboardNormalizationCoordinatorTests
         public void Failure(
             string operation,
             string? processName,
-            string? exceptionType)
-        {
-        }
+            string? exceptionType) =>
+            Failures.Add((operation, processName, exceptionType));
 
         public void Event(string eventName) => Events.Add(eventName);
     }
