@@ -27,10 +27,12 @@ UninstallDisplayName={#AppName}
 Compression=lzma2
 SolidCompression=yes
 WizardStyle=modern
-; Detect a running instance through clici's own SingleInstanceGuard mutex and
-; close it gracefully before install/uninstall. No [Code] taskkill fallback is
-; implemented yet; add one only if the build-task spike shows AppMutex +
-; CloseApplications cannot close the hidden-window tray app (see runbook step 13).
+; Detect a running instance through clici's own SingleInstanceGuard mutex.
+; AppMutex + CloseApplications alone CANNOT close clici's hidden-window tray app
+; (verified by the build-task spike: a re-install while running aborted with
+; exit code 1), so the [Code] section below force-closes clici.exe before
+; install/uninstall. clici's config writes are atomic (temp file + move), so a
+; forced stop cannot corrupt config — worst case is a lost pending edit.
 AppMutex=Local\clici
 CloseApplications=yes
 CloseApplicationsFilter=clici.exe
@@ -50,3 +52,26 @@ Root: HKCU; Subkey: "Software\Microsoft\Windows\CurrentVersion\Run"; ValueType: 
 
 [Run]
 Filename: "{app}\clici.exe"; Description: "Launch clici now"; Flags: nowait postinstall skipifsilent
+
+[Code]
+// AppMutex + CloseApplications cannot close clici's hidden-window tray app, so
+// force-close any running clici.exe before install and before uninstall. Runs
+// early (InitializeSetup/InitializeUninstall) so the file is unlocked in time.
+procedure StopRunningClici;
+var
+  ResultCode: Integer;
+begin
+  Exec('taskkill.exe', '/IM clici.exe /F', '', SW_HIDE, ewWaitUntilTerminated, ResultCode);
+end;
+
+function InitializeSetup(): Boolean;
+begin
+  StopRunningClici;
+  Result := True;
+end;
+
+function InitializeUninstall(): Boolean;
+begin
+  StopRunningClici;
+  Result := True;
+end;
