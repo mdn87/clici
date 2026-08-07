@@ -26,11 +26,19 @@ Manual verification for the Inno Setup installer. Run after `tools/Build-Install
 
 ## Upgrade / stop-before-install (AppMutex spike result)
 12. With clici running, re-run `setup.exe`.
-13. Record here whether AppMutex + CloseApplications closed the running instance
-    gracefully (no locked-file error), or whether the `[Code]` taskkill fallback
-    was required: __________________________________________________
+13. Spike result (2026-08-07, silent `/VERYSILENT` automation): **AppMutex +
+    CloseApplications alone was INSUFFICIENT** — a re-install while clici was
+    running aborted with **exit 1**, because clici's tray app has no top-level
+    window for `CloseApplications` to close. The `[Code]`
+    `InitializeSetup`/`InitializeUninstall` `taskkill /IM clici.exe /F` fallback
+    was added; after it, reinstall-while-running returns **exit 0**.
 
 ## Uninstall
 14. Uninstall via Add/Remove Programs.
-15. Confirm `%LOCALAPPDATA%\Programs\clici` is removed, the Start Menu shortcut is gone,
-    the `Run\clici` value is gone, and no `clici.exe` process remains running.
+15. Confirm the Start Menu shortcut is gone, the `Run\clici` value is gone, and no
+    `clici.exe` process remains running. (Automated silent run confirmed all three,
+    plus the ARP entry removed. Note: force-killing a running clici immediately
+    before delete can briefly leave the `%LOCALAPPDATA%\Programs\clici` *folder*
+    behind due to an AV lock on the just-terminated exe; exiting clici from the
+    tray before uninstalling avoids this, and Windows clears the empty folder on
+    reboot.)
