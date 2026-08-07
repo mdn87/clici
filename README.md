@@ -168,6 +168,20 @@ dotnet run --project src/clici.App/clici.App.csproj --configuration Release
 Find the clici icon in the Windows notification area. Right-click it and choose
 **Exit** to stop the application cleanly.
 
+## Install for the current Windows user
+
+Run the per-user installer from the repository root:
+
+```powershell
+.\tools\Install-Clici.ps1
+```
+
+The installer publishes a self-contained copy to
+`%LOCALAPPDATA%\Programs\clici`, creates a **clici** shortcut on the desktop,
+and launches the tray application. The installed copy does not require the
+.NET SDK or runtime. Double-click the desktop shortcut to start clici again
+after exiting it or restarting Windows.
+
 ## Current limitations
 
 - The initial text write path replaces the clipboard with Unicode text. If a
@@ -186,8 +200,7 @@ Find the clici icon in the Windows notification area. Right-click it and choose
 - clici allows one running instance per Windows session; a second instance exits
   before creating a tray icon or clipboard listener.
 - Configuration editing is file-based and changes require a restart.
-- There is no installer, startup registration, auto-update, or global keyboard
-  hook.
+- There is no MSI, startup registration, auto-update, or global keyboard hook.
 
 ## Planned next steps
 
@@ -197,7 +210,7 @@ Find the clici icon in the Windows notification area. Right-click it and choose
 - evaluate clipboard-owner correlation, Windows clipboard history, and RDP
   behavior;
 - add optional start-with-Windows support;
-- add packaging only after runtime behavior is validated;
+- evaluate signed/MSI packaging after runtime behavior is validated;
 - evaluate process-targeting refinements before considering any keyboard hook.
 
 ## License

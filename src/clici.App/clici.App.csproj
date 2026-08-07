@@ -10,6 +10,7 @@
     <UseWindowsForms>true</UseWindowsForms>
     <AssemblyName>clici</AssemblyName>
     <RootNamespace>Clici.App</RootNamespace>
+    <ApplicationIcon>Assets\clici.ico</ApplicationIcon>
   </PropertyGroup>
 
 </Project>

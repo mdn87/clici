@@ -16,6 +16,7 @@ internal sealed class TrayApplicationContext : ApplicationContext
     private readonly ToolStripMenuItem _enabledMenuItem;
     private readonly ToolStripMenuItem _pauseMenuItem;
     private readonly ContextMenuStrip _trayMenu;
+    private readonly Icon _trayIcon;
     private readonly NotifyIcon _notifyIcon;
     private ClipboardListenerWindow? _clipboardListener;
     private CliciConfiguration _configuration;
@@ -73,10 +74,13 @@ internal sealed class TrayApplicationContext : ApplicationContext
         _trayMenu.Items.Add(new ToolStripSeparator());
         _trayMenu.Items.Add("Exit", null, (_, _) => ExitThread());
 
+        _trayIcon = Icon.ExtractAssociatedIcon(Application.ExecutablePath)
+            ?? (Icon)SystemIcons.Application.Clone();
+
         _notifyIcon = new NotifyIcon
         {
             ContextMenuStrip = _trayMenu,
-            Icon = SystemIcons.Application,
+            Icon = _trayIcon,
             Text = "clici margin normalization",
             Visible = true
         };
@@ -180,6 +184,7 @@ internal sealed class TrayApplicationContext : ApplicationContext
 
         _notifyIcon.Visible = false;
         _notifyIcon.Dispose();
+        _trayIcon.Dispose();
         _trayMenu.Dispose();
         _logger.Event("stopped");
         _resourcesDisposed = true;
