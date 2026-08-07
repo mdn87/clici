@@ -12,11 +12,15 @@ internal sealed class SingleInstanceGuard : IDisposable
     }
 
     public static SingleInstanceGuard? TryAcquire()
+        => TryAcquire(MutexName);
+
+    internal static SingleInstanceGuard? TryAcquire(string mutexName)
     {
+        Mutex? mutex = null;
         try
         {
-            var mutex = new Mutex(true, MutexName, out var createdNew);
-            if (!createdNew)
+            mutex = new Mutex(false, mutexName);
+            if (!mutex.WaitOne(0, false))
             {
                 mutex.Dispose();
                 return null;
@@ -24,9 +28,13 @@ internal sealed class SingleInstanceGuard : IDisposable
 
             return new SingleInstanceGuard(mutex);
         }
+        catch (AbandonedMutexException)
+        {
+            return new SingleInstanceGuard(mutex!);
+        }
         catch
         {
-            // Fail closed if the process cannot establish single-instance safety.
+            mutex?.Dispose();
             return null;
         }
     }
@@ -38,8 +46,14 @@ internal sealed class SingleInstanceGuard : IDisposable
             return;
         }
 
-        _mutex.ReleaseMutex();
-        _mutex.Dispose();
-        _disposed = true;
+        try
+        {
+            _mutex.ReleaseMutex();
+        }
+        finally
+        {
+            _mutex.Dispose();
+            _disposed = true;
+        }
     }
 }

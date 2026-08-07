@@ -234,7 +234,9 @@ keyboard hook.
 
 **CLIP-004** Clipboard access shall attempt an operation at most four times with
 short bounded delays. The current delay is 20 milliseconds between attempts,
-for at most 60 milliseconds of retry delay per operation.
+for at most 60 milliseconds of retry delay per operation. The adapter shall use
+the WinForms no-retry overload so an additional hidden retry loop cannot extend
+that budget.
 
 **CLIP-005** clici shall rewrite the clipboard only when:
 
@@ -242,8 +244,10 @@ for at most 60 milliseconds of retry delay per operation.
 2. the foreground process is approved;
 3. text was read successfully;
 4. the notification is not a matching self-write;
-5. normalization returns `Normalized`; and
-6. the normalized string is not equal to the source string.
+5. the text does not exceed `maximumTextCharacters`;
+6. normalization returns `Normalized`;
+7. the normalized string is not equal to the source string; and
+8. the clipboard sequence still matches the successfully read source item.
 
 **CLIP-006** A successful clici write shall record a pending marker containing
 the text length and SHA-256 text fingerprint. It shall also retain a one-deep
@@ -253,6 +257,8 @@ last-written fingerprint.
 or last-written content. The clipboard adapter may expose the sequence number as
 advisory metadata, but suppression shall not use it as a decision input because
 clipboard brokers may advance it before clici receives its notification.
+Sequence identity shall still be used as a write freshness guard so an older
+normalization cannot overwrite a newer clipboard item.
 
 **CLIP-008** The pending marker shall be single-use. Every successfully read
 candidate shall clear it after suppression evaluation, whether or not the
@@ -266,9 +272,18 @@ configuration updates. Any later candidate matching that content shall remain
 suppressed until clici writes different output or the process exits. This
 deliberate false negative prevents repeated removal from deeply indented content.
 
-**CLIP-010** The initial write adapter may replace the clipboard with Unicode
-text without preserving every accompanying non-text format. This limitation
-must remain documented, and replacement must stay isolated behind an interface.
+**CLIP-010** The write adapter shall preserve HTML, RTF, and CSV string formats
+when they accompany eligible Unicode text. It is not required to preserve every
+source-specific non-text format. This limitation must remain documented, and
+replacement must stay isolated behind an interface.
+
+**CLIP-011** clici's own rewrite shall carry serialized DWORD values of one for
+`CanIncludeInClipboardHistory` and `CanUploadToCloudClipboard`. Windows history
+should coalesce the immediate source/rewrite sequence into one normalized item
+rather than omit the copy or retain an original/normalized duplicate pair.
+
+**CLIP-012** Text longer than `maximumTextCharacters` shall remain unchanged.
+The skip shall not hash, normalize, or rewrite the oversized value.
 
 ### 6.4 Configuration
 
@@ -285,6 +300,7 @@ application-data directory, never beside the executable.
 | `minimumMarginLineRatio` | Number | `0.70` | Inclusive range `0` through `1` |
 | `maximumColumnZeroLineRatio` | Number | `0.20` | Inclusive configured range `0` through `1`; eligibility comparison remains exclusive |
 | `marginSpacesToRemove` | Integer | `2` | Inclusive range `1` through `16` |
+| `maximumTextCharacters` | Integer | `2000000` | Inclusive range `1` through `100000000` |
 | `diagnosticLogging` | Boolean | `false` | Boolean JSON value |
 
 **CONF-003** Invalid numeric fields shall fall back individually to their
@@ -394,7 +410,7 @@ broader feature work.
 | POC-05 | Can contention and self-generated notifications fail safely? | Bounded retries, content-authoritative suppression, and persistent last-write protection are demonstrated. | Implemented; suppression unit-tested |
 | POC-06 | Can the native listener be cleaned up deterministically? | Registration/unregistration smoke test and exit-path inspection succeed. | Demonstrated |
 | POC-07 | Can normalization stay independent of Windows APIs? | Core builds independently and all policy tests run without WinForms. | Demonstrated |
-| POC-08 | Are extra clipboard formats preserved adequately? | Rich-format clipboard tests retain required formats. | Not proven; explicitly deferred |
+| POC-08 | Are extra clipboard formats preserved adequately? | Rich-format clipboard tests retain required formats. | HTML/RTF/CSV preservation implemented and unit-tested; live matrix pending |
 | POC-09 | Can multiple instances be prevented from rewriting each other's output? | A second same-session process exits before creating a listener. | Implemented; manual process check pending |
 
 The POC is considered **engineering-complete** when POC-01 through POC-07 and
@@ -432,6 +448,13 @@ its limitation must be visible before wider distribution.
 - **AC-019:** Process-name cleanup is reported as normalization rather than
   configuration fallback.
 - **AC-020:** A zero maximum column-zero ratio makes all text ineligible.
+- **AC-021:** Oversized text is skipped without normalization or rewrite.
+- **AC-022:** A stale source sequence prevents an older normalization from
+  overwriting a newer clipboard item.
+- **AC-023:** A rewrite preserves HTML/RTF/CSV and explicitly requests Windows
+  history and cloud inclusion for the normalized value.
+- **AC-024:** Clipboard write retries use one bounded retry policy without a
+  nested WinForms retry loop.
 
 ### 9.2 Manual Windows proof matrix
 
@@ -455,8 +478,8 @@ validated:
     confirm safe fallback without overwriting the malformed file.
 13. Perform rapid successive copies and confirm no stale self-write suppression
     or repeated margin removal.
-14. Enable Windows clipboard history, repeat normalization, and record the
-    duplicate Win+V history entry created by each clipboard rewrite.
+14. Enable Windows clipboard history, repeat normalization, and confirm clici's
+    rewrite does not create a duplicate Win+V history entry.
 15. Repeat copy and normalization checks in an RDP or other remote-clipboard
     session.
 16. Start two clici processes and confirm the second exits without creating a
@@ -464,8 +487,8 @@ validated:
 17. Exercise clipboard contention and confirm the app remains responsive.
 18. Exit from the tray and confirm the process terminates and the listener is
     unregistered.
-19. Copy a rich clipboard item that contains text plus other formats and record
-    the observed format loss for follow-up.
+19. Copy a rich clipboard item that contains text plus other formats and confirm
+    HTML/RTF/CSV preservation while recording any other format loss.
 
 ## 10. Quality attributes
 
@@ -505,9 +528,9 @@ The following require evidence from the manual proof matrix before design:
   or replace foreground-window targeting, particularly for background writers
   and fast focus changes;
 - whether window-class, process-tree, or executable-path context is also needed;
-- how to preserve non-text clipboard formats safely;
-- how Windows clipboard history, cloud clipboard, clipboard managers, and RDP
-  affect notification ordering and duplicate history entries;
+- which additional source-specific clipboard formats need safe preservation;
+- how third-party clipboard managers and RDP affect notification ordering and
+  duplicate entries after Windows history/cloud suppression;
 - whether clipboard work should move off the UI message loop;
 - whether start-with-Windows should use Startup, Task Scheduler, or another
   mechanism;
@@ -525,7 +548,7 @@ This introductory slice is suitable for local developer evaluation when:
 - the automated acceptance criteria pass;
 - listener registration and cleanup are smoke-tested;
 - the tray application can be launched on the target Windows machine; and
-- the non-text clipboard limitation is documented.
+- the remaining source-specific clipboard-format limitation is documented.
 
 It is suitable for broader distribution only after the manual Windows proof
 matrix is complete and the clipboard-format tradeoff has an explicit product

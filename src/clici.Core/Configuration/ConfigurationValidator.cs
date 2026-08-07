@@ -25,10 +25,17 @@ public static class ConfigurationValidator
             Defaults.MaximumColumnZeroLineRatio,
             ref usedFallback);
         var marginSpaces = candidate.MarginSpacesToRemove;
+        var maximumTextCharacters = candidate.MaximumTextCharacters;
 
         if (marginSpaces is < 1 or > 16)
         {
             marginSpaces = Defaults.MarginSpacesToRemove;
+            usedFallback = true;
+        }
+
+        if (maximumTextCharacters is < 1 or > 100_000_000)
+        {
+            maximumTextCharacters = Defaults.MaximumTextCharacters;
             usedFallback = true;
         }
 
@@ -48,7 +55,8 @@ public static class ConfigurationValidator
                 ExcludedProcessNames = excluded,
                 MinimumMarginLineRatio = minimumMargin,
                 MaximumColumnZeroLineRatio = maximumColumnZero,
-                MarginSpacesToRemove = marginSpaces
+                MarginSpacesToRemove = marginSpaces,
+                MaximumTextCharacters = maximumTextCharacters
             },
             usedFallback,
             wasNormalized);

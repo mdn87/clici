@@ -4,7 +4,9 @@ internal interface IClipboardService
 {
     ClipboardReadResult TryReadText();
 
-    ClipboardWriteResult TryWriteText(string text);
+    ClipboardWriteResult TryWriteText(
+        string text,
+        ClipboardReadResult source);
 }
 
 internal enum ClipboardAccessStatus
@@ -12,6 +14,7 @@ internal enum ClipboardAccessStatus
     Success,
     NoText,
     Busy,
+    Stale,
     Failed
 }
 
@@ -25,3 +28,7 @@ internal sealed record ClipboardWriteResult(
     ClipboardAccessStatus Status,
     uint SequenceNumber,
     string? ExceptionType);
+
+internal sealed record ClipboardFormatSnapshot(
+    string Format,
+    string Value);

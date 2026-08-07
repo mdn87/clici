@@ -96,6 +96,12 @@ internal sealed class ClipboardNormalizationCoordinator
                 return;
             }
 
+            if (readResult.Text.Length > _configuration.MaximumTextCharacters)
+            {
+                _logger.Event("skipped-text-over-size-limit");
+                return;
+            }
+
             if (_selfWriteSuppressor.ShouldSuppress(readResult.Text))
             {
                 return;
@@ -112,10 +118,16 @@ internal sealed class ClipboardNormalizationCoordinator
                 return;
             }
 
-            var writeResult = _clipboardService.TryWriteText(result.Text);
+            var writeResult = _clipboardService.TryWriteText(result.Text, readResult);
             if (writeResult.Status == ClipboardAccessStatus.Success)
             {
                 _selfWriteSuppressor.MarkPendingWrite(result.Text);
+                return;
+            }
+
+            if (writeResult.Status == ClipboardAccessStatus.Stale)
+            {
+                _logger.Event("skipped-stale-clipboard-write");
                 return;
             }
 

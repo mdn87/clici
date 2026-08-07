@@ -15,6 +15,8 @@ The ordered execution work is in the
 [v0.1 implementation-completion and proof plan](docs/v0.1-implementation-and-proof-plan.md).
 The step-by-step operator procedure is in the
 [v0.1 Windows test runbook](docs/v0.1-test-runbook.md).
+The adversarial scale, race, crash/restart, rich-format, and Win+V findings are
+in the [v0.1 resilience report](docs/v0.1-resilience-report.md).
 
 ## Example
 
@@ -119,14 +121,30 @@ The default file is equivalent to:
   "minimumMarginLineRatio": 0.7,
   "maximumColumnZeroLineRatio": 0.2,
   "marginSpacesToRemove": 2,
+  "maximumTextCharacters": 2000000,
   "diagnosticLogging": false
 }
 ```
 
 Ratios must be from `0` through `1`, and the margin width must be from `1`
-through `16`. Invalid fields fall back to safe defaults. A missing or malformed
-file does not terminate the application. Restart clici after manually editing
-the configuration.
+through `16`. `maximumTextCharacters` must be from `1` through `100000000`;
+the two-million-character default prevents unusually large clipboard items
+from freezing the tray thread or causing excessive memory use. Items above the
+limit remain unchanged. Invalid fields fall back to safe defaults. A missing or
+malformed file does not terminate the application. Restart clici after manually
+editing the configuration.
+
+## Clipboard history and rich text
+
+clici explicitly requests that its normalized rewrite be included in Windows
+clipboard history and cloud clipboard. Windows normally coalesces the source
+copy with the immediate rewrite, producing one useful normalized history entry
+rather than no entry or an original/normalized duplicate pair.
+
+HTML, RTF, and CSV representations are retained alongside the normalized plain
+text when those formats are available. Plain-text destinations receive the
+normalized value; rich-text destinations may prefer the preserved rich
+representation and retain its original margin.
 
 ## Privacy
 
@@ -184,19 +202,19 @@ after exiting it or restarting Windows.
 
 ## Current limitations
 
-- The initial text write path replaces the clipboard with Unicode text. If a
-  qualifying clipboard item also contains non-text formats, those formats may
-  be lost. Clipboard replacement is isolated behind `IClipboardService` so
-  multi-format preservation can be added without touching normalization.
+- HTML, RTF, and CSV are preserved, but other source-specific clipboard
+  formats may still be lost when a qualifying text item is rewritten.
 - Clipboard operations are attempted up to four times with short bounded
   delays; clici fails safely if another process continues to hold the clipboard.
+- clici skips text above the configured size ceiling rather than risk a long UI
+  stall or excessive transient memory use.
 - Process matching uses the process that owns the foreground window at the time
   of the clipboard notification. A background writer can therefore be
   misattributed when a terminal is foreground, and a fast focus change can miss
   a terminal copy. Terminal host and shell behavior also varies, so the default
   names may need local adjustment.
-- Every successful normalization is a new clipboard write and may create a
-  duplicate entry in Windows clipboard history or synced clipboard tools.
+- Third-party clipboard tools may still record both the source copy and clici's
+  rewrite even when Windows history coalesces them into one normalized entry.
 - clici allows one running instance per Windows session; a second instance exits
   before creating a tray icon or clipboard listener.
 - Configuration editing is file-based and changes require a restart.

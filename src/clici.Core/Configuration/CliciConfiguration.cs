@@ -25,6 +25,8 @@ public sealed record CliciConfiguration
 
     public int MarginSpacesToRemove { get; init; } = 2;
 
+    public int MaximumTextCharacters { get; init; } = 2_000_000;
+
     public bool DiagnosticLogging { get; init; }
 
     public MarginNormalizationOptions ToNormalizationOptions() =>

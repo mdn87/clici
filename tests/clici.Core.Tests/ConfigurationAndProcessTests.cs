@@ -15,6 +15,7 @@ public sealed class ConfigurationAndProcessTests
         Assert.Contains("pwsh", configuration.AllowedProcessNames);
         Assert.Contains("codex", configuration.AllowedProcessNames);
         Assert.Empty(configuration.ExcludedProcessNames);
+        Assert.Equal(2_000_000, configuration.MaximumTextCharacters);
         Assert.False(configuration.DiagnosticLogging);
     }
 
@@ -26,6 +27,7 @@ public sealed class ConfigurationAndProcessTests
             MinimumMarginLineRatio = double.NaN,
             MaximumColumnZeroLineRatio = 2,
             MarginSpacesToRemove = 0,
+            MaximumTextCharacters = -1,
             AllowedProcessNames = [" pwsh ", "PWSH", ""],
             ExcludedProcessNames = null!
         };
@@ -37,6 +39,7 @@ public sealed class ConfigurationAndProcessTests
         Assert.Equal(0.70, result.Configuration.MinimumMarginLineRatio);
         Assert.Equal(0.20, result.Configuration.MaximumColumnZeroLineRatio);
         Assert.Equal(2, result.Configuration.MarginSpacesToRemove);
+        Assert.Equal(2_000_000, result.Configuration.MaximumTextCharacters);
         Assert.Equal(["pwsh"], result.Configuration.AllowedProcessNames);
         Assert.Empty(result.Configuration.ExcludedProcessNames);
     }
