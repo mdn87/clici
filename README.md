@@ -188,17 +188,32 @@ Find the clici icon in the Windows notification area. Right-click it and choose
 
 ## Install for the current Windows user
 
-Run the per-user installer from the repository root:
+Build and run the installer from the repository root:
+
+```powershell
+.\tools\Build-Installer.ps1
+```
+
+This produces `artifacts\installer\clici-<version>-win-x64-setup.exe`. Run that
+`setup.exe` to install clici for the current user (no administrator rights
+required). It installs a self-contained copy to `%LOCALAPPDATA%\Programs\clici`,
+adds a **clici** Start Menu shortcut, registers an Add/Remove Programs entry
+with an uninstaller, and — if you leave **Start clici when I sign in** checked —
+starts clici automatically at sign-in. You can change auto-start any time from
+the tray menu's **Start with Windows** item. The installed copy does not require
+the .NET SDK or runtime.
+
+### Developer quick-install (no installer)
+
+For a fast local install straight from source without building `setup.exe`:
 
 ```powershell
 .\tools\Install-Clici.ps1
 ```
 
-The installer publishes a self-contained copy to
-`%LOCALAPPDATA%\Programs\clici`, creates a **clici** shortcut on the desktop,
-and launches the tray application. The installed copy does not require the
-.NET SDK or runtime. Double-click the desktop shortcut to start clici again
-after exiting it or restarting Windows.
+This publishes a self-contained copy to `%LOCALAPPDATA%\Programs\clici` and
+creates a desktop shortcut. It is a developer convenience; the `setup.exe`
+installer above is the supported distribution path.
 
 ## Current limitations
 
