@@ -166,8 +166,9 @@ public sealed class ClipboardNormalizationCoordinatorTests
             logger,
             new CliciConfiguration());
 
-        // Must not throw: HandleClipboardChanged runs inside WndProc, so an
-        // escaping exception would surface on the Windows message pump.
+        // Must not throw: HandleClipboardChanged runs on the UI thread from a
+        // message-loop timer tick, so an escaping exception would surface on
+        // the Windows message pump.
         coordinator.HandleClipboardChanged();
 
         Assert.Contains(
@@ -268,6 +269,37 @@ public sealed class ClipboardNormalizationCoordinatorTests
         Assert.Equal(Expected, clipboard.Writes[0].Text);
     }
 
+    [Fact]
+    public void ReentrantNotificationDuringWriteIsIgnoredRatherThanReprocessed()
+    {
+        // A clipboard write causes Windows to raise a new WM_CLIPBOARDUPDATE.
+        // The WinForms OLE clipboard calls pump messages, so that notification
+        // can be dispatched re-entrantly before the outer write returns. Only
+        // one clipboard read is queued: if the re-entrant call is not guarded it
+        // reads again, exhausts the queue, and surfaces a notification failure.
+        var logger = new RecordingLogger();
+        var clipboard = new ReentrantClipboardService(
+            new ClipboardReadResult(
+                ClipboardAccessStatus.Success,
+                Source,
+                1,
+                null));
+        var coordinator = CreateCoordinator(
+            clipboard,
+            new StubProcessProvider(true, "pwsh"),
+            logger,
+            new CliciConfiguration());
+        clipboard.OnWrite = coordinator.HandleClipboardChanged;
+
+        coordinator.HandleClipboardChanged();
+
+        Assert.Single(clipboard.Writes);
+        Assert.Equal(1, clipboard.ReadCount);
+        Assert.DoesNotContain(
+            logger.Failures,
+            failure => failure.Operation == "clipboard-notification");
+    }
+
     private static ClipboardNormalizationCoordinator CreateCoordinator(
         IClipboardService clipboard,
         IDiagnosticLogger logger,
@@ -330,6 +362,45 @@ public sealed class ClipboardNormalizationCoordinatorTests
             Failures.Add((operation, processName, exceptionType));
 
         public void Event(string eventName) => Events.Add(eventName);
+    }
+
+    private sealed class ReentrantClipboardService : IClipboardService
+    {
+        private readonly ClipboardReadResult _read;
+
+        public ReentrantClipboardService(ClipboardReadResult read) => _read = read;
+
+        public Action? OnWrite { get; set; }
+
+        public int ReadCount { get; private set; }
+
+        public List<(string Text, ClipboardReadResult Source)> Writes { get; } = [];
+
+        public ClipboardReadResult TryReadText()
+        {
+            ReadCount++;
+            if (ReadCount > 1)
+            {
+                // The re-entrant call must be stopped before it reaches a read;
+                // exhausting a single-item queue would otherwise throw.
+                throw new InvalidOperationException("reentrant read");
+            }
+
+            return _read;
+        }
+
+        public ClipboardWriteResult TryWriteText(
+            string text,
+            ClipboardReadResult source)
+        {
+            Writes.Add((text, source));
+
+            // Simulate the self-write notification arriving synchronously while
+            // the outer write is still on the stack (WinForms pumps messages).
+            OnWrite?.Invoke();
+
+            return new ClipboardWriteResult(ClipboardAccessStatus.Success, 2, null);
+        }
     }
 
     private sealed class FakeClipboardService : IClipboardService

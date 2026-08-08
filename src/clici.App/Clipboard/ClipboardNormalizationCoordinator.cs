@@ -17,6 +17,7 @@ internal sealed class ClipboardNormalizationCoordinator
     private readonly ClipboardSelfWriteSuppressor _selfWriteSuppressor;
     private CliciConfiguration _configuration;
     private bool _paused;
+    private bool _processing;
 
     public ClipboardNormalizationCoordinator(
         IClipboardService clipboardService,
@@ -47,10 +48,22 @@ internal sealed class ClipboardNormalizationCoordinator
 
     public void HandleClipboardChanged()
     {
+        // Reading or writing the clipboard pumps the message loop, so our own
+        // write raises a WM_CLIPBOARDUPDATE that can be dispatched re-entrantly
+        // before this call returns. Nested clipboard access on the single UI
+        // thread stalls the shared clipboard and freezes the Win+V flyout, so a
+        // notification that arrives mid-processing is dropped.
+        if (_processing)
+        {
+            return;
+        }
+
         string? processName = null;
 
         try
         {
+            _processing = true;
+
             if (!_configuration.Enabled || _paused)
             {
                 return;
@@ -142,6 +155,10 @@ internal sealed class ClipboardNormalizationCoordinator
                 "clipboard-notification",
                 processName,
                 exception.GetType().Name);
+        }
+        finally
+        {
+            _processing = false;
         }
     }
 }
