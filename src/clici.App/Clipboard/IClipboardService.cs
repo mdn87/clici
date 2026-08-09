@@ -31,7 +31,8 @@ internal sealed record ClipboardReadResult(
     bool HasDisallowedFormat = false,
     int? OwnerProcessId = null,
     string? OwnerProcessName = null,
-    string? OwnerWindowClass = null);
+    string? OwnerWindowClass = null,
+    bool IsCliciWrite = false);
 
 internal sealed record ClipboardWriteResult(
     ClipboardAccessStatus Status,

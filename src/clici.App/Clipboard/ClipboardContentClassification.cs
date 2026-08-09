@@ -25,7 +25,8 @@ internal sealed record ClipboardContentClassification(
         "System.String",
         ClipboardPrivacyPolicy.CanIncludeInClipboardHistoryFormat,
         ClipboardPrivacyPolicy.CanUploadToCloudClipboardFormat,
-        ClipboardPrivacyPolicy.ExcludeFromMonitorProcessingFormat
+        ClipboardPrivacyPolicy.ExcludeFromMonitorProcessingFormat,
+        CliciWriteMarker.FormatName
     };
 
     private static readonly HashSet<string> RichTextFormats = new(StringComparer.OrdinalIgnoreCase)

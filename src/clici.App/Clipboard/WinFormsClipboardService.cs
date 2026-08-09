@@ -46,6 +46,7 @@ internal sealed class WinFormsClipboardService : IClipboardService
                 var privacyPolicy = ClipboardPrivacyPolicy.FromDataObject(dataObject);
                 var classification = ClipboardContentClassification.FromDataObject(dataObject);
                 var owner = CaptureOwner();
+                var isCliciWrite = CliciWriteMarker.IsSelfWrite(dataObject);
 
                 var sequenceAfter = NativeMethods.GetClipboardSequenceNumber();
                 if (sequenceBefore != sequenceAfter)
@@ -76,7 +77,8 @@ internal sealed class WinFormsClipboardService : IClipboardService
                     classification.HasDisallowedFormat,
                     owner.ProcessId,
                     owner.ProcessName,
-                    owner.WindowClass);
+                    owner.WindowClass,
+                    isCliciWrite);
             }
             catch (ExternalException exception) when (attempt < MaximumAttempts)
             {
@@ -175,6 +177,7 @@ internal sealed class WinFormsClipboardService : IClipboardService
         var dataObject = new DataObject();
         dataObject.SetData(DataFormats.UnicodeText, true, text);
         privacyPolicy.ApplyTo(dataObject);
+        CliciWriteMarker.Apply(dataObject);
         return dataObject;
     }
 
