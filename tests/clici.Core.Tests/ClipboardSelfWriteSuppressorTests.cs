@@ -66,15 +66,19 @@ public sealed class ClipboardSelfWriteSuppressorTests
     }
 
     [Fact]
-    public void LastWrittenProtectionStopsRepeatedNormalizationOfDeepIndentation()
+    public void SuppressorProtectsNormalizerOutputFromReprocessing()
     {
+        // The classifier removes the full base margin in a single idempotent
+        // pass, so a second normalization of its own output is a no-op. The
+        // suppressor still guards against clici reacting to the notification
+        // raised by its own write.
         var normalizer = new MarginNormalizer();
         var suppressor = new ClipboardSelfWriteSuppressor();
-        var firstPass = normalizer.Normalize("      first\n      second");
+        var firstPass = normalizer.Normalize("    first\n    second\n    third");
 
         Assert.Equal(MarginNormalizationStatus.Normalized, firstPass.Status);
         Assert.Equal(
-            MarginNormalizationStatus.Normalized,
+            MarginNormalizationStatus.NotEligible,
             normalizer.Normalize(firstPass.Text).Status);
 
         suppressor.MarkPendingWrite(firstPass.Text);

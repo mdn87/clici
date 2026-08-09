@@ -19,9 +19,12 @@ public sealed record CliciConfiguration
 
     public string[] ExcludedProcessNames { get; init; } = [];
 
-    public double MinimumMarginLineRatio { get; init; } = 0.70;
-
-    public double MaximumColumnZeroLineRatio { get; init; } = 0.20;
+    /// <summary>
+    /// When true (default), the margin width is detected automatically from the
+    /// copied text and constrained to two or four spaces. When false, exactly
+    /// <see cref="MarginSpacesToRemove"/> is used as a fixed profile override.
+    /// </summary>
+    public bool AutoDetectMarginWidth { get; init; } = true;
 
     public int MarginSpacesToRemove { get; init; } = 2;
 
@@ -29,9 +32,15 @@ public sealed record CliciConfiguration
 
     public bool DiagnosticLogging { get; init; }
 
+    /// <summary>
+    /// Configuration schema version. Introduced before source profiles and
+    /// privacy policies so future readers can migrate older files.
+    /// </summary>
+    public int SchemaVersion { get; init; } = 1;
+
     public MarginNormalizationOptions ToNormalizationOptions() =>
         new(
-            MinimumMarginLineRatio,
-            MaximumColumnZeroLineRatio,
-            MarginSpacesToRemove);
+            MinimumNonblankLines: 3,
+            CandidateMarginWidths: [2, 4],
+            FixedMarginWidth: AutoDetectMarginWidth ? null : MarginSpacesToRemove);
 }

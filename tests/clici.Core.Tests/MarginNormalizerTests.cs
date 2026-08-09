@@ -18,11 +18,17 @@ public sealed class MarginNormalizerTests
     }
 
     [Fact]
-    public void FourSpaceNestedIndentationBecomesTwoSpaces()
+    public void FourSpaceBaseMarginIsDetectedAndRemoved()
     {
-        var result = _normalizer.Normalize("    First\n    Second");
+        // Every content line shares a four-space base margin, so four spaces are
+        // detected and removed while the deeper nested line keeps its relative
+        // indentation.
+        const string input = "    First\n    Second\n      Nested";
 
-        Assert.Equal("  First\n  Second", result.Text);
+        var result = _normalizer.Normalize(input);
+
+        Assert.Equal(MarginNormalizationStatus.Normalized, result.Status);
+        Assert.Equal("First\nSecond\n  Nested", result.Text);
     }
 
     [Fact]
@@ -31,6 +37,18 @@ public sealed class MarginNormalizerTests
         var result = _normalizer.Normalize("  First\n    Nested\n  Last");
 
         Assert.Equal("First\n  Nested\nLast", result.Text);
+    }
+
+    [Fact]
+    public void FewerThanThreeNonblankLinesAreLeftUntouched()
+    {
+        // The classifier requires at least three nonblank lines of evidence.
+        const string input = "  First\n  Second";
+
+        var result = _normalizer.Normalize(input);
+
+        Assert.Equal(MarginNormalizationStatus.NotEligible, result.Status);
+        Assert.Same(input, result.Text);
     }
 
     [Fact]
@@ -57,19 +75,19 @@ public sealed class MarginNormalizerTests
     }
 
     [Fact]
-    public void BlankLinesDoNotAffectPercentages()
+    public void BlankLinesDoNotAffectDetection()
     {
-        const string input = "  First\n\n \t\n  Second";
+        const string input = "  First\n\n \t\n  Second\n  Third";
 
         var result = _normalizer.Normalize(input);
 
         Assert.Equal(MarginNormalizationStatus.Normalized, result.Status);
-        Assert.Equal("First\n\n \t\nSecond", result.Text);
-        Assert.Equal(2, result.NonblankLineCount);
+        Assert.Equal("First\n\n \t\nSecond\nThird", result.Text);
+        Assert.Equal(3, result.NonblankLineCount);
     }
 
     [Fact]
-    public void TooManyColumnZeroLinesPreventNormalization()
+    public void ColumnZeroLinesAreConflictsThatBlockNormalization()
     {
         var input = string.Join(
             "\n",
@@ -83,57 +101,55 @@ public sealed class MarginNormalizerTests
     }
 
     [Fact]
-    public void ExactlyTwentyPercentColumnZeroLinesPreventNormalization()
+    public void OneSpaceOutliersAreConflictsThatBlockNormalization()
     {
-        const string input = "  one\n  two\n  three\n  four\nzero";
-
-        var result = _normalizer.Normalize(input);
-
-        Assert.Equal(MarginNormalizationStatus.NotEligible, result.Status);
-        Assert.Equal(input, result.Text);
-    }
-
-    [Fact]
-    public void TooFewMarginLinesPreventNormalization()
-    {
-        var input = string.Join(
-            "\n",
-            Enumerable.Repeat("  margin", 6)
-                .Concat(Enumerable.Repeat(" one-space", 4)));
-
-        var result = _normalizer.Normalize(input);
-
-        Assert.Equal(MarginNormalizationStatus.NotEligible, result.Status);
-        Assert.Equal(input, result.Text);
-    }
-
-    [Fact]
-    public void TabsAreNotInterpretedAsSpaces()
-    {
-        const string input = "\tFirst\n\tSecond";
-
-        var result = _normalizer.Normalize(input);
-
-        Assert.Equal(MarginNormalizationStatus.NotEligible, result.Status);
-        Assert.Equal(input, result.Text);
-    }
-
-    [Fact]
-    public void LinesWithOneLeadingSpaceRemainUnchanged()
-    {
+        // The reviewer's dangerous case: seven two-space lines and three
+        // one-space lines. Dedenting the two-space lines would reverse the
+        // relative indentation of the one-space outliers, so the whole item is
+        // left untouched instead.
         var input = string.Join(
             "\n",
             Enumerable.Repeat("  margin", 7)
                 .Concat(Enumerable.Repeat(" one-space", 3)));
-        var expected = string.Join(
-            "\n",
-            Enumerable.Repeat("margin", 7)
-                .Concat(Enumerable.Repeat(" one-space", 3)));
 
         var result = _normalizer.Normalize(input);
 
-        Assert.Equal(MarginNormalizationStatus.Normalized, result.Status);
-        Assert.Equal(expected, result.Text);
+        Assert.Equal(MarginNormalizationStatus.NotEligible, result.Status);
+        Assert.Equal(input, result.Text);
+    }
+
+    [Fact]
+    public void TabIndentedLinesAreConflictsThatBlockNormalization()
+    {
+        const string input = "  First\n\tSecond\n  Third";
+
+        var result = _normalizer.Normalize(input);
+
+        Assert.Equal(MarginNormalizationStatus.NotEligible, result.Status);
+        Assert.Equal(input, result.Text);
+    }
+
+    [Fact]
+    public void TabOnlyIndentationIsNotInterpretedAsSpaces()
+    {
+        const string input = "\tFirst\n\tSecond\n\tThird";
+
+        var result = _normalizer.Normalize(input);
+
+        Assert.Equal(MarginNormalizationStatus.NotEligible, result.Status);
+        Assert.Equal(input, result.Text);
+    }
+
+    [Fact]
+    public void ThreeSpaceBaseMarginIsNotACandidateWidth()
+    {
+        // Only two- and four-space base margins are accepted automatically.
+        const string input = "   First\n   Second\n   Third";
+
+        var result = _normalizer.Normalize(input);
+
+        Assert.Equal(MarginNormalizationStatus.NotEligible, result.Status);
+        Assert.Equal(input, result.Text);
     }
 
     [Fact]
@@ -183,48 +199,50 @@ public sealed class MarginNormalizerTests
     [Fact]
     public void TrailingNewlineIsPreserved()
     {
-        const string input = "  First\r\n  Second\r\n";
+        const string input = "  First\r\n  Second\r\n  Third\r\n";
 
         var result = _normalizer.Normalize(input);
 
-        Assert.Equal("First\r\nSecond\r\n", result.Text);
+        Assert.Equal(MarginNormalizationStatus.Normalized, result.Status);
+        Assert.Equal("First\r\nSecond\r\nThird\r\n", result.Text);
     }
 
     [Fact]
     public void UnicodeContentIsPreserved()
     {
-        const string input = "  naïve café ☕\n  日本語 🚀";
+        const string input = "  naïve café ☕\n  日本語 🚀\n  more";
 
         var result = _normalizer.Normalize(input);
 
-        Assert.Equal("naïve café ☕\n日本語 🚀", result.Text);
+        Assert.Equal("naïve café ☕\n日本語 🚀\nmore", result.Text);
     }
 
     [Fact]
-    public void ConfigurableThresholdChangesEligibility()
+    public void FixedMarginWidthOverrideRemovesExactlyThatWidth()
     {
-        const string input = "  First\n  Second\n one-space";
-
-        var defaultResult = _normalizer.Normalize(input);
-        var configuredResult = _normalizer.Normalize(
-            input,
-            new MarginNormalizationOptions(0.66, 0.20, 2));
-
-        Assert.Equal(MarginNormalizationStatus.NotEligible, defaultResult.Status);
-        Assert.Equal(MarginNormalizationStatus.Normalized, configuredResult.Status);
-        Assert.Equal("First\nSecond\n one-space", configuredResult.Text);
-    }
-
-    [Fact]
-    public void ConfigurableMarginWidthRemovesExactlyThatWidth()
-    {
-        const string input = "    First\n      Nested";
+        const string input = "    First\n      Nested\n    Last";
 
         var result = _normalizer.Normalize(
             input,
-            new MarginNormalizationOptions(0.70, 0.20, 4));
+            new MarginNormalizationOptions(3, [2, 4], FixedMarginWidth: 4));
 
-        Assert.Equal("First\n  Nested", result.Text);
+        Assert.Equal(MarginNormalizationStatus.Normalized, result.Status);
+        Assert.Equal("First\n  Nested\nLast", result.Text);
+    }
+
+    [Fact]
+    public void FixedMarginWidthOverrideRequiresAllLinesShareTheMargin()
+    {
+        // One line is shallower than the fixed override width, so it is a
+        // conflict and normalization is refused.
+        const string input = "    First\n  Second\n    Third";
+
+        var result = _normalizer.Normalize(
+            input,
+            new MarginNormalizationOptions(3, [2, 4], FixedMarginWidth: 4));
+
+        Assert.Equal(MarginNormalizationStatus.NotEligible, result.Status);
+        Assert.Equal(input, result.Text);
     }
 
     [Fact]
@@ -233,32 +251,6 @@ public sealed class MarginNormalizerTests
         const string input = "First\nSecond\n  Nested";
 
         var result = _normalizer.Normalize(input);
-
-        Assert.Equal(MarginNormalizationStatus.NotEligible, result.Status);
-        Assert.Equal(input, result.Text);
-    }
-
-    [Fact]
-    public void EligibleContentWithNoMatchingMarginReportsEligibleUnchanged()
-    {
-        const string input = " one\n one";
-
-        var result = _normalizer.Normalize(
-            input,
-            new MarginNormalizationOptions(0, 1, 2));
-
-        Assert.Equal(MarginNormalizationStatus.EligibleUnchanged, result.Status);
-        Assert.Equal(input, result.Text);
-    }
-
-    [Fact]
-    public void ZeroMaximumColumnZeroRatioDisablesNormalization()
-    {
-        const string input = "  one\n  two";
-
-        var result = _normalizer.Normalize(
-            input,
-            new MarginNormalizationOptions(0.70, 0, 2));
 
         Assert.Equal(MarginNormalizationStatus.NotEligible, result.Status);
         Assert.Equal(input, result.Text);

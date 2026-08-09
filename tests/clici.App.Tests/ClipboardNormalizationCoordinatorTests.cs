@@ -8,8 +8,8 @@ namespace Clici.App.Tests;
 
 public sealed class ClipboardNormalizationCoordinatorTests
 {
-    private const string Source = "  first\r\n  second";
-    private const string Expected = "first\r\nsecond";
+    private const string Source = "  first\r\n  second\r\n  third";
+    private const string Expected = "first\r\nsecond\r\nthird";
 
     [Fact]
     public void EligibleProcessNormalizesMarginedTextAndWritesItBack()

@@ -16,6 +16,8 @@ public sealed class ConfigurationAndProcessTests
         Assert.Contains("codex", configuration.AllowedProcessNames);
         Assert.Empty(configuration.ExcludedProcessNames);
         Assert.Equal(2_000_000, configuration.MaximumTextCharacters);
+        Assert.True(configuration.AutoDetectMarginWidth);
+        Assert.Equal(1, configuration.SchemaVersion);
         Assert.False(configuration.DiagnosticLogging);
     }
 
@@ -24,10 +26,9 @@ public sealed class ConfigurationAndProcessTests
     {
         var candidate = new CliciConfiguration
         {
-            MinimumMarginLineRatio = double.NaN,
-            MaximumColumnZeroLineRatio = 2,
             MarginSpacesToRemove = 0,
             MaximumTextCharacters = -1,
+            SchemaVersion = 0,
             AllowedProcessNames = [" pwsh ", "PWSH", ""],
             ExcludedProcessNames = null!
         };
@@ -36,10 +37,9 @@ public sealed class ConfigurationAndProcessTests
 
         Assert.True(result.UsedFallback);
         Assert.True(result.WasNormalized);
-        Assert.Equal(0.70, result.Configuration.MinimumMarginLineRatio);
-        Assert.Equal(0.20, result.Configuration.MaximumColumnZeroLineRatio);
         Assert.Equal(2, result.Configuration.MarginSpacesToRemove);
         Assert.Equal(2_000_000, result.Configuration.MaximumTextCharacters);
+        Assert.Equal(1, result.Configuration.SchemaVersion);
         Assert.Equal(["pwsh"], result.Configuration.AllowedProcessNames);
         Assert.Empty(result.Configuration.ExcludedProcessNames);
     }

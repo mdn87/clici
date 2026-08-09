@@ -16,16 +16,9 @@ public static class ConfigurationValidator
 
         var usedFallback = false;
         var wasNormalized = false;
-        var minimumMargin = ValidateRatio(
-            candidate.MinimumMarginLineRatio,
-            Defaults.MinimumMarginLineRatio,
-            ref usedFallback);
-        var maximumColumnZero = ValidateRatio(
-            candidate.MaximumColumnZeroLineRatio,
-            Defaults.MaximumColumnZeroLineRatio,
-            ref usedFallback);
         var marginSpaces = candidate.MarginSpacesToRemove;
         var maximumTextCharacters = candidate.MaximumTextCharacters;
+        var schemaVersion = candidate.SchemaVersion;
 
         if (marginSpaces is < 1 or > 16)
         {
@@ -36,6 +29,12 @@ public static class ConfigurationValidator
         if (maximumTextCharacters is < 1 or > 100_000_000)
         {
             maximumTextCharacters = Defaults.MaximumTextCharacters;
+            usedFallback = true;
+        }
+
+        if (schemaVersion < 1)
+        {
+            schemaVersion = Defaults.SchemaVersion;
             usedFallback = true;
         }
 
@@ -53,24 +52,12 @@ public static class ConfigurationValidator
             {
                 AllowedProcessNames = allowed,
                 ExcludedProcessNames = excluded,
-                MinimumMarginLineRatio = minimumMargin,
-                MaximumColumnZeroLineRatio = maximumColumnZero,
                 MarginSpacesToRemove = marginSpaces,
-                MaximumTextCharacters = maximumTextCharacters
+                MaximumTextCharacters = maximumTextCharacters,
+                SchemaVersion = schemaVersion
             },
             usedFallback,
             wasNormalized);
-    }
-
-    private static double ValidateRatio(double candidate, double fallback, ref bool usedFallback)
-    {
-        if (double.IsFinite(candidate) && candidate is >= 0 and <= 1)
-        {
-            return candidate;
-        }
-
-        usedFallback = true;
-        return fallback;
     }
 
     private static string[] NormalizeProcessNames(

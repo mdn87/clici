@@ -1,9 +1,21 @@
 namespace Clici.Core.MarginNormalization;
 
+/// <summary>
+/// Layout-confidence policy for <see cref="MarginNormalizer"/>. The former
+/// two-ratio gate is replaced by a conflict-based classifier: a candidate
+/// margin width is detected from the actual leading indentation, and any line
+/// shallower than that margin (one-space outliers, column-zero lines) or
+/// indented with a tab is treated as a conflict that blocks normalization.
+/// </summary>
 public sealed record MarginNormalizationOptions(
-    double MinimumMarginLineRatio,
-    double MaximumColumnZeroLineRatio,
-    int MarginSpaces)
+    int MinimumNonblankLines,
+    IReadOnlyList<int> CandidateMarginWidths,
+    int? FixedMarginWidth)
 {
-    public static MarginNormalizationOptions Default { get; } = new(0.70, 0.20, 2);
+    /// <summary>
+    /// Automatic policy: require at least three nonblank content lines and only
+    /// accept a shared margin of exactly two or four spaces.
+    /// </summary>
+    public static MarginNormalizationOptions Default { get; } =
+        new(3, [2, 4], null);
 }

@@ -20,27 +20,45 @@ public sealed class MarginNormalizer
             var lines = ParseLines(text);
             var nonblankLines = lines.Where(line => !IsBlank(text, line)).ToArray();
 
-            // A trailing newline does not turn one content line into multiline content.
-            if (nonblankLines.Length < 2)
+            // A trailing newline does not turn one content line into multiline
+            // content. The classifier needs a minimum number of lines as evidence.
+            if (nonblankLines.Length < options.MinimumNonblankLines)
             {
                 return MarginNormalizationResult.NotEligible(text, nonblankLines.Length);
             }
 
-            var marginLineCount = nonblankLines.Count(
-                line => StartsWithAsciiSpaces(text, line, options.MarginSpaces));
-            var columnZeroLineCount = nonblankLines.Count(
-                line => StartsAtColumnZero(text, line));
+            var columnZeroLineCount = 0;
+            var minimumLeadingSpaces = int.MaxValue;
 
-            var marginRatio = (double)marginLineCount / nonblankLines.Length;
-            var columnZeroRatio = (double)columnZeroLineCount / nonblankLines.Length;
+            foreach (var line in nonblankLines)
+            {
+                var indent = MeasureLeadingIndent(text, line);
 
-            if (marginRatio < options.MinimumMarginLineRatio ||
-                columnZeroRatio >= options.MaximumColumnZeroLineRatio)
+                // A tab anywhere in the leading indentation makes the margin
+                // ambiguous. Tab-indented lines are conflicts, not neutral
+                // outliers, so the whole item is left untouched.
+                if (indent.ContainsTab)
+                {
+                    return MarginNormalizationResult.NotEligible(
+                        text,
+                        nonblankLines.Length);
+                }
+
+                if (indent.LeadingSpaces == 0)
+                {
+                    columnZeroLineCount++;
+                }
+
+                minimumLeadingSpaces = Math.Min(minimumLeadingSpaces, indent.LeadingSpaces);
+            }
+
+            var marginWidth = ResolveMarginWidth(options, minimumLeadingSpaces);
+            if (marginWidth is null)
             {
                 return MarginNormalizationResult.NotEligible(
                     text,
                     nonblankLines.Length,
-                    marginLineCount,
+                    marginLineCount: 0,
                     columnZeroLineCount);
             }
 
@@ -49,8 +67,8 @@ public sealed class MarginNormalizer
 
             foreach (var line in lines)
             {
-                var spacesToRemove = StartsWithAsciiSpaces(text, line, options.MarginSpaces)
-                    ? options.MarginSpaces
+                var spacesToRemove = StartsWithAsciiSpaces(text, line, marginWidth.Value)
+                    ? marginWidth.Value
                     : 0;
 
                 if (spacesToRemove > 0)
@@ -70,14 +88,14 @@ public sealed class MarginNormalizer
                 return MarginNormalizationResult.EligibleUnchanged(
                     text,
                     nonblankLines.Length,
-                    marginLineCount,
+                    nonblankLines.Length,
                     columnZeroLineCount);
             }
 
             return MarginNormalizationResult.Normalized(
                 builder.ToString(),
                 nonblankLines.Length,
-                marginLineCount,
+                nonblankLines.Length,
                 columnZeroLineCount,
                 changedLineCount);
         }
@@ -87,6 +105,29 @@ public sealed class MarginNormalizer
                 text ?? string.Empty,
                 exception.GetType().Name);
         }
+    }
+
+    /// <summary>
+    /// Chooses the margin width to strip. In fixed-override mode the configured
+    /// width is used and every content line must share at least that margin. In
+    /// automatic mode the shared base margin must be exactly one of the
+    /// candidate widths (two or four spaces); anything else — a one-space or
+    /// three-space base, or a column-zero conflict — is rejected.
+    /// </summary>
+    private static int? ResolveMarginWidth(
+        MarginNormalizationOptions options,
+        int minimumLeadingSpaces)
+    {
+        if (options.FixedMarginWidth is int fixedWidth)
+        {
+            return fixedWidth >= 1 && minimumLeadingSpaces >= fixedWidth
+                ? fixedWidth
+                : null;
+        }
+
+        return options.CandidateMarginWidths.Contains(minimumLeadingSpaces)
+            ? minimumLeadingSpaces
+            : null;
     }
 
     private static List<LineSegment> ParseLines(string text)
@@ -138,6 +179,22 @@ public sealed class MarginNormalizer
         return true;
     }
 
+    private static LeadingIndent MeasureLeadingIndent(string text, LineSegment line)
+    {
+        var leadingSpaces = 0;
+        var index = line.ContentStart;
+        var end = line.ContentStart + line.ContentLength;
+
+        while (index < end && text[index] == ' ')
+        {
+            leadingSpaces++;
+            index++;
+        }
+
+        var containsTab = index < end && text[index] == '\t';
+        return new LeadingIndent(leadingSpaces, containsTab);
+    }
+
     private static bool StartsWithAsciiSpaces(
         string text,
         LineSegment line,
@@ -159,16 +216,7 @@ public sealed class MarginNormalizer
         return true;
     }
 
-    private static bool StartsAtColumnZero(string text, LineSegment line)
-    {
-        if (line.ContentLength == 0)
-        {
-            return false;
-        }
-
-        var firstCharacter = text[line.ContentStart];
-        return firstCharacter is not (' ' or '\t');
-    }
+    private readonly record struct LeadingIndent(int LeadingSpaces, bool ContainsTab);
 
     private readonly record struct LineSegment(
         int ContentStart,
