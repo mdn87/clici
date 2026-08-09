@@ -358,6 +358,52 @@ public sealed class ClipboardNormalizationCoordinatorTests
     }
 
     [Fact]
+    public void UnreadablePrivacyPolicySkipsRewrite()
+    {
+        // If the source's privacy formats are present but could not be read,
+        // clici must not rewrite the item, or it could strip a protection it
+        // failed to observe.
+        var clipboard = new FakeClipboardService(
+            new ClipboardReadResult(
+                ClipboardAccessStatus.Success,
+                Source,
+                1,
+                null,
+                PrivacyPolicy: new ClipboardPrivacyPolicy(null, null, false, ReadFailed: true)));
+        var logger = new RecordingLogger();
+        var coordinator = CreateCoordinator(clipboard, logger, new CliciConfiguration());
+
+        coordinator.HandleClipboardChanged();
+
+        Assert.Empty(clipboard.Writes);
+        Assert.Contains("skipped-unreadable-privacy-policy", logger.Events);
+    }
+
+    [Fact]
+    public void ForegroundFailureStillNormalizesWhenClipboardOwnerIsAllowed()
+    {
+        // The primary source signal is the clipboard owner. A foreground-lookup
+        // failure must not discard a copy an allowed owner produced.
+        var clipboard = new FakeClipboardService(
+            new ClipboardReadResult(
+                ClipboardAccessStatus.Success,
+                Source,
+                1,
+                null,
+                OwnerProcessName: "pwsh"));
+        var coordinator = CreateCoordinator(
+            clipboard,
+            new StubProcessProvider(false, null, "InvalidOperationException"),
+            new RecordingLogger(),
+            new CliciConfiguration());
+
+        coordinator.HandleClipboardChanged();
+
+        var write = Assert.Single(clipboard.Writes);
+        Assert.Equal(Expected, write.Text);
+    }
+
+    [Fact]
     public void ClipboardOwnerOverridesForegroundForABackgroundWriter()
     {
         // A disallowed background process owns the clipboard while a terminal is

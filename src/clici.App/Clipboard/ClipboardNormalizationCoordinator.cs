@@ -69,6 +69,9 @@ internal sealed class ClipboardNormalizationCoordinator
                 return;
             }
 
+            // The clipboard owner is the primary source signal, so a
+            // foreground-lookup failure is logged but does not abort: an allowed
+            // owner can still identify the copy.
             var processResult = _foregroundProcessProvider.TryGetForegroundProcess();
             var foregroundName = processResult.ProcessName;
 
@@ -82,7 +85,7 @@ internal sealed class ClipboardNormalizationCoordinator
                         processResult.ExceptionType);
                 }
 
-                return;
+                foregroundName = null;
             }
 
             var snapshot = _clipboardService.TryReadText();
@@ -101,15 +104,32 @@ internal sealed class ClipboardNormalizationCoordinator
                 return;
             }
 
-            // Oversized text is filtered before any hashing or classification so
-            // a large clipboard item is never scanned.
+            // 1. Honor the source's clipboard privacy policy first, before any
+            // content processing (length check, hashing, classification). An
+            // excluded item is left untouched, and an item whose privacy formats
+            // could not be read is skipped so an unobserved restriction is never
+            // stripped by a rewrite.
+            if (snapshot.PrivacyPolicy?.ExcludeFromMonitorProcessing == true)
+            {
+                _logger.Event("skipped-monitor-processing-exclusion");
+                return;
+            }
+
+            if (snapshot.PrivacyPolicy?.ReadFailed == true)
+            {
+                _logger.Event("skipped-unreadable-privacy-policy");
+                return;
+            }
+
+            // Oversized text is filtered before hashing or classification so a
+            // large clipboard item is never scanned.
             if (snapshot.Text.Length > _configuration.MaximumTextCharacters)
             {
                 _logger.Event("skipped-text-over-size-limit");
                 return;
             }
 
-            // 1. Reject clici's own write. The private marker is authoritative;
+            // 2. Reject clici's own write. The private marker is authoritative;
             // the content hash remains as a fallback for brokers that drop it.
             if (snapshot.IsCliciWrite)
             {
@@ -120,14 +140,6 @@ internal sealed class ClipboardNormalizationCoordinator
 
             if (_selfWriteSuppressor.ShouldSuppress(snapshot.Text))
             {
-                return;
-            }
-
-            // 2. Honor the source's clipboard privacy policy: never process an
-            // item the source excluded from monitor processing.
-            if (snapshot.PrivacyPolicy?.ExcludeFromMonitorProcessing == true)
-            {
-                _logger.Event("skipped-monitor-processing-exclusion");
                 return;
             }
 

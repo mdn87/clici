@@ -91,6 +91,36 @@ public sealed class WinFormsClipboardServiceTests
     }
 
     [Fact]
+    public void PrivacyPolicyFailsClosedOnMalformedHistoryDword()
+    {
+        // A privacy format is present but its value is too short to be a DWORD.
+        // Treating that as "silent" would let a rewrite drop the restriction, so
+        // it must be reported as an unreadable policy instead.
+        var source = new DataObject();
+        source.SetData(DataFormats.UnicodeText, true, "x");
+        source.SetData(
+            ClipboardPrivacyPolicy.CanIncludeInClipboardHistoryFormat,
+            false,
+            new MemoryStream([1, 2], writable: false));
+
+        var policy = ClipboardPrivacyPolicy.FromDataObject(source);
+
+        Assert.True(policy.ReadFailed);
+        Assert.Null(policy.CanIncludeInClipboardHistory);
+    }
+
+    [Fact]
+    public void PrivacyPolicySilentSourceDoesNotReportReadFailure()
+    {
+        var source = new DataObject();
+        source.SetData(DataFormats.UnicodeText, true, "x");
+
+        var policy = ClipboardPrivacyPolicy.FromDataObject(source);
+
+        Assert.False(policy.ReadFailed);
+    }
+
+    [Fact]
     public void PrivacyPolicyDetectsMonitorProcessingExclusion()
     {
         var source = new DataObject();

@@ -10,7 +10,8 @@ namespace Clici.App.Clipboard;
 internal sealed record ClipboardPrivacyPolicy(
     uint? CanIncludeInClipboardHistory,
     uint? CanUploadToCloudClipboard,
-    bool ExcludeFromMonitorProcessing)
+    bool ExcludeFromMonitorProcessing,
+    bool ReadFailed = false)
 {
     internal const string CanIncludeInClipboardHistoryFormat = "CanIncludeInClipboardHistory";
     internal const string CanUploadToCloudClipboardFormat = "CanUploadToCloudClipboard";
@@ -33,8 +34,9 @@ internal sealed record ClipboardPrivacyPolicy(
     {
         ArgumentNullException.ThrowIfNull(dataObject);
 
-        var history = TryReadDword(dataObject, CanIncludeInClipboardHistoryFormat);
-        var cloud = TryReadDword(dataObject, CanUploadToCloudClipboardFormat);
+        var readFailed = false;
+        var history = TryReadDword(dataObject, CanIncludeInClipboardHistoryFormat, ref readFailed);
+        var cloud = TryReadDword(dataObject, CanUploadToCloudClipboardFormat, ref readFailed);
 
         bool excludeFromMonitoring;
         try
@@ -44,10 +46,14 @@ internal sealed record ClipboardPrivacyPolicy(
         }
         catch (ExternalException)
         {
+            // Cannot tell whether the source excluded the item. Fail closed by
+            // marking the read failed so the coordinator skips the rewrite
+            // rather than risk stripping an unobserved restriction.
             excludeFromMonitoring = false;
+            readFailed = true;
         }
 
-        return new ClipboardPrivacyPolicy(history, cloud, excludeFromMonitoring);
+        return new ClipboardPrivacyPolicy(history, cloud, excludeFromMonitoring, readFailed);
     }
 
     /// <summary>
@@ -75,26 +81,31 @@ internal sealed record ClipboardPrivacyPolicy(
         }
     }
 
-    private static uint? TryReadDword(IDataObject dataObject, string format)
+    private static uint? TryReadDword(IDataObject dataObject, string format, ref bool readFailed)
     {
         try
         {
             if (!dataObject.GetDataPresent(format, false))
             {
-                return null;
+                return null; // Absent: the source is silent about this policy.
             }
 
-            return dataObject.GetData(format, false) switch
+            switch (dataObject.GetData(format, false))
             {
-                MemoryStream stream when stream.Length >= 4 =>
-                    BitConverter.ToUInt32(stream.ToArray(), 0),
-                byte[] bytes when bytes.Length >= 4 =>
-                    BitConverter.ToUInt32(bytes, 0),
-                _ => null
-            };
+                case MemoryStream stream when stream.Length >= 4:
+                    return BitConverter.ToUInt32(stream.ToArray(), 0);
+                case byte[] bytes when bytes.Length >= 4:
+                    return BitConverter.ToUInt32(bytes, 0);
+                default:
+                    // Present but unreadable: fail closed rather than treat the
+                    // restriction as absent.
+                    readFailed = true;
+                    return null;
+            }
         }
         catch (ExternalException)
         {
+            readFailed = true;
             return null;
         }
     }

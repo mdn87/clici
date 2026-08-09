@@ -61,6 +61,7 @@ internal sealed record ClipboardContentClassification(
         ArgumentNullException.ThrowIfNull(dataObject);
 
         string[] nativeFormats;
+        var enumerationFailed = false;
         try
         {
             nativeFormats = dataObject.GetFormats(false) ?? [];
@@ -68,6 +69,7 @@ internal sealed record ClipboardContentClassification(
         catch (ExternalException)
         {
             nativeFormats = [];
+            enumerationFailed = true;
         }
 
         bool hasNativeUnicodeText;
@@ -82,7 +84,10 @@ internal sealed record ClipboardContentClassification(
 
         var hasRichText = false;
         var hasPrimaryNonTextContent = false;
-        var hasDisallowedFormat = false;
+
+        // Fail closed: if the formats could not be enumerated, or an item
+        // presents no native formats at all, treat it as unsafe to rewrite.
+        var hasDisallowedFormat = enumerationFailed || nativeFormats.Length == 0;
 
         foreach (var format in nativeFormats)
         {
