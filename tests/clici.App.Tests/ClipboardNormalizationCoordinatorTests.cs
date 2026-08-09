@@ -300,6 +300,112 @@ public sealed class ClipboardNormalizationCoordinatorTests
             failure => failure.Operation == "clipboard-notification");
     }
 
+    [Fact]
+    public void RichOrNonTextContentIsSkippedInAutomaticMode()
+    {
+        var clipboard = new FakeClipboardService(
+            new ClipboardReadResult(
+                ClipboardAccessStatus.Success,
+                Source,
+                1,
+                null,
+                HasDisallowedFormat: true));
+        var logger = new RecordingLogger();
+        var coordinator = CreateCoordinator(clipboard, logger, new CliciConfiguration());
+
+        coordinator.HandleClipboardChanged();
+
+        Assert.Empty(clipboard.Writes);
+        Assert.Contains("skipped-rich-or-nontext-content", logger.Events);
+    }
+
+    [Fact]
+    public void MonitorProcessingExclusionIsRespected()
+    {
+        var clipboard = new FakeClipboardService(
+            new ClipboardReadResult(
+                ClipboardAccessStatus.Success,
+                Source,
+                1,
+                null,
+                PrivacyPolicy: new ClipboardPrivacyPolicy(null, null, ExcludeFromMonitorProcessing: true)));
+        var logger = new RecordingLogger();
+        var coordinator = CreateCoordinator(clipboard, logger, new CliciConfiguration());
+
+        coordinator.HandleClipboardChanged();
+
+        Assert.Empty(clipboard.Writes);
+        Assert.Contains("skipped-monitor-processing-exclusion", logger.Events);
+    }
+
+    [Fact]
+    public void SelfWriteMarkerIsSuppressedWithoutHashing()
+    {
+        var clipboard = new FakeClipboardService(
+            new ClipboardReadResult(
+                ClipboardAccessStatus.Success,
+                Source,
+                1,
+                null,
+                IsCliciWrite: true));
+        var logger = new RecordingLogger();
+        var coordinator = CreateCoordinator(clipboard, logger, new CliciConfiguration());
+
+        coordinator.HandleClipboardChanged();
+
+        Assert.Empty(clipboard.Writes);
+        Assert.Contains("skipped-self-write-marker", logger.Events);
+    }
+
+    [Fact]
+    public void ClipboardOwnerOverridesForegroundForABackgroundWriter()
+    {
+        // A disallowed background process owns the clipboard while a terminal is
+        // in the foreground. Owner attribution must win to avoid a false positive.
+        var clipboard = new FakeClipboardService(
+            new ClipboardReadResult(
+                ClipboardAccessStatus.Success,
+                Source,
+                1,
+                null,
+                OwnerProcessName: "notepad"));
+        var logger = new RecordingLogger();
+        var coordinator = CreateCoordinator(
+            clipboard,
+            new StubProcessProvider(true, "pwsh"),
+            logger,
+            new CliciConfiguration());
+
+        coordinator.HandleClipboardChanged();
+
+        Assert.Empty(clipboard.Writes);
+        Assert.Contains("skipped-untrusted-source", logger.Events);
+    }
+
+    [Fact]
+    public void ClipboardOwnerIsTrustedEvenWhenForegroundIsNotATerminal()
+    {
+        // The terminal wrote the clipboard, then focus moved to another window.
+        // Owner attribution keeps the copy eligible.
+        var clipboard = new FakeClipboardService(
+            new ClipboardReadResult(
+                ClipboardAccessStatus.Success,
+                Source,
+                1,
+                null,
+                OwnerProcessName: "pwsh"));
+        var coordinator = CreateCoordinator(
+            clipboard,
+            new StubProcessProvider(true, "notepad"),
+            new RecordingLogger(),
+            new CliciConfiguration());
+
+        coordinator.HandleClipboardChanged();
+
+        var write = Assert.Single(clipboard.Writes);
+        Assert.Equal(Expected, write.Text);
+    }
+
     private static ClipboardNormalizationCoordinator CreateCoordinator(
         IClipboardService clipboard,
         IDiagnosticLogger logger,

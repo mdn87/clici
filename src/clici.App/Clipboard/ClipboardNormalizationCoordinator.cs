@@ -58,7 +58,7 @@ internal sealed class ClipboardNormalizationCoordinator
             return;
         }
 
-        string? processName = null;
+        string? sourceName = null;
 
         try
         {
@@ -70,7 +70,7 @@ internal sealed class ClipboardNormalizationCoordinator
             }
 
             var processResult = _foregroundProcessProvider.TryGetForegroundProcess();
-            processName = processResult.ProcessName;
+            var foregroundName = processResult.ProcessName;
 
             if (!processResult.Succeeded)
             {
@@ -85,53 +85,87 @@ internal sealed class ClipboardNormalizationCoordinator
                 return;
             }
 
-            if (!_processNameMatcher.IsAllowed(
-                    processName,
-                    _configuration.AllowedProcessNames,
-                    _configuration.ExcludedProcessNames))
+            var snapshot = _clipboardService.TryReadText();
+            if (snapshot.Status == ClipboardAccessStatus.NoText)
             {
                 return;
             }
 
-            var readResult = _clipboardService.TryReadText();
-            if (readResult.Status == ClipboardAccessStatus.NoText)
-            {
-                return;
-            }
-
-            if (readResult.Status != ClipboardAccessStatus.Success ||
-                readResult.Text is null)
+            if (snapshot.Status != ClipboardAccessStatus.Success ||
+                snapshot.Text is null)
             {
                 _logger.Failure(
                     "clipboard-read",
-                    processName,
-                    readResult.ExceptionType);
+                    foregroundName,
+                    snapshot.ExceptionType);
                 return;
             }
 
-            if (readResult.Text.Length > _configuration.MaximumTextCharacters)
+            // Oversized text is filtered before any hashing or classification so
+            // a large clipboard item is never scanned.
+            if (snapshot.Text.Length > _configuration.MaximumTextCharacters)
             {
                 _logger.Event("skipped-text-over-size-limit");
                 return;
             }
 
-            if (_selfWriteSuppressor.ShouldSuppress(readResult.Text))
+            // 1. Reject clici's own write. The private marker is authoritative;
+            // the content hash remains as a fallback for brokers that drop it.
+            if (snapshot.IsCliciWrite)
+            {
+                _selfWriteSuppressor.ClearPending();
+                _logger.Event("skipped-self-write-marker");
+                return;
+            }
+
+            if (_selfWriteSuppressor.ShouldSuppress(snapshot.Text))
             {
                 return;
             }
 
+            // 2. Honor the source's clipboard privacy policy: never process an
+            // item the source excluded from monitor processing.
+            if (snapshot.PrivacyPolicy?.ExcludeFromMonitorProcessing == true)
+            {
+                _logger.Event("skipped-monitor-processing-exclusion");
+                return;
+            }
+
+            // 3. Require a safe native format bundle. Rich, non-text, and unknown
+            // application formats are skipped in automatic mode.
+            if (snapshot.HasDisallowedFormat)
+            {
+                _logger.Event("skipped-rich-or-nontext-content");
+                return;
+            }
+
+            // 4. Source confidence. The clipboard owner is the primary signal;
+            // the foreground process is only a fallback when the owner is unknown.
+            sourceName = snapshot.OwnerProcessName ?? foregroundName;
+            if (!_processNameMatcher.IsAllowed(
+                    sourceName,
+                    _configuration.AllowedProcessNames,
+                    _configuration.ExcludedProcessNames))
+            {
+                _logger.Event("skipped-untrusted-source");
+                return;
+            }
+
+            // 5. Layout confidence.
             var result = _normalizer.Normalize(
-                readResult.Text,
+                snapshot.Text,
                 _configuration.ToNormalizationOptions());
-            _logger.Decision(processName, result);
+            _logger.Decision(sourceName, result);
 
             if (result.Status != MarginNormalizationStatus.Normalized ||
-                string.Equals(result.Text, readResult.Text, StringComparison.Ordinal))
+                string.Equals(result.Text, snapshot.Text, StringComparison.Ordinal))
             {
                 return;
             }
 
-            var writeResult = _clipboardService.TryWriteText(result.Text, readResult);
+            // 6. Write, preserving the source privacy policy. The service rechecks
+            // the clipboard sequence immediately before writing.
+            var writeResult = _clipboardService.TryWriteText(result.Text, snapshot);
             if (writeResult.Status == ClipboardAccessStatus.Success)
             {
                 _selfWriteSuppressor.MarkPendingWrite(result.Text);
@@ -146,14 +180,14 @@ internal sealed class ClipboardNormalizationCoordinator
 
             _logger.Failure(
                 "clipboard-write",
-                processName,
+                sourceName,
                 writeResult.ExceptionType);
         }
         catch (Exception exception)
         {
             _logger.Failure(
                 "clipboard-notification",
-                processName,
+                sourceName,
                 exception.GetType().Name);
         }
         finally
