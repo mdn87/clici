@@ -136,35 +136,37 @@ The tray menu shall provide:
 clipboard, process, filesystem, logging, or network dependency.
 
 **NORM-002** Text shall be considered multiline content only when it contains
-at least two nonblank logical lines. A single content line followed by a line
-terminator remains ineligible.
+at least three nonblank logical lines. Fewer nonblank lines remain ineligible.
 
-**NORM-003** Blank lines shall not contribute to the confidence percentages.
+**NORM-003** Blank lines shall not contribute to indentation detection.
 
-**NORM-004** With the default configuration, text is eligible only when:
+**NORM-004** In automatic mode, the normalizer shall detect the shared base
+margin as the minimum count of leading ASCII spaces across all nonblank lines,
+and text shall be eligible only when that base is exactly two or four spaces and
+no nonblank line is a conflict. A nonblank line is a conflict when it begins at
+column zero, begins with a single leading space, or is indented with a tab
+(a tab appearing anywhere within its leading whitespace). Any single conflict
+line makes the text ineligible.
 
-```text
-margin-prefixed nonblank lines / all nonblank lines >= 0.70
-and
-column-zero nonblank lines / all nonblank lines < 0.20
-```
+**NORM-004a** A fixed margin width shall be available as a profile override
+(`autoDetectMarginWidth = false`). In that mode the configured
+`marginSpacesToRemove` is used, and every nonblank line must share at least that
+width or the text is ineligible.
 
-The minimum comparison is inclusive. The maximum comparison is exclusive.
-
-**NORM-005** For eligible text, the normalizer shall remove exactly the
-configured number of leading ASCII space characters from every line that has
-them.
+**NORM-005** For eligible text, the normalizer shall remove exactly the detected
+or configured margin width of leading ASCII space characters from every line
+that has them.
 
 **NORM-006** The normalizer shall not:
 
 - call `TrimStart`;
 - remove tabs;
-- remove fewer or more spaces than the configured margin;
-- alter lines with fewer leading spaces than the configured margin; or
+- remove fewer or more spaces than the resolved margin;
+- alter lines with fewer leading spaces than the resolved margin; or
 - collapse remaining nested indentation.
 
-**NORM-007** A four-space line normalized with the default two-space margin
-shall retain two spaces.
+**NORM-007** Removing the full detected base margin makes a second normalization
+of clici's own output a no-op (the result is `NotEligible`).
 
 **NORM-008** Each original line terminator shall be copied unchanged. CRLF,
 LF, standalone CR, mixed line endings, and a trailing terminator shall not be
@@ -180,24 +182,32 @@ to the input at the .NET string level. The clipboard caller shall not write it.
 | Outcome | Meaning |
 |---|---|
 | `NotEligible` | Input did not pass the conservative eligibility rules. |
-| `EligibleUnchanged` | Eligibility passed, but no line changed. This is possible with permissive custom thresholds. |
+| `EligibleUnchanged` | Eligibility passed, but no line changed. Rare, since removing the detected base margin always changes the shallowest lines. |
 | `Normalized` | At least one line changed and the returned text is the proposed replacement. |
 | `FailedSafely` | An unexpected normalization failure was caught; the original text remains available. |
 
 **NORM-012** A result may expose aggregate counts and an exception type, but
 shall not itself log content.
 
-### 6.2 Foreground-process targeting
+### 6.2 Source-process targeting
 
-**PROC-001** On each clipboard notification, clici shall query the process that
-owns the current foreground window.
+**PROC-001** On each clipboard notification, clici shall determine the source
+process. The clipboard owner process (`GetClipboardOwner` resolved to a process
+name) is the primary signal; the process that owns the foreground window is a
+fallback used only when the owner is unknown.
 
-**PROC-002** Foreground-process detection shall be behind an interface so a
-future targeting strategy does not require changes to clipboard coordination or
-normalization.
+**PROC-001a** When the clipboard owner is known, its allow decision is
+authoritative even if the foreground process differs: a known-but-disallowed
+owner blocks the rewrite, and a known-and-allowed owner permits it. This
+prevents misattributing a background writer while a terminal is foreground, and
+prevents missing a terminal copy after a focus change.
 
-**PROC-003** clici shall proceed only when the process name matches an allowed
-name using case-insensitive comparison.
+**PROC-002** Source detection shall be behind interfaces so a future targeting
+strategy (for example UI Automation focused-control detection) does not require
+changes to clipboard coordination or normalization.
+
+**PROC-003** clici shall proceed only when the resolved source process name
+matches an allowed name using case-insensitive comparison.
 
 **PROC-004** An optional `.exe` suffix shall not affect process-name matching.
 
@@ -238,16 +248,22 @@ for at most 60 milliseconds of retry delay per operation. The adapter shall use
 the WinForms no-retry overload so an additional hidden retry loop cannot extend
 that budget.
 
-**CLIP-005** clici shall rewrite the clipboard only when:
+**CLIP-005** clici shall rewrite the clipboard only when, in order:
 
 1. clici is enabled and not paused;
-2. the foreground process is approved;
-3. text was read successfully;
-4. the notification is not a matching self-write;
-5. the text does not exceed `maximumTextCharacters`;
-6. normalization returns `Normalized`;
-7. the normalized string is not equal to the source string; and
-8. the clipboard sequence still matches the successfully read source item.
+2. native Unicode text was read successfully;
+3. the text does not exceed `maximumTextCharacters`;
+4. the notification is not a self-write (private marker, then hash fallback);
+5. the source did not set `ExcludeClipboardContentFromMonitorProcessing`;
+6. the item carries a safe native format bundle (no rich, non-text, or unknown
+   application formats);
+7. the resolved source process is approved (PROC-001a);
+8. normalization returns `Normalized`;
+9. the normalized string is not equal to the source string; and
+10. the clipboard sequence still matches the successfully read source item.
+
+Each rejection shall be expressed as a distinct diagnostic reason rather than a
+single generic skip.
 
 **CLIP-006** A successful clici write shall record a pending marker containing
 the text length and SHA-256 text fingerprint. It shall also retain a one-deep
@@ -272,18 +288,35 @@ configuration updates. Any later candidate matching that content shall remain
 suppressed until clici writes different output or the process exits. This
 deliberate false negative prevents repeated removal from deeply indented content.
 
-**CLIP-010** The write adapter shall preserve HTML, RTF, and CSV string formats
-when they accompany eligible Unicode text. It is not required to preserve every
-source-specific non-text format. This limitation must remain documented, and
-replacement must stay isolated behind an interface.
+**CLIP-010** In automatic mode the read path shall require native Unicode text
+(`GetDataPresent(UnicodeText, autoConvert: false)`) and shall enumerate the
+native formats. Items carrying HTML, RTF, CSV, file lists, images, audio,
+embedded objects, owner-display, or unknown application-specific formats shall be
+skipped, not rewritten. Only known text, locale metadata, privacy-policy, and
+the clici self-write formats are permitted on a rewritable item. clici shall not
+leave modified plain text beside stale rich content.
 
-**CLIP-011** clici's own rewrite shall carry serialized DWORD values of one for
-`CanIncludeInClipboardHistory` and `CanUploadToCloudClipboard`. Windows history
-should coalesce the immediate source/rewrite sequence into one normalized item
-rather than omit the copy or retain an original/normalized duplicate pair.
+**CLIP-011** clici shall preserve, never override, the Windows clipboard privacy
+formats. It shall read `CanIncludeInClipboardHistory`,
+`CanUploadToCloudClipboard`, and `ExcludeClipboardContentFromMonitorProcessing`.
+It shall carry each source's explicit DWORD value through to the rewrite
+unchanged and shall add none when the source is silent. It shall never force
+history or cloud inclusion, shall treat history and cloud synchronization as
+separate policies, and shall skip any item whose source set
+`ExcludeClipboardContentFromMonitorProcessing`.
 
 **CLIP-012** Text longer than `maximumTextCharacters` shall remain unchanged.
 The skip shall not hash, normalize, or rewrite the oversized value.
+
+**CLIP-013** clici shall register a private clipboard format
+`application/x-clici-normalized-v1` carrying a schema version and a per-process
+random token, stamp it on every rewrite, and consult it before hashing to
+identify its own output. The SHA-256 content suppressor remains a fallback for
+brokers that discard private formats.
+
+**CLIP-014** The read path shall capture the clipboard owner window, owner
+process, and owner window class as source-attribution metadata on the clipboard
+snapshot, alongside the parsed privacy policy and native-format classification.
 
 ### 6.4 Configuration
 
@@ -297,11 +330,11 @@ application-data directory, never beside the executable.
 | `enabled` | Boolean | `true` | Boolean JSON value |
 | `allowedProcessNames` | String array | Seeded terminal candidates | Trimmed and deduplicated case-insensitively |
 | `excludedProcessNames` | String array | Empty | Trimmed and deduplicated case-insensitively |
-| `minimumMarginLineRatio` | Number | `0.70` | Inclusive range `0` through `1` |
-| `maximumColumnZeroLineRatio` | Number | `0.20` | Inclusive configured range `0` through `1`; eligibility comparison remains exclusive |
+| `autoDetectMarginWidth` | Boolean | `true` | Boolean JSON value; when `false`, `marginSpacesToRemove` is a fixed override |
 | `marginSpacesToRemove` | Integer | `2` | Inclusive range `1` through `16` |
 | `maximumTextCharacters` | Integer | `2000000` | Inclusive range `1` through `100000000` |
 | `diagnosticLogging` | Boolean | `false` | Boolean JSON value |
+| `schemaVersion` | Integer | `1` | At least `1`; identifies the configuration format |
 
 **CONF-003** Invalid numeric fields shall fall back individually to their
 defaults.
@@ -326,14 +359,11 @@ destination.
 **CONF-007** Manual file edits take effect after application restart. A
 configuration GUI and live reload are outside this slice.
 
-Setting `maximumColumnZeroLineRatio` to `0` intentionally disables all
-normalization: the exclusive eligibility comparison rejects every nonnegative
-column-zero ratio.
-
-No migration is provided for the pre-0.1
-`minimumMarginLinePercentage` and `maximumColumnZeroLinePercentage` property
-names. If present, they are ignored and the ratio fields use defaults until the
-file is updated.
+The former `minimumMarginLineRatio` and `maximumColumnZeroLineRatio` ratio
+fields were removed when the two-ratio gate was replaced by the conflict-based
+classifier. If present in an older file they are ignored. `schemaVersion`
+identifies the configuration format so future readers can migrate older files
+before source profiles and privacy profiles are added.
 
 ### 6.5 Logging and privacy
 
@@ -447,12 +477,16 @@ its limitation must be visible before wider distribution.
 - **AC-018:** The core project has no Windows UI dependency.
 - **AC-019:** Process-name cleanup is reported as normalization rather than
   configuration fallback.
-- **AC-020:** A zero maximum column-zero ratio makes all text ineligible.
+- **AC-020:** A single one-space or tab-indented line makes the text ineligible.
 - **AC-021:** Oversized text is skipped without normalization or rewrite.
 - **AC-022:** A stale source sequence prevents an older normalization from
   overwriting a newer clipboard item.
-- **AC-023:** A rewrite preserves HTML/RTF/CSV and explicitly requests Windows
-  history and cloud inclusion for the normalized value.
+- **AC-023:** A rewrite preserves the source's explicit clipboard privacy values,
+  adds none when the source is silent, and never forces history or cloud
+  inclusion; an item marked excluded from monitor processing is skipped.
+- **AC-025:** An item carrying rich, non-text, or unknown formats is skipped.
+- **AC-026:** A disallowed clipboard owner blocks a rewrite even when an approved
+  terminal is in the foreground.
 - **AC-024:** Clipboard write retries use one bounded retry policy without a
   nested WinForms retry loop.
 
@@ -468,8 +502,9 @@ validated:
 5. Paste into Notepad, Windows Terminal, and a code editor.
 6. Confirm copies from a disallowed foreground application remain unchanged.
 7. While a terminal remains foreground, trigger a background application to
-   write eligible text and record whether foreground-only targeting causes a
-   false positive.
+   write eligible text and confirm owner-process attribution blocks the rewrite
+   (no false positive). Also copy from a terminal, move focus elsewhere, and
+   confirm the copy is still normalized.
 8. Add an allowed process to the excluded list and confirm exclusion wins.
 9. Disable and re-enable clici from the tray menu.
 10. Pause and resume clici without changing the persisted enabled state.
@@ -478,8 +513,10 @@ validated:
     confirm safe fallback without overwriting the malformed file.
 13. Perform rapid successive copies and confirm no stale self-write suppression
     or repeated margin removal.
-14. Enable Windows clipboard history, repeat normalization, and confirm clici's
-    rewrite does not create a duplicate Win+V history entry.
+14. Copy an item whose source excludes it from history or cloud (or sets those
+    DWORDs), normalize, and confirm the rewrite preserves the source's privacy
+    values rather than forcing history or cloud inclusion.
+16. Copy an item carrying rich or non-text formats and confirm clici skips it.
 15. Repeat copy and normalization checks in an RDP or other remote-clipboard
     session.
 16. Start two clici processes and confirm the second exits without creating a
@@ -524,10 +561,11 @@ validated:
 The following require evidence from the manual proof matrix before design:
 
 - which process names are reliable across terminal and agent launch modes;
-- whether `GetClipboardOwner` or another clipboard-origin signal should augment
-  or replace foreground-window targeting, particularly for background writers
-  and fast focus changes;
-- whether window-class, process-tree, or executable-path context is also needed;
+- how to distinguish terminal from editor copies in single-process hosts such as
+  VS Code and Cursor, where `GetClipboardOwner` resolves to the shared host
+  process (candidate: UI Automation focused-control detection). Owner-process
+  attribution augmenting foreground targeting is now implemented (PROC-001);
+- whether process-tree or executable-path context is also needed;
 - which additional source-specific clipboard formats need safe preservation;
 - how third-party clipboard managers and RDP affect notification ordering and
   duplicate entries after Windows history/cloud suppression;

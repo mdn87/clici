@@ -17,6 +17,8 @@ The step-by-step operator procedure is in the
 [v0.1 Windows test runbook](docs/v0.1-test-runbook.md).
 The adversarial scale, race, crash/restart, rich-format, and Win+V findings are
 in the [v0.1 resilience report](docs/v0.1-resilience-report.md).
+The pre-release documentation-sync gate is the
+[release checklist](docs/release-checklist.md).
 
 ## Example
 
@@ -38,25 +40,33 @@ Second line
 
 ## Conservative normalization rules
 
-The default policy considers text only when it contains at least two nonblank
-lines. Blank lines are excluded from all percentages.
+clici considers text only when it contains at least **three** nonblank lines.
+Blank lines are ignored when measuring indentation.
 
-Normalization occurs only when:
+It detects the shared base margin from the actual leading indentation and only
+accepts a base of exactly **two or four** ASCII spaces. It then removes that
+width from every line, so relative nested indentation is preserved (a four-space
+base collapses to column zero; a deeper nested line keeps the difference).
 
-- at least 70% of nonblank lines begin with at least two ASCII spaces; and
-- fewer than 20% of nonblank lines begin at column zero.
+A line is treated as a **conflict** that blocks normalization — leaving the item
+untouched — when it:
 
-When both conditions pass, clici removes exactly two ASCII space characters
-from every line that has them. It does not use `TrimStart`, does not interpret
-tabs as spaces, and does not change lines with fewer than two leading spaces.
-Four spaces therefore become two spaces.
+- begins at column zero while others are indented;
+- begins with a single leading space (a one-space outlier); or
+- is indented with a tab.
 
-CRLF, LF, mixed line endings, and trailing newlines are retained exactly.
-Unicode text is preserved. If the confidence checks fail, the original .NET
-string is returned unchanged. Clipboard replacement is skipped when the result
-equals the source.
+This is deliberately stricter than a ratio vote: a single one-space or tab line
+is enough to refuse, because dedenting around it would reverse its relative
+indentation.
 
-The confidence ratios and margin width are configurable.
+clici does not use `TrimStart` and does not interpret tabs as spaces. CRLF, LF,
+mixed line endings, and trailing newlines are retained exactly. Unicode text is
+preserved. If the confidence checks fail, the original .NET string is returned
+unchanged, and clipboard replacement is skipped when the result equals the
+source. Removing the full base margin makes a second pass a no-op.
+
+A fixed margin width is available as a profile override
+(`autoDetectMarginWidth: false` with `marginSpacesToRemove`).
 
 ## Windows and process scope
 
@@ -64,10 +74,13 @@ clici targets Windows and uses WinForms, `NotifyIcon`, and
 `AddClipboardFormatListener`. It has no main window, web UI, local server, or
 network access.
 
-The first version watches clipboard changes only while an approved terminal
-process owns the foreground window. It does **not** install a global keyboard
-hook. Foreground-window detection is behind an interface so another targeting
-strategy can be evaluated later without changing the normalization core.
+clici attributes a copy to its source primarily by the clipboard **owner
+process** (`GetClipboardOwner`), falling back to the foreground process only
+when the owner is unknown. This means a disallowed background process that
+writes the clipboard while a terminal is in the foreground is not misattributed,
+and a terminal copy survives a focus change. It does **not** install a global
+keyboard hook. Both signals are behind interfaces so another targeting strategy
+can be evaluated later without changing the normalization core.
 
 Default approved process-name candidates are:
 
@@ -118,33 +131,42 @@ The default file is equivalent to:
     "codex"
   ],
   "excludedProcessNames": [],
-  "minimumMarginLineRatio": 0.7,
-  "maximumColumnZeroLineRatio": 0.2,
+  "autoDetectMarginWidth": true,
   "marginSpacesToRemove": 2,
   "maximumTextCharacters": 2000000,
-  "diagnosticLogging": false
+  "diagnosticLogging": false,
+  "schemaVersion": 1
 }
 ```
 
-Ratios must be from `0` through `1`, and the margin width must be from `1`
-through `16`. `maximumTextCharacters` must be from `1` through `100000000`;
-the two-million-character default prevents unusually large clipboard items
-from freezing the tray thread or causing excessive memory use. Items above the
-limit remain unchanged. Invalid fields fall back to safe defaults. A missing or
+When `autoDetectMarginWidth` is `true` (default), the margin width is detected
+from the copied text and constrained to two or four spaces. Set it to `false`
+to force exactly `marginSpacesToRemove`, which must be from `1` through `16`.
+`maximumTextCharacters` must be from `1` through `100000000`; the
+two-million-character default prevents unusually large clipboard items from
+freezing the tray thread or causing excessive memory use. Items above the limit
+remain unchanged. `schemaVersion` identifies the configuration format and must
+be at least `1`. Invalid fields fall back to safe defaults. A missing or
 malformed file does not terminate the application. Restart clici after manually
 editing the configuration.
 
-## Clipboard history and rich text
+## Clipboard privacy policy and rich text
 
-clici explicitly requests that its normalized rewrite be included in Windows
-clipboard history and cloud clipboard. Windows normally coalesces the source
-copy with the immediate rewrite, producing one useful normalized history entry
-rather than no entry or an original/normalized duplicate pair.
+clici **preserves** the source item's Windows clipboard privacy formats rather
+than overriding them. It reads `CanIncludeInClipboardHistory`,
+`CanUploadToCloudClipboard`, and `ExcludeClipboardContentFromMonitorProcessing`;
+carries any explicit `0`/`1` value through to the rewrite unchanged; and adds
+nothing when the source is silent. It never forces history or cloud inclusion,
+and it treats clipboard history and cross-device cloud synchronization as
+separate policies. When a source marks its content excluded from monitor
+processing, clici skips the item entirely, so a private copy keeps its
+protection through a rewrite.
 
-HTML, RTF, and CSV representations are retained alongside the normalized plain
-text when those formats are available. Plain-text destinations receive the
-normalized value; rich-text destinations may prefer the preserved rich
-representation and retain its original margin.
+Automatic mode is plain-text only: clici requires native Unicode text and
+permits only known metadata and privacy formats. Items carrying HTML, RTF, CSV,
+file lists, images, or unknown application formats are **skipped**, so clici
+never leaves modified plain text sitting beside stale rich content that a
+rich-text destination might paste with the original margin instead.
 
 ## Privacy
 
@@ -154,6 +176,10 @@ clici is local-only:
 - no analytics;
 - no network access;
 - no clipboard-content logging.
+
+clici performs no network activity of its own. Preserving a source's existing
+`CanUploadToCloudClipboard` value is a Windows OS policy carried on behalf of
+the source; clici never adds it.
 
 Optional diagnostic logging is disabled by default. When enabled, it records
 only timestamps, process names, decision types, exception types, and aggregate
@@ -217,34 +243,37 @@ installer above is the supported distribution path.
 
 ## Current limitations
 
-- HTML, RTF, and CSV are preserved, but other source-specific clipboard
-  formats may still be lost when a qualifying text item is rewritten.
+- Automatic mode is plain-text only. Items carrying HTML, RTF, CSV, files,
+  images, or unknown application formats are skipped rather than rewritten;
+  consistent rich-format normalization is future work.
+- Source attribution combines the clipboard owner process and the foreground
+  process, but the owner signal is not perfectly reliable (clipboard brokers and
+  ownerless states exist). Integrated-terminal hosts such as VS Code and Cursor
+  share one process across editor and terminal, so owner-process matching alone
+  cannot yet distinguish a terminal copy from an editor copy in those hosts.
 - Clipboard operations are attempted up to four times with short bounded
   delays; clici fails safely if another process continues to hold the clipboard.
 - clici skips text above the configured size ceiling rather than risk a long UI
   stall or excessive transient memory use.
-- Process matching uses the process that owns the foreground window at the time
-  of the clipboard notification. A background writer can therefore be
-  misattributed when a terminal is foreground, and a fast focus change can miss
-  a terminal copy. Terminal host and shell behavior also varies, so the default
-  names may need local adjustment.
-- Third-party clipboard tools may still record both the source copy and clici's
-  rewrite even when Windows history coalesces them into one normalized entry.
+- Third-party clipboard managers may still record both the source copy and
+  clici's rewrite.
 - clici allows one running instance per Windows session; a second instance exits
   before creating a tray icon or clipboard listener.
 - Configuration editing is file-based and changes require a restart.
-- There is no MSI, startup registration, auto-update, or global keyboard hook.
+- There is no MSI, auto-update, or global keyboard hook. (Per-user startup
+  registration is supported — see **Start with Windows** in the tray menu.)
 
 ## Planned next steps
 
-- exercise clipboard behavior across Windows Terminal, PowerShell, cmd, Codex,
-  and Claude Code;
-- preserve additional clipboard formats during eligible text replacement;
-- evaluate clipboard-owner correlation, Windows clipboard history, and RDP
-  behavior;
-- add optional start-with-Windows support;
-- evaluate signed/MSI packaging after runtime behavior is validated;
-- evaluate process-targeting refinements before considering any keyboard hook.
+- exercise clipboard behavior across Windows Terminal, PowerShell, cmd, WSL,
+  Codex, and Claude Code, and build a real source-fingerprint matrix;
+- add focused-control detection (UI Automation) so VS Code and Cursor
+  integrated terminals can be distinguished from editor copies;
+- move clipboard operations to a dedicated STA worker thread;
+- add tray last-action/last-skip status, one-shot normalization, and
+  sequence-safe undo;
+- evaluate consistent rich-format (HTML/RTF) normalization;
+- evaluate signed/MSI packaging and RDP clipboard behavior.
 
 ## License
 
