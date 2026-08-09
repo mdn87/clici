@@ -43,6 +43,9 @@ Desktop.ini
 ## Local agent/session state
 .Codex/
 .codex/
+.claude/handoff.md
+.claude/handoff-history/
+.lugos-wip/
 
 ## Local code-signing certificates (never commit)
 tools/.certs/
