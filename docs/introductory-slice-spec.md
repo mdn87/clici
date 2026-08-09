@@ -252,9 +252,11 @@ that budget.
 
 1. clici is enabled and not paused;
 2. native Unicode text was read successfully;
-3. the text does not exceed `maximumTextCharacters`;
-4. the notification is not a self-write (private marker, then hash fallback);
-5. the source did not set `ExcludeClipboardContentFromMonitorProcessing`;
+3. the source did not set `ExcludeClipboardContentFromMonitorProcessing`, and its
+   privacy policy was read without failure (checked first, before any content
+   processing such as the length check, hashing, or classification);
+4. the text does not exceed `maximumTextCharacters`;
+5. the notification is not a self-write (private marker, then hash fallback);
 6. the item carries a safe native format bundle (no rich, non-text, or unknown
    application formats);
 7. the resolved source process is approved (PROC-001a);
@@ -303,7 +305,10 @@ It shall carry each source's explicit DWORD value through to the rewrite
 unchanged and shall add none when the source is silent. It shall never force
 history or cloud inclusion, shall treat history and cloud synchronization as
 separate policies, and shall skip any item whose source set
-`ExcludeClipboardContentFromMonitorProcessing`.
+`ExcludeClipboardContentFromMonitorProcessing`. Privacy and format reads shall
+fail closed: a privacy format that is present but unreadable, or native formats
+that cannot be enumerated, shall cause the item to be skipped rather than
+rewritten as if the restriction or format were absent.
 
 **CLIP-012** Text longer than `maximumTextCharacters` shall remain unchanged.
 The skip shall not hash, normalize, or rewrite the oversized value.
