@@ -1,4 +1,6 @@
+using System.Diagnostics;
 using System.Runtime.InteropServices;
+using System.Text;
 using Clici.App.Native;
 
 namespace Clici.App.Clipboard;
@@ -6,15 +8,7 @@ namespace Clici.App.Clipboard;
 internal sealed class WinFormsClipboardService : IClipboardService
 {
     private const int MaximumAttempts = 4;
-    private const string CanIncludeInClipboardHistory = "CanIncludeInClipboardHistory";
-    private const string CanUploadToCloudClipboard = "CanUploadToCloudClipboard";
     private static readonly TimeSpan RetryDelay = TimeSpan.FromMilliseconds(20);
-    private static readonly string[] SupplementalTextFormats =
-    [
-        DataFormats.Html,
-        DataFormats.Rtf,
-        DataFormats.CommaSeparatedValue
-    ];
 
     public ClipboardReadResult TryReadText()
     {
@@ -24,8 +18,11 @@ internal sealed class WinFormsClipboardService : IClipboardService
             {
                 var sequenceBefore = NativeMethods.GetClipboardSequenceNumber();
                 var dataObject = System.Windows.Forms.Clipboard.GetDataObject();
+
+                // Require native Unicode text (autoConvert: false). A synthesized
+                // conversion is not the same as the source having placed text.
                 if (dataObject is null ||
-                    !dataObject.GetDataPresent(DataFormats.UnicodeText, true))
+                    !dataObject.GetDataPresent(DataFormats.UnicodeText, false))
                 {
                     return new ClipboardReadResult(
                         ClipboardAccessStatus.NoText,
@@ -36,7 +33,7 @@ internal sealed class WinFormsClipboardService : IClipboardService
 
                 var text = dataObject.GetData(
                     DataFormats.UnicodeText,
-                    true) as string;
+                    false) as string;
                 if (text is null)
                 {
                     return new ClipboardReadResult(
@@ -45,6 +42,10 @@ internal sealed class WinFormsClipboardService : IClipboardService
                         sequenceBefore,
                         null);
                 }
+
+                var privacyPolicy = ClipboardPrivacyPolicy.FromDataObject(dataObject);
+                var classification = ClipboardContentClassification.FromDataObject(dataObject);
+                var owner = CaptureOwner();
 
                 var sequenceAfter = NativeMethods.GetClipboardSequenceNumber();
                 if (sequenceBefore != sequenceAfter)
@@ -66,7 +67,16 @@ internal sealed class WinFormsClipboardService : IClipboardService
                     ClipboardAccessStatus.Success,
                     text,
                     sequenceAfter,
-                    null);
+                    null,
+                    privacyPolicy,
+                    classification.NativeFormats,
+                    classification.HasNativeUnicodeText,
+                    classification.HasRichText,
+                    classification.HasPrimaryNonTextContent,
+                    classification.HasDisallowedFormat,
+                    owner.ProcessId,
+                    owner.ProcessName,
+                    owner.WindowClass);
             }
             catch (ExternalException exception) when (attempt < MaximumAttempts)
             {
@@ -118,23 +128,9 @@ internal sealed class WinFormsClipboardService : IClipboardService
                         null);
                 }
 
-                var currentDataObject =
-                    System.Windows.Forms.Clipboard.GetDataObject();
-                var supplementalFormats = currentDataObject is null
-                    ? []
-                    : CaptureSupplementalFormats(currentDataObject);
-                var sequenceAfterCapture = NativeMethods.GetClipboardSequenceNumber();
-                if (sequenceAfterCapture != source.SequenceNumber)
-                {
-                    return new ClipboardWriteResult(
-                        ClipboardAccessStatus.Stale,
-                        sequenceAfterCapture,
-                        null);
-                }
-
                 var dataObject = CreateDataObject(
                     text,
-                    supplementalFormats);
+                    source.PrivacyPolicy ?? ClipboardPrivacyPolicy.None);
                 System.Windows.Forms.Clipboard.SetDataObject(
                     dataObject,
                     true,
@@ -174,53 +170,69 @@ internal sealed class WinFormsClipboardService : IClipboardService
 
     internal static DataObject CreateDataObject(
         string text,
-        IReadOnlyList<ClipboardFormatSnapshot>? supplementalFormats)
+        ClipboardPrivacyPolicy privacyPolicy)
     {
         var dataObject = new DataObject();
-
-        foreach (var snapshot in supplementalFormats ?? [])
-        {
-            dataObject.SetData(snapshot.Format, false, snapshot.Value);
-        }
-
         dataObject.SetData(DataFormats.UnicodeText, true, text);
-        dataObject.SetData(
-            CanIncludeInClipboardHistory,
-            false,
-            CreateClipboardDword(1));
-        dataObject.SetData(
-            CanUploadToCloudClipboard,
-            false,
-            CreateClipboardDword(1));
-
+        privacyPolicy.ApplyTo(dataObject);
         return dataObject;
     }
 
-    private static MemoryStream CreateClipboardDword(uint value) =>
-        new(BitConverter.GetBytes(value), writable: false);
-
-    private static IReadOnlyList<ClipboardFormatSnapshot> CaptureSupplementalFormats(
-        IDataObject dataObject)
+    /// <summary>
+    /// Captures the clipboard owner window and its process as a primary
+    /// source-attribution signal. GetClipboardOwner is not perfectly reliable
+    /// (clipboard brokers, ownerless states), so failures degrade to nulls and
+    /// the coordinator falls back to the foreground process.
+    /// </summary>
+    private static ClipboardOwner CaptureOwner()
     {
-        var snapshots = new List<ClipboardFormatSnapshot>();
-
-        foreach (var format in SupplementalTextFormats)
+        try
         {
-            try
+            var ownerWindow = NativeMethods.GetClipboardOwner();
+            if (ownerWindow == IntPtr.Zero)
             {
-                if (dataObject.GetDataPresent(format, false) &&
-                    dataObject.GetData(format, false) is string value)
+                return ClipboardOwner.Unknown;
+            }
+
+            _ = NativeMethods.GetWindowThreadProcessId(ownerWindow, out var processId);
+            string? processName = null;
+            if (processId != 0)
+            {
+                try
                 {
-                    snapshots.Add(new ClipboardFormatSnapshot(format, value));
+                    using var process = Process.GetProcessById((int)processId);
+                    processName = process.ProcessName;
+                }
+                catch (Exception exception) when (
+                    exception is ArgumentException or InvalidOperationException)
+                {
+                    processName = null;
                 }
             }
-            catch
-            {
-                // An optional format may be delayed or unavailable. Plain text
-                // normalization must remain independent of supplemental formats.
-            }
-        }
 
-        return snapshots;
+            return new ClipboardOwner(
+                processId == 0 ? null : (int)processId,
+                processName,
+                ReadWindowClass(ownerWindow));
+        }
+        catch (Exception exception) when (exception is not OutOfMemoryException)
+        {
+            return ClipboardOwner.Unknown;
+        }
+    }
+
+    private static string? ReadWindowClass(IntPtr window)
+    {
+        var buffer = new StringBuilder(256);
+        var length = NativeMethods.GetClassName(window, buffer, buffer.Capacity);
+        return length > 0 ? buffer.ToString() : null;
+    }
+
+    private readonly record struct ClipboardOwner(
+        int? ProcessId,
+        string? ProcessName,
+        string? WindowClass)
+    {
+        public static ClipboardOwner Unknown { get; } = new(null, null, null);
     }
 }

@@ -24,4 +24,13 @@ internal static class NativeMethods
 
     [DllImport("user32.dll")]
     internal static extern uint GetClipboardSequenceNumber();
+
+    [DllImport("user32.dll")]
+    internal static extern IntPtr GetClipboardOwner();
+
+    [DllImport("user32.dll", SetLastError = true, CharSet = CharSet.Unicode)]
+    internal static extern int GetClassName(
+        IntPtr windowHandle,
+        System.Text.StringBuilder className,
+        int maxCount);
 }
