@@ -59,6 +59,12 @@ This is deliberately stricter than a ratio vote: a single one-space or tab line
 is enough to refuse, because dedenting around it would reverse its relative
 indentation.
 
+One exception: a column-zero **first** nonblank line is treated as a selection
+artifact, not a conflict — a drag selection that starts at the first visible
+character captures that line without its margin. The first line is left
+unchanged and excluded from margin detection, and the remaining lines must
+satisfy the rules above on their own.
+
 clici does not use `TrimStart` and does not interpret tabs as spaces. CRLF, LF,
 mixed line endings, and trailing newlines are retained exactly. Unicode text is
 preserved. If the confidence checks fail, the original .NET string is returned

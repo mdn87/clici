@@ -6,6 +6,9 @@ namespace Clici.Core.MarginNormalization;
 /// margin width is detected from the actual leading indentation, and any line
 /// shallower than that margin (one-space outliers, column-zero lines) or
 /// indented with a tab is treated as a conflict that blocks normalization.
+/// One exception: a column-zero FIRST nonblank line is a common drag-selection
+/// artifact, so it is exempt from margin measurement and left unchanged while
+/// the remaining lines are dedented.
 /// </summary>
 public sealed record MarginNormalizationOptions(
     int MinimumNonblankLines,
