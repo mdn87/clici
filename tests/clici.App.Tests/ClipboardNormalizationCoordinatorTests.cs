@@ -452,6 +452,145 @@ public sealed class ClipboardNormalizationCoordinatorTests
         Assert.Equal(Expected, write.Text);
     }
 
+    private const string WrappedCommand =
+        "python3 scripts/orca.py begin --envelope .agents/read-elicitation.envelope.json\r\n  --json";
+
+    private const string WrappedCommandJoined =
+        "python3 scripts/orca.py begin --envelope .agents/read-elicitation.envelope.json --json";
+
+    [Fact]
+    public void WrapSignatureCopyFromTrustedSourceIsJoined()
+    {
+        var clipboard = new FakeClipboardService(
+            new ClipboardReadResult(
+                ClipboardAccessStatus.Success,
+                WrappedCommand,
+                1,
+                null));
+        var logger = new RecordingLogger();
+        var coordinator = CreateCoordinator(clipboard, logger, new CliciConfiguration());
+
+        coordinator.HandleClipboardChanged();
+
+        var write = Assert.Single(clipboard.Writes);
+        Assert.Equal(WrappedCommandJoined, write.Text);
+        Assert.Contains(
+            logger.Events,
+            eventName => eventName.StartsWith("joined-wrapped-lines", StringComparison.Ordinal));
+    }
+
+    [Fact]
+    public void WrapSignatureCopyFromUntrustedSourceIsNotJoined()
+    {
+        var clipboard = new FakeClipboardService(
+            new ClipboardReadResult(
+                ClipboardAccessStatus.Success,
+                WrappedCommand,
+                1,
+                null));
+        var logger = new RecordingLogger();
+        var coordinator = CreateCoordinator(
+            clipboard,
+            new StubProcessProvider(true, "notepad"),
+            logger,
+            new CliciConfiguration());
+
+        coordinator.HandleClipboardChanged();
+
+        Assert.Empty(clipboard.Writes);
+        Assert.Contains("skipped-untrusted-source", logger.Events);
+    }
+
+    [Fact]
+    public void DisabledJoinFallsThroughToMarginNormalization()
+    {
+        var clipboard = new FakeClipboardService(
+            new ClipboardReadResult(
+                ClipboardAccessStatus.Success,
+                WrappedCommand,
+                1,
+                null));
+        var logger = new RecordingLogger();
+        var coordinator = CreateCoordinator(
+            clipboard,
+            logger,
+            new CliciConfiguration { JoinWrappedLines = false });
+
+        coordinator.HandleClipboardChanged();
+
+        // Without joining, the margin pipeline still dedents the continuation.
+        var write = Assert.Single(clipboard.Writes);
+        Assert.Equal(
+            "python3 scripts/orca.py begin --envelope .agents/read-elicitation.envelope.json\r\n--json",
+            write.Text);
+        Assert.DoesNotContain(
+            logger.Events,
+            eventName => eventName.StartsWith("joined-wrapped-lines", StringComparison.Ordinal));
+    }
+
+    [Fact]
+    public void JoinHotkeyJoinsUnconditionallyAndBypassesTheSourceGate()
+    {
+        var clipboard = new FakeClipboardService(
+            new ClipboardReadResult(
+                ClipboardAccessStatus.Success,
+                "  first fragment\r\n  second fragment\r\n  third",
+                1,
+                null,
+                OwnerProcessName: "notepad"));
+        var logger = new RecordingLogger();
+        var coordinator = CreateCoordinator(
+            clipboard,
+            new StubProcessProvider(true, "notepad"),
+            logger,
+            new CliciConfiguration());
+
+        coordinator.HandleJoinHotkeyPressed();
+
+        var write = Assert.Single(clipboard.Writes);
+        Assert.Equal("first fragment second fragment third", write.Text);
+        Assert.Contains(
+            logger.Events,
+            eventName => eventName.StartsWith("joined-lines-hotkey", StringComparison.Ordinal));
+    }
+
+    [Fact]
+    public void JoinHotkeyRespectsMonitorProcessingExclusion()
+    {
+        var clipboard = new FakeClipboardService(
+            new ClipboardReadResult(
+                ClipboardAccessStatus.Success,
+                "  first\r\n  second",
+                1,
+                null,
+                PrivacyPolicy: new ClipboardPrivacyPolicy(null, null, ExcludeFromMonitorProcessing: true)));
+        var logger = new RecordingLogger();
+        var coordinator = CreateCoordinator(clipboard, logger, new CliciConfiguration());
+
+        coordinator.HandleJoinHotkeyPressed();
+
+        Assert.Empty(clipboard.Writes);
+        Assert.Contains("skipped-monitor-processing-exclusion", logger.Events);
+    }
+
+    [Fact]
+    public void JoinHotkeyOnSingleLineTextIsANoOp()
+    {
+        var clipboard = new FakeClipboardService(
+            new ClipboardReadResult(
+                ClipboardAccessStatus.Success,
+                "one line only",
+                1,
+                null));
+        var logger = new RecordingLogger();
+        var coordinator = CreateCoordinator(clipboard, logger, new CliciConfiguration());
+
+        coordinator.HandleJoinHotkeyPressed();
+
+        Assert.Empty(clipboard.Writes);
+        Assert.Contains("join-hotkey-not-multiline", logger.Events);
+    }
+
     private static ClipboardNormalizationCoordinator CreateCoordinator(
         IClipboardService clipboard,
         IDiagnosticLogger logger,

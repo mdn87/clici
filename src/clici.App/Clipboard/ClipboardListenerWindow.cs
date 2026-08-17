@@ -12,9 +12,11 @@ internal sealed class ClipboardListenerWindow : NativeWindow, IDisposable
     // where the message pump is stalled. The delay also coalesces the bursts
     // produced by our own writes and by peer clipboard tools.
     private static readonly int DebounceMilliseconds = 60;
+    private const int JoinHotkeyId = 1;
 
     private readonly System.Windows.Forms.Timer _debounceTimer;
     private bool _registered;
+    private bool _hotkeyRegistered;
     private bool _disposed;
 
     public ClipboardListenerWindow()
@@ -43,6 +45,27 @@ internal sealed class ClipboardListenerWindow : NativeWindow, IDisposable
 
     public event EventHandler? ClipboardChanged;
 
+    public event EventHandler? JoinHotkeyPressed;
+
+    /// <summary>
+    /// Registers the system-wide join hotkey on this window. Returns false when
+    /// another application already owns the chord.
+    /// </summary>
+    public bool TryRegisterJoinHotkey(uint modifiers, uint virtualKey)
+    {
+        if (_hotkeyRegistered)
+        {
+            return true;
+        }
+
+        _hotkeyRegistered = NativeMethods.RegisterHotKey(
+            Handle,
+            JoinHotkeyId,
+            modifiers | NativeMethods.ModNoRepeat,
+            virtualKey);
+        return _hotkeyRegistered;
+    }
+
     protected override void WndProc(ref Message message)
     {
         if (message.Msg == NativeMethods.WmClipboardUpdate)
@@ -51,6 +74,11 @@ internal sealed class ClipboardListenerWindow : NativeWindow, IDisposable
             // listener chain is not blocked by clipboard I/O.
             _debounceTimer.Stop();
             _debounceTimer.Start();
+        }
+        else if (message.Msg == NativeMethods.WmHotkey &&
+                 message.WParam == JoinHotkeyId)
+        {
+            JoinHotkeyPressed?.Invoke(this, EventArgs.Empty);
         }
 
         base.WndProc(ref message);
@@ -72,6 +100,12 @@ internal sealed class ClipboardListenerWindow : NativeWindow, IDisposable
         _debounceTimer.Stop();
         _debounceTimer.Tick -= OnDebounceTick;
         _debounceTimer.Dispose();
+
+        if (_hotkeyRegistered)
+        {
+            NativeMethods.UnregisterHotKey(Handle, JoinHotkeyId);
+            _hotkeyRegistered = false;
+        }
 
         if (_registered)
         {
