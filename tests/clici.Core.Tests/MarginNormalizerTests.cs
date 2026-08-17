@@ -101,6 +101,84 @@ public sealed class MarginNormalizerTests
     }
 
     [Fact]
+    public void ColumnZeroFirstLineIsExemptAndRemainingLinesAreDedented()
+    {
+        // A drag selection that starts at the first visible character captures
+        // the first line without its margin. That line is exempt from margin
+        // measurement and left unchanged; the rest dedent normally.
+        const string input = "First captured mid-line\n  Second\n  Third\n    Nested";
+
+        var result = _normalizer.Normalize(input);
+
+        Assert.Equal(MarginNormalizationStatus.Normalized, result.Status);
+        Assert.Equal("First captured mid-line\nSecond\nThird\n  Nested", result.Text);
+        Assert.Equal(4, result.NonblankLineCount);
+        Assert.Equal(3, result.MarginLineCount);
+        Assert.Equal(1, result.ColumnZeroLineCount);
+    }
+
+    [Fact]
+    public void ColumnZeroFirstLineExemptionAppliesToFourSpaceBase()
+    {
+        const string input = "First\n    Second\n    Third\n      Nested";
+
+        var result = _normalizer.Normalize(input);
+
+        Assert.Equal(MarginNormalizationStatus.Normalized, result.Status);
+        Assert.Equal("First\nSecond\nThird\n  Nested", result.Text);
+    }
+
+    [Fact]
+    public void SecondPassAfterFirstLineExemptionIsANoOp()
+    {
+        const string input = "First captured mid-line\n  Second\n  Third";
+
+        var firstPass = _normalizer.Normalize(input);
+        var secondPass = _normalizer.Normalize(firstPass.Text);
+
+        Assert.Equal(MarginNormalizationStatus.Normalized, firstPass.Status);
+        Assert.Equal(MarginNormalizationStatus.NotEligible, secondPass.Status);
+        Assert.Equal(firstPass.Text, secondPass.Text);
+    }
+
+    [Fact]
+    public void ColumnZeroFirstLineDoesNotRescueOneSpaceOutliers()
+    {
+        // The exemption removes only the first line from measurement; the
+        // remaining lines must still share a candidate margin on their own.
+        const string input = "First\n  Second\n Third";
+
+        var result = _normalizer.Normalize(input);
+
+        Assert.Equal(MarginNormalizationStatus.NotEligible, result.Status);
+        Assert.Equal(input, result.Text);
+    }
+
+    [Fact]
+    public void TabIndentedFirstLineIsNotExempt()
+    {
+        const string input = "\tFirst\n  Second\n  Third";
+
+        var result = _normalizer.Normalize(input);
+
+        Assert.Equal(MarginNormalizationStatus.NotEligible, result.Status);
+        Assert.Equal(input, result.Text);
+    }
+
+    [Fact]
+    public void ColumnZeroFirstLineExemptionAppliesToFixedMarginWidth()
+    {
+        const string input = "First\n    Second\n    Third";
+
+        var result = _normalizer.Normalize(
+            input,
+            new MarginNormalizationOptions(3, [2, 4], FixedMarginWidth: 4));
+
+        Assert.Equal(MarginNormalizationStatus.Normalized, result.Status);
+        Assert.Equal("First\nSecond\nThird", result.Text);
+    }
+
+    [Fact]
     public void OneSpaceOutliersAreConflictsThatBlockNormalization()
     {
         // The reviewer's dangerous case: seven two-space lines and three

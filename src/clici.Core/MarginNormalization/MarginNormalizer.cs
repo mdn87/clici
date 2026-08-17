@@ -29,10 +29,11 @@ public sealed class MarginNormalizer
 
             var columnZeroLineCount = 0;
             var minimumLeadingSpaces = int.MaxValue;
+            var measuredLineCount = 0;
 
-            foreach (var line in nonblankLines)
+            for (var lineIndex = 0; lineIndex < nonblankLines.Length; lineIndex++)
             {
-                var indent = MeasureLeadingIndent(text, line);
+                var indent = MeasureLeadingIndent(text, nonblankLines[lineIndex]);
 
                 // A tab anywhere in the leading indentation makes the margin
                 // ambiguous. Tab-indented lines are conflicts, not neutral
@@ -47,12 +48,25 @@ public sealed class MarginNormalizer
                 if (indent.LeadingSpaces == 0)
                 {
                     columnZeroLineCount++;
+
+                    // A column-zero FIRST nonblank line is a selection artifact
+                    // (a drag selection that starts at the first visible
+                    // character captures that line without its margin), so it is
+                    // exempt from margin measurement and left unchanged. A
+                    // column-zero line anywhere else remains a conflict.
+                    if (lineIndex == 0)
+                    {
+                        continue;
+                    }
                 }
 
+                measuredLineCount++;
                 minimumLeadingSpaces = Math.Min(minimumLeadingSpaces, indent.LeadingSpaces);
             }
 
-            var marginWidth = ResolveMarginWidth(options, minimumLeadingSpaces);
+            var marginWidth = measuredLineCount > 0
+                ? ResolveMarginWidth(options, minimumLeadingSpaces)
+                : null;
             if (marginWidth is null)
             {
                 return MarginNormalizationResult.NotEligible(
@@ -88,14 +102,14 @@ public sealed class MarginNormalizer
                 return MarginNormalizationResult.EligibleUnchanged(
                     text,
                     nonblankLines.Length,
-                    nonblankLines.Length,
+                    measuredLineCount,
                     columnZeroLineCount);
             }
 
             return MarginNormalizationResult.Normalized(
                 builder.ToString(),
                 nonblankLines.Length,
-                nonblankLines.Length,
+                measuredLineCount,
                 columnZeroLineCount,
                 changedLineCount);
         }

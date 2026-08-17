@@ -141,17 +141,26 @@ at least three nonblank logical lines. Fewer nonblank lines remain ineligible.
 **NORM-003** Blank lines shall not contribute to indentation detection.
 
 **NORM-004** In automatic mode, the normalizer shall detect the shared base
-margin as the minimum count of leading ASCII spaces across all nonblank lines,
-and text shall be eligible only when that base is exactly two or four spaces and
-no nonblank line is a conflict. A nonblank line is a conflict when it begins at
-column zero, begins with a single leading space, or is indented with a tab
-(a tab appearing anywhere within its leading whitespace). Any single conflict
-line makes the text ineligible.
+margin as the minimum count of leading ASCII spaces across all measured
+nonblank lines, and text shall be eligible only when that base is exactly two
+or four spaces and no measured nonblank line is a conflict. A nonblank line is
+a conflict when it begins at column zero, begins with a single leading space,
+or is indented with a tab (a tab appearing anywhere within its leading
+whitespace). Any single conflict line makes the text ineligible.
+
+**NORM-004b** The first nonblank line is exempt from margin measurement when it
+begins at column zero: a drag selection that starts at the first visible
+character captures that line without its margin, so it is not evidence against
+a shared base. The exempt line is left unchanged, the remaining nonblank lines
+are the measured lines and must satisfy the eligibility rules on their own, and
+a tab-indented first line remains a conflict. A column-zero line in any other
+position remains a conflict.
 
 **NORM-004a** A fixed margin width shall be available as a profile override
 (`autoDetectMarginWidth = false`). In that mode the configured
-`marginSpacesToRemove` is used, and every nonblank line must share at least that
-width or the text is ineligible.
+`marginSpacesToRemove` is used, and every measured nonblank line (honoring the
+NORM-004b first-line exemption) must share at least that width or the text is
+ineligible.
 
 **NORM-005** For eligible text, the normalizer shall remove exactly the detected
 or configured margin width of leading ASCII space characters from every line
