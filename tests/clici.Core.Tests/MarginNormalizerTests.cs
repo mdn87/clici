@@ -40,15 +40,47 @@ public sealed class MarginNormalizerTests
     }
 
     [Fact]
-    public void FewerThanThreeNonblankLinesAreLeftUntouched()
+    public void TwoNonblankLinesAreEligible()
     {
-        // The classifier requires at least three nonblank lines of evidence.
+        // Two nonblank lines are the smallest real case: a wrapped command
+        // line plus its indented continuation.
         const string input = "  First\n  Second";
 
         var result = _normalizer.Normalize(input);
 
-        Assert.Equal(MarginNormalizationStatus.NotEligible, result.Status);
-        Assert.Same(input, result.Text);
+        Assert.Equal(MarginNormalizationStatus.Normalized, result.Status);
+        Assert.Equal("First\nSecond", result.Text);
+    }
+
+    [Fact]
+    public void WrappedCommandContinuationLineIsDedented()
+    {
+        // A long command selected from its first visible character: the first
+        // line loses its margin to the selection start, and the wrapped
+        // continuation keeps the two-space margin that would break the command
+        // when pasted back into a shell.
+        const string input =
+            "python3 scripts/orca.py begin --envelope .agents/read.envelope.json\n  --json";
+
+        var result = _normalizer.Normalize(input);
+
+        Assert.Equal(MarginNormalizationStatus.Normalized, result.Status);
+        Assert.Equal(
+            "python3 scripts/orca.py begin --envelope .agents/read.envelope.json\n--json",
+            result.Text);
+    }
+
+    [Fact]
+    public void SecondPassAfterWrappedCommandDedentIsANoOp()
+    {
+        const string input = "command --first-flag value\n  --second-flag";
+
+        var firstPass = _normalizer.Normalize(input);
+        var secondPass = _normalizer.Normalize(firstPass.Text);
+
+        Assert.Equal(MarginNormalizationStatus.Normalized, firstPass.Status);
+        Assert.Equal(MarginNormalizationStatus.NotEligible, secondPass.Status);
+        Assert.Equal(firstPass.Text, secondPass.Text);
     }
 
     [Fact]

@@ -40,7 +40,7 @@ public sealed record CliciConfiguration
 
     public MarginNormalizationOptions ToNormalizationOptions() =>
         new(
-            MinimumNonblankLines: 3,
+            MinimumNonblankLines: 2,
             CandidateMarginWidths: [2, 4],
             FixedMarginWidth: AutoDetectMarginWidth ? null : MarginSpacesToRemove);
 }

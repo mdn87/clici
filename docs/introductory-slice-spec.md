@@ -136,7 +136,9 @@ The tray menu shall provide:
 clipboard, process, filesystem, logging, or network dependency.
 
 **NORM-002** Text shall be considered multiline content only when it contains
-at least three nonblank logical lines. Fewer nonblank lines remain ineligible.
+at least two nonblank logical lines: a wrapped command line plus its indented
+continuation is the smallest real case. Single nonblank lines remain
+ineligible.
 
 **NORM-003** Blank lines shall not contribute to indentation detection.
 
