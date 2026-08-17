@@ -38,6 +38,18 @@ public static class ConfigurationValidator
             usedFallback = true;
         }
 
+        var joinLinesHotkey = candidate.JoinLinesHotkey;
+        if (joinLinesHotkey is null)
+        {
+            joinLinesHotkey = Defaults.JoinLinesHotkey;
+            usedFallback = true;
+        }
+        else if (joinLinesHotkey.Trim() != joinLinesHotkey)
+        {
+            joinLinesHotkey = joinLinesHotkey.Trim();
+            wasNormalized = true;
+        }
+
         var allowed = NormalizeProcessNames(
             candidate.AllowedProcessNames,
             ref usedFallback,
@@ -54,6 +66,7 @@ public static class ConfigurationValidator
                 ExcludedProcessNames = excluded,
                 MarginSpacesToRemove = marginSpaces,
                 MaximumTextCharacters = maximumTextCharacters,
+                JoinLinesHotkey = joinLinesHotkey,
                 SchemaVersion = schemaVersion
             },
             usedFallback,

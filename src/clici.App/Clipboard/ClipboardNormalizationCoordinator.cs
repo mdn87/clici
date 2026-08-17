@@ -2,6 +2,7 @@ using Clici.App.Logging;
 using Clici.App.Processes;
 using Clici.Core.Clipboard;
 using Clici.Core.Configuration;
+using Clici.Core.LineJoining;
 using Clici.Core.MarginNormalization;
 using Clici.Core.Processes;
 
@@ -13,6 +14,7 @@ internal sealed class ClipboardNormalizationCoordinator
     private readonly IForegroundProcessProvider _foregroundProcessProvider;
     private readonly IDiagnosticLogger _logger;
     private readonly MarginNormalizer _normalizer;
+    private readonly WrappedLineJoiner _joiner;
     private readonly ProcessNameMatcher _processNameMatcher;
     private readonly ClipboardSelfWriteSuppressor _selfWriteSuppressor;
     private CliciConfiguration _configuration;
@@ -30,6 +32,7 @@ internal sealed class ClipboardNormalizationCoordinator
         _logger = logger;
         _configuration = configuration;
         _normalizer = new MarginNormalizer();
+        _joiner = new WrappedLineJoiner();
         _processNameMatcher = new ProcessNameMatcher();
         _selfWriteSuppressor = new ClipboardSelfWriteSuppressor();
     }
@@ -163,7 +166,23 @@ internal sealed class ClipboardNormalizationCoordinator
                 return;
             }
 
-            // 5. Layout confidence.
+            // 5. Wrapped-command confidence. A copy carrying the wrap signature
+            // is one logical line the terminal wrapped at its right edge;
+            // rejoining it takes precedence over margin normalization.
+            if (_configuration.JoinWrappedLines)
+            {
+                var joinResult = _joiner.JoinIfWrapSignature(snapshot.Text);
+                if (joinResult.Status == LineJoinStatus.Joined)
+                {
+                    _logger.Event(
+                        $"joined-wrapped-lines process={sourceName} " +
+                        $"lines={joinResult.SourceLineCount}");
+                    WriteRewrittenText(joinResult.Text, snapshot, sourceName);
+                    return;
+                }
+            }
+
+            // 6. Layout confidence.
             var result = _normalizer.Normalize(
                 snapshot.Text,
                 _configuration.ToNormalizationOptions());
@@ -175,25 +194,7 @@ internal sealed class ClipboardNormalizationCoordinator
                 return;
             }
 
-            // 6. Write, preserving the source privacy policy. The service rechecks
-            // the clipboard sequence immediately before writing.
-            var writeResult = _clipboardService.TryWriteText(result.Text, snapshot);
-            if (writeResult.Status == ClipboardAccessStatus.Success)
-            {
-                _selfWriteSuppressor.MarkPendingWrite(result.Text);
-                return;
-            }
-
-            if (writeResult.Status == ClipboardAccessStatus.Stale)
-            {
-                _logger.Event("skipped-stale-clipboard-write");
-                return;
-            }
-
-            _logger.Failure(
-                "clipboard-write",
-                sourceName,
-                writeResult.ExceptionType);
+            WriteRewrittenText(result.Text, snapshot, sourceName);
         }
         catch (Exception exception)
         {
@@ -206,5 +207,115 @@ internal sealed class ClipboardNormalizationCoordinator
         {
             _processing = false;
         }
+    }
+
+    /// <summary>
+    /// Joins every line of the current clipboard item on the user's explicit
+    /// hotkey. Intent substitutes for the automatic wrap signature and the
+    /// source allowlist, but the privacy, size, and format gates still apply:
+    /// an explicit join must not strip a source's clipboard restrictions or
+    /// flatten rich content.
+    /// </summary>
+    public void HandleJoinHotkeyPressed()
+    {
+        if (_processing)
+        {
+            return;
+        }
+
+        try
+        {
+            _processing = true;
+
+            if (!_configuration.Enabled || _paused)
+            {
+                return;
+            }
+
+            var snapshot = _clipboardService.TryReadText();
+            if (snapshot.Status == ClipboardAccessStatus.NoText)
+            {
+                return;
+            }
+
+            if (snapshot.Status != ClipboardAccessStatus.Success ||
+                snapshot.Text is null)
+            {
+                _logger.Failure("clipboard-read", null, snapshot.ExceptionType);
+                return;
+            }
+
+            if (snapshot.PrivacyPolicy?.ExcludeFromMonitorProcessing == true)
+            {
+                _logger.Event("skipped-monitor-processing-exclusion");
+                return;
+            }
+
+            if (snapshot.PrivacyPolicy?.ReadFailed == true)
+            {
+                _logger.Event("skipped-unreadable-privacy-policy");
+                return;
+            }
+
+            if (snapshot.Text.Length > _configuration.MaximumTextCharacters)
+            {
+                _logger.Event("skipped-text-over-size-limit");
+                return;
+            }
+
+            if (snapshot.HasDisallowedFormat)
+            {
+                _logger.Event("skipped-rich-or-nontext-content");
+                return;
+            }
+
+            var joinResult = _joiner.JoinAllLines(snapshot.Text);
+            if (joinResult.Status != LineJoinStatus.Joined ||
+                string.Equals(joinResult.Text, snapshot.Text, StringComparison.Ordinal))
+            {
+                _logger.Event("join-hotkey-not-multiline");
+                return;
+            }
+
+            _logger.Event($"joined-lines-hotkey lines={joinResult.SourceLineCount}");
+            WriteRewrittenText(joinResult.Text, snapshot, null);
+        }
+        catch (Exception exception)
+        {
+            _logger.Failure(
+                "join-hotkey",
+                null,
+                exception.GetType().Name);
+        }
+        finally
+        {
+            _processing = false;
+        }
+    }
+
+    // Write, preserving the source privacy policy. The service rechecks the
+    // clipboard sequence immediately before writing.
+    private void WriteRewrittenText(
+        string text,
+        ClipboardReadResult snapshot,
+        string? sourceName)
+    {
+        var writeResult = _clipboardService.TryWriteText(text, snapshot);
+        if (writeResult.Status == ClipboardAccessStatus.Success)
+        {
+            _selfWriteSuppressor.MarkPendingWrite(text);
+            return;
+        }
+
+        if (writeResult.Status == ClipboardAccessStatus.Stale)
+        {
+            _logger.Event("skipped-stale-clipboard-write");
+            return;
+        }
+
+        _logger.Failure(
+            "clipboard-write",
+            sourceName,
+            writeResult.ExceptionType);
     }
 }

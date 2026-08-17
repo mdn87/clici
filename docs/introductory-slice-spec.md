@@ -200,6 +200,37 @@ to the input at the .NET string level. The clipboard caller shall not write it.
 **NORM-012** A result may expose aggregate counts and an exception type, but
 shall not itself log content.
 
+### 6.1a Wrapped-line joining
+
+**JOIN-001** For trusted sources, when `joinWrappedLines` is enabled (default),
+a copy carrying the wrap signature shall be rejoined into one logical line
+before margin normalization is considered. The wrap signature requires: at
+least two lines after dropping trailing empty segments; no blank line between
+content lines; every line except the last at least 60 characters long
+(trailing whitespace excluded) and no more than 15 characters shorter than the
+longest such line; a final line no longer than that longest line plus 15
+characters; and no line whose first nonspace character is a table pipe (`|`),
+plus sign (`+`), or Unicode box-drawing character.
+
+**JOIN-002** Joining shall trim each fragment's leading and trailing
+whitespace and concatenate the fragments with single ASCII spaces. Content
+between the fragments' first and last nonspace characters shall be copied
+unchanged.
+
+**JOIN-003** Joined output is a single line, so a second pass over it is a
+no-op for both joining and margin normalization.
+
+**JOIN-004** A global hotkey (default `Ctrl+Alt+J`, configured by
+`joinLinesHotkey`, empty string disables, at least one modifier required)
+shall join every nonblank line of the current clipboard item unconditionally.
+The explicit invocation substitutes for the wrap signature and the source
+allowlist, but the privacy-policy, size, and rich-format gates of CLIP-005
+still apply.
+
+**JOIN-005** Failure to parse or register the hotkey chord (including a chord
+owned by another application) shall be logged and shall not prevent startup;
+clici runs without the hotkey.
+
 ### 6.2 Source-process targeting
 
 **PROC-001** On each clipboard notification, clici shall determine the source
@@ -271,9 +302,12 @@ that budget.
 6. the item carries a safe native format bundle (no rich, non-text, or unknown
    application formats);
 7. the resolved source process is approved (PROC-001a);
-8. normalization returns `Normalized`;
-9. the normalized string is not equal to the source string; and
+8. wrapped-line joining (JOIN-001) or normalization proposes a replacement;
+9. the proposed string is not equal to the source string; and
 10. the clipboard sequence still matches the successfully read source item.
+
+The hotkey path (JOIN-004) applies the same conditions except 7, which the
+explicit user invocation replaces.
 
 Each rejection shall be expressed as a distinct diagnostic reason rather than a
 single generic skip.
@@ -349,6 +383,8 @@ application-data directory, never beside the executable.
 | `autoDetectMarginWidth` | Boolean | `true` | Boolean JSON value; when `false`, `marginSpacesToRemove` is a fixed override |
 | `marginSpacesToRemove` | Integer | `2` | Inclusive range `1` through `16` |
 | `maximumTextCharacters` | Integer | `2000000` | Inclusive range `1` through `100000000` |
+| `joinWrappedLines` | Boolean | `true` | Boolean JSON value; enables JOIN-001 automatic joining |
+| `joinLinesHotkey` | String | `"Ctrl+Alt+J"` | Trimmed; empty disables the hotkey; must parse as modifier(s) plus key or registration is skipped |
 | `diagnosticLogging` | Boolean | `false` | Boolean JSON value |
 | `schemaVersion` | Integer | `1` | At least `1`; identifies the configuration format |
 

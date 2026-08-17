@@ -30,6 +30,20 @@ public sealed record CliciConfiguration
 
     public int MaximumTextCharacters { get; init; } = 2_000_000;
 
+    /// <summary>
+    /// When true (default), a trusted copy carrying the wrap signature — no
+    /// blank lines, every line except the last filled to a near-uniform right
+    /// edge — is rejoined into the single logical line the terminal wrapped.
+    /// </summary>
+    public bool JoinWrappedLines { get; init; } = true;
+
+    /// <summary>
+    /// Global hotkey that joins the current clipboard lines unconditionally,
+    /// for wrapped commands the automatic signature refuses. Empty disables
+    /// the hotkey. At least one modifier is required.
+    /// </summary>
+    public string JoinLinesHotkey { get; init; } = "Ctrl+Alt+J";
+
     public bool DiagnosticLogging { get; init; }
 
     /// <summary>

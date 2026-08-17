@@ -66,6 +66,24 @@ character captures that line without its margin. The first line is left
 unchanged and excluded from margin detection, and the remaining lines must
 satisfy the rules above on their own.
 
+## Wrapped-line joining
+
+A long command wrapped at the terminal's right edge copies as multiple lines,
+which breaks it when pasted back into a shell. For trusted sources, clici
+rejoins a copy into one line when it carries the **wrap signature**: no blank
+lines, every line except the last at least 60 characters and within 15
+characters of the longest line (word wrap leaves a ragged edge), the last line
+no longer than that width, and no table or box-drawing framing. Fragments are
+trimmed and joined with single spaces. Ordinary multiline content — code,
+lists, paragraphs, tables — does not match and falls through to margin
+normalization. Set `joinWrappedLines: false` to disable.
+
+When the signature refuses a copy you know is one command, the global hotkey
+(default `Ctrl+Alt+J`, configurable via `joinLinesHotkey`, empty to disable)
+joins every nonblank line of the current clipboard unconditionally. The hotkey
+skips the source allowlist — pressing it is the authorization — but still
+honors the privacy, size, and rich-format gates.
+
 clici does not use `TrimStart` and does not interpret tabs as spaces. CRLF, LF,
 mixed line endings, and trailing newlines are retained exactly. Unicode text is
 preserved. If the confidence checks fail, the original .NET string is returned

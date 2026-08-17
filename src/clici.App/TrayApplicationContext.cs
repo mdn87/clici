@@ -1,6 +1,7 @@
 using System.Diagnostics;
 using Clici.App.Clipboard;
 using Clici.App.Configuration;
+using Clici.App.Input;
 using Clici.App.Lifecycle;
 using Clici.App.Logging;
 using Clici.App.Processes;
@@ -104,6 +105,7 @@ internal sealed class TrayApplicationContext : ApplicationContext
         {
             _clipboardListener = new ClipboardListenerWindow();
             _clipboardListener.ClipboardChanged += ClipboardListenerOnClipboardChanged;
+            RegisterJoinHotkey();
             _logger.Event("started");
         }
         catch (Exception exception)
@@ -209,6 +211,35 @@ internal sealed class TrayApplicationContext : ApplicationContext
     private void ClipboardListenerOnClipboardChanged(object? sender, EventArgs eventArgs) =>
         _coordinator.HandleClipboardChanged();
 
+    private void RegisterJoinHotkey()
+    {
+        var chord = _configuration.JoinLinesHotkey;
+        if (_clipboardListener is null || string.IsNullOrWhiteSpace(chord))
+        {
+            return;
+        }
+
+        if (!HotkeyParser.TryParse(chord, out var modifiers, out var virtualKey))
+        {
+            _logger.Failure("join-hotkey-registration", null, "invalid-chord");
+            return;
+        }
+
+        if (!_clipboardListener.TryRegisterJoinHotkey(modifiers, virtualKey))
+        {
+            // Another application already owns the chord; clici keeps running
+            // without the hotkey rather than failing startup.
+            _logger.Failure("join-hotkey-registration", null, "chord-unavailable");
+            return;
+        }
+
+        _clipboardListener.JoinHotkeyPressed += JoinHotkeyOnPressed;
+        _logger.Event($"join-hotkey-registered chord={chord}");
+    }
+
+    private void JoinHotkeyOnPressed(object? sender, EventArgs eventArgs) =>
+        _coordinator.HandleJoinHotkeyPressed();
+
     private void OpenPath(string path)
     {
         try
@@ -234,6 +265,7 @@ internal sealed class TrayApplicationContext : ApplicationContext
         if (_clipboardListener is not null)
         {
             _clipboardListener.ClipboardChanged -= ClipboardListenerOnClipboardChanged;
+            _clipboardListener.JoinHotkeyPressed -= JoinHotkeyOnPressed;
             _clipboardListener.Dispose();
             _clipboardListener = null;
         }
