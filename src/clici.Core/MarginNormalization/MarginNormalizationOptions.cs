@@ -16,9 +16,10 @@ public sealed record MarginNormalizationOptions(
     int? FixedMarginWidth)
 {
     /// <summary>
-    /// Automatic policy: require at least three nonblank content lines and only
-    /// accept a shared margin of exactly two or four spaces.
+    /// Automatic policy: require at least two nonblank content lines (a wrapped
+    /// command plus its continuation is the smallest real case) and only accept
+    /// a shared margin of exactly two or four spaces.
     /// </summary>
     public static MarginNormalizationOptions Default { get; } =
-        new(3, [2, 4], null);
+        new(2, [2, 4], null);
 }

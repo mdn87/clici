@@ -40,7 +40,8 @@ Second line
 
 ## Conservative normalization rules
 
-clici considers text only when it contains at least **three** nonblank lines.
+clici considers text only when it contains at least **two** nonblank lines (a
+wrapped command line plus its indented continuation is the smallest real case).
 Blank lines are ignored when measuring indentation.
 
 It detects the shared base margin from the actual leading indentation and only
