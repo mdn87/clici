@@ -44,18 +44,55 @@ if (-not (Test-Path -LiteralPath $publishedExecutable -PathType Leaf)) {
 New-Item -ItemType Directory -Path $InstallDirectory -Force | Out-Null
 New-Item -ItemType Directory -Path $ShortcutDirectory -Force | Out-Null
 
-Get-Process -Name "clici" -ErrorAction SilentlyContinue |
-    Where-Object {
-        try {
-            [StringComparer]::OrdinalIgnoreCase.Equals($_.Path, $installedExecutable)
+$running = @(
+    Get-Process -Name "clici" -ErrorAction SilentlyContinue |
+        Where-Object {
+            try {
+                [StringComparer]::OrdinalIgnoreCase.Equals($_.Path, $installedExecutable)
+            }
+            catch {
+                $false
+            }
         }
-        catch {
-            $false
-        }
-    } |
-    Stop-Process -Force
+)
 
-Copy-Item -LiteralPath $publishedExecutable -Destination $installedExecutable -Force
+foreach ($process in $running) {
+    Write-Host "Stopping clici (PID $($process.Id))..."
+    try {
+        Stop-Process -Id $process.Id -Force -ErrorAction Stop
+    }
+    catch [Microsoft.PowerShell.Commands.ProcessCommandException] {
+        # Already exited between the enumeration and the stop.
+        continue
+    }
+
+    # Stop-Process does not wait. Without this the copy below can race the
+    # terminating process and fail with a sharing violation after a successful
+    # publish, leaving the new build in artifacts and the old one installed.
+    if (-not $process.WaitForExit(10000)) {
+        throw "clici (PID $($process.Id)) did not exit within 10 seconds."
+    }
+}
+
+# The image handle can outlive process exit by a few milliseconds, so the copy
+# is retried rather than trusted to succeed on the first attempt.
+$copyAttempts = 10
+for ($attempt = 1; $attempt -le $copyAttempts; $attempt++) {
+    try {
+        Copy-Item -LiteralPath $publishedExecutable `
+            -Destination $installedExecutable `
+            -Force `
+            -ErrorAction Stop
+        break
+    }
+    catch {
+        if ($attempt -eq $copyAttempts) {
+            throw
+        }
+
+        Start-Sleep -Milliseconds (200 * $attempt)
+    }
+}
 
 $shell = New-Object -ComObject WScript.Shell
 try {

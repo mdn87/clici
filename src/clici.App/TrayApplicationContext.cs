@@ -75,6 +75,14 @@ internal sealed class TrayApplicationContext : ApplicationContext
         _startWithWindowsMenuItem.CheckedChanged += StartWithWindowsMenuItemOnCheckedChanged;
 
         _trayMenu = new ContextMenuStrip();
+
+        // Which build is this? Without it the answer needs a file-properties
+        // dig, and a stale install reads as a broken feature.
+        _trayMenu.Items.Add(new ToolStripMenuItem($"clici {BuildInformation.DisplayVersion}")
+        {
+            Enabled = false
+        });
+        _trayMenu.Items.Add(new ToolStripSeparator());
         _trayMenu.Items.Add(_enabledMenuItem);
         _trayMenu.Items.Add(_pauseMenuItem);
         _trayMenu.Items.Add(_startWithWindowsMenuItem);
@@ -106,7 +114,7 @@ internal sealed class TrayApplicationContext : ApplicationContext
             _clipboardListener = new ClipboardListenerWindow();
             _clipboardListener.ClipboardChanged += ClipboardListenerOnClipboardChanged;
             RegisterJoinHotkey();
-            _logger.Event("started");
+            _logger.Event($"started version={BuildInformation.FullVersion}");
         }
         catch (Exception exception)
         {
