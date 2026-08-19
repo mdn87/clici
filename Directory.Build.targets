@@ -1,0 +1,39 @@
+<Project>
+
+  <!--
+    Mark a binary built from a modified working tree.
+
+    The .NET SDK's in-box SourceLink already appends the commit to
+    AssemblyInformationalVersion as "+<sha>", which Windows surfaces as the
+    file's Product version. It does not distinguish a clean build of that
+    commit from one carrying uncommitted edits, so a stamped SHA can still
+    misrepresent what is in the binary. This appends ".dirty" when tracked
+    files differ from HEAD.
+
+    Untracked files are ignored: build output and scratch files would
+    otherwise mark every working tree dirty. Git absence or a source archive
+    with no .git leaves the version unchanged.
+  -->
+  <Target Name="MarkDirtyWorkingTree"
+          AfterTargets="AddSourceRevisionToInformationalVersion"
+          BeforeTargets="GetAssemblyAttributes"
+          Condition="'$(SourceRevisionId)' != ''">
+
+    <Exec Command="git status --porcelain --untracked-files=no"
+          WorkingDirectory="$(MSBuildThisFileDirectory)"
+          ConsoleToMSBuild="true"
+          StandardOutputImportance="low"
+          StandardErrorImportance="low"
+          IgnoreExitCode="true"
+          ContinueOnError="true">
+      <Output TaskParameter="ConsoleOutput" PropertyName="_CliciWorkingTree" />
+      <Output TaskParameter="ExitCode" PropertyName="_CliciWorkingTreeExitCode" />
+    </Exec>
+
+    <PropertyGroup Condition="'$(_CliciWorkingTreeExitCode)' == '0' and '$(_CliciWorkingTree)' != ''">
+      <InformationalVersion>$(InformationalVersion).dirty</InformationalVersion>
+    </PropertyGroup>
+
+  </Target>
+
+</Project>

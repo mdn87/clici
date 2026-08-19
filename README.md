@@ -122,6 +122,9 @@ Excluded process names take precedence over allowed names.
 
 ## Tray controls
 
+The first menu entry is the running build, for example
+`clici 0.1.0+00860cdd708d`. See **Which build is running** below.
+
 Right-click the tray icon to:
 
 - enable or disable clici (the choice is saved);
@@ -270,6 +273,31 @@ For a fast local install straight from source without building `setup.exe`:
 This publishes a self-contained copy to `%LOCALAPPDATA%\Programs\clici` and
 creates a desktop shortcut. It is a developer convenience; the `setup.exe`
 installer above is the supported distribution path.
+
+## Which build is running
+
+`Version` is a fixed `0.1.0`, so `FileVersion` cannot distinguish one build
+from another and an installed copy that lags the source looks identical to a
+current one. A feature that is merely absent from the installed binary then
+reads as a feature that is broken.
+
+The commit is recorded instead. The .NET SDK appends it to
+`AssemblyInformationalVersion`, and `Directory.Build.targets` appends `.dirty`
+when tracked files differ from `HEAD`, so a build carrying uncommitted edits
+does not claim to be that commit. Three ways to read it, in order of effort:
+
+- **Tray menu.** The first entry shows the version with a shortened commit.
+- **The executable**, without launching it:
+
+  ```powershell
+  (Get-Item "$env:LOCALAPPDATA\Programs\clici\clici.exe").VersionInfo.ProductVersion
+  ```
+
+- **The log**, when `diagnosticLogging` is enabled. The `started` event carries
+  the full stamp.
+
+Compare the commit against `git log`. If the installed commit predates a change
+you are testing, reinstall before investigating further.
 
 ## Current limitations
 
