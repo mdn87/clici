@@ -159,6 +159,8 @@ The default file is equivalent to:
   "autoDetectMarginWidth": true,
   "marginSpacesToRemove": 2,
   "maximumTextCharacters": 2000000,
+  "joinWrappedLines": true,
+  "joinLinesHotkey": "Ctrl+Alt+J",
   "diagnosticLogging": false,
   "schemaVersion": 1
 }
@@ -170,8 +172,11 @@ to force exactly `marginSpacesToRemove`, which must be from `1` through `16`.
 `maximumTextCharacters` must be from `1` through `100000000`; the
 two-million-character default prevents unusually large clipboard items from
 freezing the tray thread or causing excessive memory use. Items above the limit
-remain unchanged. `schemaVersion` identifies the configuration format and must
-be at least `1`. Invalid fields fall back to safe defaults. A missing or
+remain unchanged. `joinWrappedLines` and `joinLinesHotkey` are described under
+**Wrapped-line joining** above. `schemaVersion` identifies the configuration
+format and must be at least `1`. Invalid fields fall back to safe defaults. A
+field absent from an older file keeps its built-in default, so a configuration
+written before a field existed does not disable the feature. A missing or
 malformed file does not terminate the application. Restart clici after manually
 editing the configuration.
 
