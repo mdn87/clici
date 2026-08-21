@@ -319,7 +319,8 @@ internal sealed class ClipboardNormalizationCoordinator
         }
 
         var result = _clipboardImageExporter.TryExport(
-            _configuration.ClipboardImageExportPath);
+            _configuration.ClipboardImageExportPath,
+            _configuration.ClipboardImageExportHistory);
 
         switch (result.Status)
         {

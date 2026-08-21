@@ -62,6 +62,13 @@ public static class ConfigurationValidator
             wasNormalized = true;
         }
 
+        var clipboardImageExportHistory = candidate.ClipboardImageExportHistory;
+        if (clipboardImageExportHistory is < 0 or > 1000)
+        {
+            clipboardImageExportHistory = Defaults.ClipboardImageExportHistory;
+            usedFallback = true;
+        }
+
         var allowed = NormalizeProcessNames(
             candidate.AllowedProcessNames,
             ref usedFallback,
@@ -80,6 +87,7 @@ public static class ConfigurationValidator
                 MaximumTextCharacters = maximumTextCharacters,
                 JoinLinesHotkey = joinLinesHotkey,
                 ClipboardImageExportPath = clipboardImageExportPath,
+                ClipboardImageExportHistory = clipboardImageExportHistory,
                 SchemaVersion = schemaVersion
             },
             usedFallback,

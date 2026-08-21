@@ -42,6 +42,38 @@ Set the field to an empty string to disable image export:
 }
 ```
 
+## Archived copies
+
+The stable destination is overwritten by every new image, so a second snip
+taken before an agent reads the first would otherwise destroy it. Each export
+therefore also writes a timestamped copy beside the stable file:
+
+```text
+drop/
+  clipboard.png                        newest image, stable path
+  clipboard-20260821-161622-500.png
+  clipboard-20260821-162345-250.png    same bytes as clipboard.png
+```
+
+The archive is written before the stable destination, so an image is never
+replaced by one that has no archived copy of its own. Names carry the export
+time to the millisecond and sort chronologically as plain text, so the newest
+archive is the last one an ordinary `ls` prints.
+
+`clipboardImageExportHistory` sets how many archives to keep (default `20`,
+maximum `1000`). The oldest beyond that count are deleted after each export.
+Set it to `0` to keep only the stable destination and restore plain overwrite
+behavior:
+
+```json
+{
+  "clipboardImageExportHistory": 0
+}
+```
+
+Pruning is best effort: an archive that is locked when its turn comes is left
+in place and retried on the next export rather than failing the export.
+
 ## Behavior and boundaries
 
 - Any clipboard image is exported, not only images created by Snipping Tool.

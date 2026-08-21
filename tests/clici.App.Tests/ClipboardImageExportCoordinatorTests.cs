@@ -178,9 +178,14 @@ public sealed class ClipboardImageExportCoordinatorTests
     {
         public List<string> DestinationPaths { get; } = [];
 
-        public ClipboardImageExportResult TryExport(string destinationPath)
+        public List<int> HistoryCounts { get; } = [];
+
+        public ClipboardImageExportResult TryExport(
+            string destinationPath,
+            int historyCount)
         {
             DestinationPaths.Add(destinationPath);
+            HistoryCounts.Add(historyCount);
             return result;
         }
     }

@@ -52,6 +52,16 @@ public sealed record CliciConfiguration
     /// </summary>
     public string ClipboardImageExportPath { get; init; } = string.Empty;
 
+    /// <summary>
+    /// How many timestamped copies of exported clipboard images to keep beside
+    /// the stable destination. Each export writes
+    /// <c>clipboard-yyyyMMdd-HHmmss-fff.png</c> as well as the stable file, so a
+    /// second image arriving before the first is read does not destroy it. The
+    /// oldest archives beyond this count are deleted. Zero keeps only the
+    /// stable destination and restores the plain overwrite behavior.
+    /// </summary>
+    public int ClipboardImageExportHistory { get; init; } = 20;
+
     public bool DiagnosticLogging { get; init; }
 
     /// <summary>

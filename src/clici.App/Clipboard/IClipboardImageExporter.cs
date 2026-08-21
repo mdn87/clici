@@ -2,7 +2,7 @@ namespace Clici.App.Clipboard;
 
 internal interface IClipboardImageExporter
 {
-    ClipboardImageExportResult TryExport(string destinationPath);
+    ClipboardImageExportResult TryExport(string destinationPath, int historyCount);
 }
 
 internal enum ClipboardImageExportStatus

@@ -1,3 +1,4 @@
+using System.Globalization;
 using System.Drawing;
 using System.Drawing.Imaging;
 using System.Runtime.InteropServices;
@@ -15,7 +16,7 @@ internal sealed class WinFormsClipboardImageExporter : IClipboardImageExporter
     private const int MaximumAttempts = 4;
     private static readonly TimeSpan RetryDelay = TimeSpan.FromMilliseconds(20);
 
-    public ClipboardImageExportResult TryExport(string destinationPath)
+    public ClipboardImageExportResult TryExport(string destinationPath, int historyCount)
     {
         for (var attempt = 1; attempt <= MaximumAttempts; attempt++)
         {
@@ -60,7 +61,11 @@ internal sealed class WinFormsClipboardImageExporter : IClipboardImageExporter
             {
                 using var image = capture.Image!;
                 var pngBytes = EncodePng(image);
-                WritePngAtomically(destinationPath, pngBytes);
+                WritePngAtomically(
+                    destinationPath,
+                    pngBytes,
+                    historyCount,
+                    DateTimeOffset.Now);
                 return new ClipboardImageExportResult(
                     ClipboardImageExportStatus.Exported);
             }
@@ -88,7 +93,9 @@ internal sealed class WinFormsClipboardImageExporter : IClipboardImageExporter
 
     internal static void WritePngAtomically(
         string destinationPath,
-        byte[] pngBytes)
+        byte[] pngBytes,
+        int historyCount = 0,
+        DateTimeOffset? timestamp = null)
     {
         ArgumentNullException.ThrowIfNull(pngBytes);
 
@@ -102,14 +109,130 @@ internal sealed class WinFormsClipboardImageExporter : IClipboardImageExporter
 
         Directory.CreateDirectory(directoryPath);
 
+        // The timestamped archive is written first. If the stable destination
+        // is locked or otherwise unwritable the image still survives on disk,
+        // and a reader watching the stable path never sees a newer image that
+        // has no archived copy behind it.
+        if (historyCount > 0)
+        {
+            WriteThroughTemporaryFile(
+                directoryPath,
+                BuildArchivePath(resolvedPath, timestamp ?? DateTimeOffset.Now),
+                pngBytes,
+                overwrite: false);
+            PruneArchives(resolvedPath, historyCount);
+        }
+
+        WriteThroughTemporaryFile(
+            directoryPath,
+            resolvedPath,
+            pngBytes,
+            overwrite: true);
+    }
+
+    /// <summary>
+    /// Names the archived copy for an export. Timestamped names sort
+    /// chronologically as plain text, which is what lets pruning and
+    /// "newest first" listings work without reading file metadata.
+    /// </summary>
+    internal static string BuildArchivePath(
+        string resolvedPath,
+        DateTimeOffset timestamp)
+    {
+        var directoryPath = Path.GetDirectoryName(resolvedPath)!;
+        var stem = Path.GetFileNameWithoutExtension(resolvedPath);
+        var extension = Path.GetExtension(resolvedPath);
+        var stamp = timestamp.ToString(
+            "yyyyMMdd-HHmmss-fff",
+            CultureInfo.InvariantCulture);
+
+        var candidate = Path.Combine(
+            directoryPath,
+            $"{stem}-{stamp}{extension}");
+
+        // Two images inside one millisecond are not expected, but a collision
+        // must not silently replace the archive it was meant to protect.
+        for (var suffix = 2; suffix <= 99 && File.Exists(candidate); suffix++)
+        {
+            candidate = Path.Combine(
+                directoryPath,
+                $"{stem}-{stamp}-{suffix}{extension}");
+        }
+
+        return candidate;
+    }
+
+    /// <summary>
+    /// Deletes the oldest archives beyond <paramref name="historyCount"/>.
+    /// Called after the newest archive exists, so the count is exact.
+    /// </summary>
+    internal static void PruneArchives(string resolvedPath, int historyCount)
+    {
+        if (historyCount <= 0)
+        {
+            return;
+        }
+
+        var directoryPath = Path.GetDirectoryName(resolvedPath)!;
+        var stem = Path.GetFileNameWithoutExtension(resolvedPath);
+        var extension = Path.GetExtension(resolvedPath);
+        var stableName = Path.GetFileName(resolvedPath);
+
+        string[] archives;
+        try
+        {
+            archives = Directory.GetFiles(
+                directoryPath,
+                $"{stem}-*{extension}");
+        }
+        catch (Exception exception) when (
+            exception is IOException or UnauthorizedAccessException)
+        {
+            return;
+        }
+
+        Array.Sort(archives, StringComparer.OrdinalIgnoreCase);
+
+        var excess = archives.Length - historyCount;
+        for (var index = 0; index < excess; index++)
+        {
+            // Windows short-name matching can make a search pattern reach
+            // further than it reads; the stable destination is never an
+            // archive and must never be pruned.
+            if (string.Equals(
+                    Path.GetFileName(archives[index]),
+                    stableName,
+                    StringComparison.OrdinalIgnoreCase))
+            {
+                continue;
+            }
+
+            try
+            {
+                File.Delete(archives[index]);
+            }
+            catch
+            {
+                // Pruning is best effort. A locked archive is retried on the
+                // next export rather than failing the export itself.
+            }
+        }
+    }
+
+    private static void WriteThroughTemporaryFile(
+        string directoryPath,
+        string targetPath,
+        byte[] pngBytes,
+        bool overwrite)
+    {
         var temporaryPath = Path.Combine(
             directoryPath,
-            $".{Path.GetFileName(resolvedPath)}.{Guid.NewGuid():N}.tmp");
+            $".{Path.GetFileName(targetPath)}.{Guid.NewGuid():N}.tmp");
 
         try
         {
             File.WriteAllBytes(temporaryPath, pngBytes);
-            File.Move(temporaryPath, resolvedPath, true);
+            File.Move(temporaryPath, targetPath, overwrite);
         }
         finally
         {
