@@ -44,6 +44,14 @@ public sealed record CliciConfiguration
     /// </summary>
     public string JoinLinesHotkey { get; init; } = "Ctrl+Alt+J";
 
+    /// <summary>
+    /// Optional fully qualified Windows destination for clipboard images. A
+    /// local path or a WSL path under \\wsl.localhost is accepted. Images are
+    /// written as PNG without replacing or otherwise changing the clipboard.
+    /// Empty disables image export.
+    /// </summary>
+    public string ClipboardImageExportPath { get; init; } = string.Empty;
+
     public bool DiagnosticLogging { get; init; }
 
     /// <summary>
