@@ -1,0 +1,24 @@
+name: CI
+
+on:
+  push:
+  pull_request:
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  build-test:
+    runs-on: windows-latest
+    steps:
+      - uses: actions/checkout@v7
+      - uses: actions/setup-dotnet@v6
+        with:
+          dotnet-version: 10.0.x
+      - name: Restore
+        run: dotnet restore clici.sln
+      - name: Build
+        run: dotnet build clici.sln --configuration Release --no-restore
+      - name: Test
+        run: dotnet test clici.sln --configuration Release --no-build --logger "console;verbosity=normal"
