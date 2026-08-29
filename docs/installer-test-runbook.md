@@ -111,6 +111,15 @@ the live PIDs to `%LOCALAPPDATA%\clici\proof\step<N>-snapshot.json`. The verify
 pass compares against it and against the current session's logon time, so re-running
 it *without* actually signing out reports FAIL rather than a false pass.
 
+> **Silent installs do not launch clici.** The installer's `[Run]` entry carries
+> `skipifsilent`, so `/VERYSILENT` and `/SILENT` install everything — files,
+> shortcut, ARP entry, and the `Run` value when auto-start is selected — but do
+> not start clici at the end of setup. This is Inno Setup behaving correctly, not
+> a defect. It matters twice here: an automated run of steps 12–15 must launch
+> clici itself before testing reinstall-while-running, and anyone deploying clici
+> silently should expect it to start at the *next* sign-in rather than
+> immediately.
+
 ## Upgrade / stop-before-install (AppMutex spike result)
 12. With clici running, re-run `setup.exe`.
 13. Spike result (2026-08-07, silent `/VERYSILENT` automation): **AppMutex +

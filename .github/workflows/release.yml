@@ -1,0 +1,126 @@
+name: Release
+
+on:
+  push:
+    tags: ['v*']
+  workflow_dispatch:
+    inputs:
+      version:
+        description: Version to build for a dry run, without publishing (e.g. 0.1.0)
+        required: true
+        default: 0.1.0
+
+permissions:
+  contents: read
+
+jobs:
+  installer:
+    runs-on: windows-latest
+    steps:
+      - uses: actions/checkout@v7
+
+      - uses: actions/setup-dotnet@v6
+        with:
+          dotnet-version: 10.0.x
+
+      # windows-latest already ships Inno Setup 6, so this is normally a no-op.
+      # Do not pin a version: choco fails outright rather than treating a newer
+      # image-provided one as satisfying the request. Build-Installer.ps1 does
+      # the real resolution and throws a clear error of its own if ISCC is
+      # missing, so this step only has to guarantee it is installed.
+      - name: Ensure Inno Setup 6
+        shell: pwsh
+        run: |
+          $real = Join-Path ${env:ProgramFiles(x86)} 'Inno Setup 6\ISCC.exe'
+          if (-not (Test-Path $real) -and
+              -not (Get-Command ISCC.exe -ErrorAction SilentlyContinue)) {
+            Write-Host 'Inno Setup 6 not found on the image; installing.'
+            choco install innosetup --no-progress -y
+          }
+          # Prefer the real binary over a Chocolatey shim: the shim reports its
+          # own version ("Chocolatey Shim: 1.0.0"), not Inno Setup's.
+          $iscc = if (Test-Path $real) { $real }
+                  else { (Get-Command ISCC.exe -ErrorAction SilentlyContinue).Source }
+          if (-not $iscc) { throw 'ISCC.exe not found after install.' }
+          Write-Host "ISCC at $iscc ($((Get-Item $iscc).VersionInfo.ProductVersion))"
+
+      - name: Resolve version
+        id: version
+        shell: pwsh
+        run: |
+          $version = if ($env:GITHUB_REF -like 'refs/tags/v*') {
+            $env:GITHUB_REF -replace '^refs/tags/v', ''
+          } else {
+            '${{ github.event.inputs.version }}'
+          }
+          if ([string]::IsNullOrWhiteSpace($version)) {
+            throw 'Could not resolve a version from the tag or the workflow input.'
+          }
+          # The installer takes its filename and AppVersion from
+          # Directory.Build.props, so a tag disagreeing with that file would
+          # publish an asset under a name that does not exist.
+          [xml]$props = Get-Content Directory.Build.props
+          $declared = "$($props.Project.PropertyGroup.Version)".Trim()
+          if ($version -ne $declared) {
+            throw "Version '$version' does not match Directory.Build.props Version '$declared'."
+          }
+          "version=$version" | Out-File -FilePath $env:GITHUB_OUTPUT -Append -Encoding utf8
+          Write-Host "Building clici $version"
+
+      - name: Build installer
+        run: .\tools\Build-Installer.ps1
+        # Deliberately unsigned: CLICI_SIGN_CERT_THUMBPRINT is not set, so no
+        # certificate is needed or stored in CI. SmartScreen will warn on first
+        # run, and the release notes say so.
+
+      - name: Checksum
+        id: checksum
+        shell: pwsh
+        run: |
+          $version = '${{ steps.version.outputs.version }}'
+          $exe = "artifacts\installer\clici-$version-win-x64-setup.exe"
+          if (-not (Test-Path $exe)) {
+            Get-ChildItem artifacts\installer -ErrorAction SilentlyContinue
+            throw "Expected installer not found at $exe"
+          }
+          $hash = (Get-FileHash $exe -Algorithm SHA256).Hash.ToLower()
+          "$hash  clici-$version-win-x64-setup.exe" |
+            Out-File "artifacts\installer\clici-$version-win-x64-setup.exe.sha256" -Encoding ascii
+          "sha256=$hash" >> $env:GITHUB_OUTPUT
+          Write-Host "SHA256 $hash"
+
+      # Always uploaded, so a workflow_dispatch run verifies the whole build
+      # without publishing anything.
+      - name: Upload build artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: clici-${{ steps.version.outputs.version }}-win-x64-setup
+          path: artifacts/installer/*
+          if-no-files-found: error
+
+  # Only GitHub-owned actions are used in this repository, so the release is
+  # created with the preinstalled GitHub CLI rather than a third-party action.
+  publish:
+    needs: installer
+    if: startsWith(github.ref, 'refs/tags/v')
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write
+    steps:
+      - uses: actions/download-artifact@v4
+        with:
+          path: dist
+
+      # Created as a draft on purpose: a human reads the notes, confirms the
+      # SmartScreen wording, and publishes. Nothing reaches users unattended.
+      - name: Create draft release
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          version="${GITHUB_REF#refs/tags/v}"
+          gh release create "$GITHUB_REF_NAME" \
+            --repo "$GITHUB_REPOSITORY" \
+            --title "clici $version" \
+            --draft \
+            --generate-notes \
+            $(find dist -type f | sort)

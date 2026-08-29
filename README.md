@@ -1,9 +1,31 @@
 # clici
 
-clici is a tiny Windows tray utility that corrects the unwanted common
-left margin sometimes added when copying multiline output from CLI agents such
-as Codex and Claude Code. Copy and paste normally: there is no cleanup window
-and no extra paste step.
+[![CI](https://github.com/mdn87/clici/actions/workflows/ci.yml/badge.svg)](https://github.com/mdn87/clici/actions/workflows/ci.yml)
+[![License: MIT](https://img.shields.io/badge/License-MIT-blue.svg)](LICENSE)
+
+clici is a tiny Windows tray utility that removes the unwanted left margin from
+text copied out of an agentic CLI session, so it pastes correctly anywhere.
+
+## Why this exists
+
+Agentic CLI sessions indent what they print. Claude Code and Codex render their
+output inside the session's own layout, so when you select a block — a command
+to run, a config to write, a snippet to drop into a file — that layout's
+indentation comes along with it. What reaches the clipboard is not the content
+you saw: every line carries two or four spaces that were never part of it.
+
+Those spaces are harmless in prose and destructive almost everywhere else.
+Pasted into a shell they break heredocs and continuation lines. Pasted into
+Python or YAML, where indentation *is* syntax, they corrupt the block outright.
+Pasted into a commit message, an issue, or a pull request, a four-space margin
+silently becomes a Markdown code block. The usual fix is a detour — paste into
+an editor, select all, shift-tab, copy again — repeated every single time you
+move something out of a session.
+
+clici removes the margin at the moment you copy, so the paste is simply correct
+wherever it lands: a terminal, an editor, a browser field, another agent's
+prompt. Copy and paste exactly as you already do. There is no cleanup window,
+no extra keystroke, and nothing to remember.
 
 This behavior is **margin normalization**, not whitespace trimming. clici
 removes one confidently detected common margin while preserving meaningful
@@ -263,7 +285,24 @@ Find the clici icon in the Windows notification area. Right-click it and choose
 
 ## Install for the current Windows user
 
-Build and run the installer from the repository root:
+Download `clici-<version>-win-x64-setup.exe` from the
+[latest release](https://github.com/mdn87/clici/releases/latest) and run it. No
+administrator rights are required.
+
+The installer is **unsigned**, so Windows SmartScreen will warn the first time
+you run it: choose **More info** then **Run anyway**. Each release publishes a
+`.sha256` file beside the installer if you want to verify the download first:
+
+```powershell
+Get-FileHash .\clici-0.1.0-win-x64-setup.exe -Algorithm SHA256
+```
+
+Release installers are built by GitHub Actions on `windows-latest` from the
+tagged commit, not from a maintainer's machine.
+
+### Build the installer yourself
+
+From the repository root:
 
 ```powershell
 .\tools\Build-Installer.ps1
@@ -352,6 +391,14 @@ you are testing, reinstall before investigating further.
   sequence-safe undo;
 - evaluate consistent rich-format (HTML/RTF) normalization;
 - evaluate signed/MSI packaging and RDP clipboard behavior.
+
+## Contributing
+
+clici rewrites the clipboard silently, so the project is biased toward refusing
+anything it cannot classify with confidence. [CONTRIBUTING.md](CONTRIBUTING.md)
+explains that bar, the `Core`/`App` split, and what a change needs before it
+can be merged. Security issues go through [SECURITY.md](SECURITY.md) rather
+than a public issue.
 
 ## License
 
