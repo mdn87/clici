@@ -212,6 +212,17 @@ longest such line; a final line no longer than that longest line plus 15
 characters; and no line whose first nonspace character is a table pipe (`|`),
 plus sign (`+`), or Unicode box-drawing character.
 
+**JOIN-001a** The wrap signature alone shall not authorize a join. Because a
+terminal that fills a row and continues the same token on the next line drops
+no space, clici shall additionally refuse a copy when (a) no content line
+carries whitespace between its first and last nonspace characters, or (b) two
+or more non-final lines were measured and they are all of exactly equal length
+(trailing whitespace excluded). Condition (a) is a single unbroken token split
+by column; condition (b) is a right edge flush to one column rather than the
+ragged edge word wrapping leaves. A copy refused under this requirement is left
+unchanged for margin normalization; JOIN-004 remains available. A two-line copy
+has one non-final line and so is not subject to (b).
+
 **JOIN-002** Joining shall trim each fragment's leading and trailing
 whitespace and concatenate the fragments with single ASCII spaces. Content
 between the fragments' first and last nonspace characters shall be copied

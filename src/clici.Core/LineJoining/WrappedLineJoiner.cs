@@ -22,7 +22,9 @@ public sealed record LineJoinResult(
 /// Rejoins a single logical line that a terminal wrapped at its right edge.
 /// The automatic path accepts only the wrap signature: no blank lines, every
 /// line except the last running long at a near-uniform width, and no
-/// table/box-drawing framing. Genuinely multiline content — code, lists,
+/// table/box-drawing framing. It further requires evidence that the seams are
+/// word boundaries, since a space joined across a token the terminal split by
+/// column would corrupt it. Genuinely multiline content — code, lists,
 /// paragraphs separated by blank lines, tables — does not match and is left
 /// for margin normalization. The unconditional path backs the explicit
 /// user-invoked hotkey, where intent substitutes for the signature.
@@ -102,6 +104,21 @@ public sealed class WrappedLineJoiner
             return LineJoinResult.NotEligible(text, lineCount);
         }
 
+        // A seam is only safe to close with a space when the terminal broke at
+        // a word boundary and dropped that space. A terminal that fills the row
+        // and continues the same token on the next line drops nothing, so a
+        // space inserted there corrupts the token — a wrapped URL, path, hash,
+        // or base64 blob is the everyday case. Refuse both signatures of that.
+        if (!ContainsInternalWhitespace(segments, lineCount))
+        {
+            return LineJoinResult.NotEligible(text, lineCount);
+        }
+
+        if (HasFlushRightEdge(lineCount, minimumNonFinalLength, maximumNonFinalLength))
+        {
+            return LineJoinResult.NotEligible(text, lineCount);
+        }
+
         return LineJoinResult.Joined(JoinSegments(segments, lineCount), lineCount);
     }
 
@@ -169,6 +186,46 @@ public sealed class WrappedLineJoiner
 
     private static bool IsBlank(string segment) =>
         string.IsNullOrWhiteSpace(segment);
+
+    /// <summary>
+    /// Reports whether any content line carries whitespace between its first
+    /// and last nonspace characters. Content with none is a single unbroken
+    /// token that the terminal split by column, so no seam in it can be the
+    /// word boundary a space join assumes.
+    /// </summary>
+    private static bool ContainsInternalWhitespace(
+        IReadOnlyList<string> segments,
+        int lineCount)
+    {
+        for (var index = 0; index < lineCount; index++)
+        {
+            var trimmed = segments[index].Trim();
+            for (var position = 0; position < trimmed.Length; position++)
+            {
+                if (char.IsWhiteSpace(trimmed[position]))
+                {
+                    return true;
+                }
+            }
+        }
+
+        return false;
+    }
+
+    /// <summary>
+    /// Reports whether the non-final lines are all exactly the same width.
+    /// Word wrapping pushes a whole word down when it does not fit and so
+    /// leaves a ragged edge; an edge flush to a single column is what wrapping
+    /// mid-token produces, and its seams cannot be assumed to be word
+    /// boundaries. Uniformity is only evidence when at least two non-final
+    /// lines were measured — the single non-final line of a two-line copy is
+    /// trivially uniform and carries no width evidence either way.
+    /// </summary>
+    private static bool HasFlushRightEdge(
+        int lineCount,
+        int minimumNonFinalLength,
+        int maximumNonFinalLength) =>
+        lineCount - 1 >= 2 && minimumNonFinalLength == maximumNonFinalLength;
 
     private static bool StartsWithStructuralCharacter(string segment)
     {
