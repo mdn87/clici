@@ -40,15 +40,32 @@ Manual verification for the Inno Setup installer. Run after `tools/Build-Install
     *snapshot* proves nothing; it has to start after the *logon*, with no `stopped`
     immediately before it.
 11. Disable it, sign out/in; confirm clici does NOT start automatically.
-    Result (2026-08-29): **NOT RUN.** Two attempts were staged and neither had the
-    pre-state it reported. Both snapshots were taken by an agent session whose
-    processes cannot see the `clici` value under
-    `HKCU\Software\Microsoft\Windows\CurrentVersion\Run`, so both recorded the
-    value as absent -- "auto-start is off" -- while it was in fact present, and
-    clici autostarted as it was configured to.
+    Result (2026-08-29, build `0.1.0+01f99de8`): **PASS**, on the third attempt
+    and the first one that was actually run. Snapshot at 16:49:13 recorded the
+    `Run` value absent, 40 `event name=started` entries and pid 31864 live, in
+    the logon that began at 16:01:09. After signing out and back in, the verify
+    pass found the `Run` value still absent, **zero** clici instances, still 40
+    `started` entries, and a last log line of 16:49:08 -- older than the
+    snapshot itself. Nothing started.
+
+    The sign-out was real, not a disconnect. `Win32_LogonSession` shows a new
+    LogonType 10 session (ids 57542865/57543293) at 16:49:44 against the
+    snapshot's 16:01:09, and `explorer.exe` is pid 32476 started 16:49:44; a
+    reconnect leaves the old `explorer.exe` alive, so a restarted shell is what
+    separates the two. Boot was 15:14:12, so this was a sign-out and not a
+    reboot.
+
+    The pre-state holds up on its own evidence: the value read absent before the
+    sign-out and absent after it, nothing writes it but the tray toggle and the
+    installer, and in both earlier attempts a present value produced an autostart
+    within a minute of logon. Here there was none.
 
     **Read the Run value from an ordinary interactive shell, not from an agent
-    session.** Verified 2026-08-29 16:42-16:43 with
+    session.** The two earlier attempts were staged from an agent session whose
+    processes cannot see the `clici` value under
+    `HKCU\Software\Microsoft\Windows\CurrentVersion\Run`; both recorded the value
+    as absent -- "auto-start is off" -- while it was present, and clici
+    autostarted as configured. Verified 2026-08-29 16:42-16:43 with
     `tools/proof/Compare-RunKeyView.ps1` run from both: identical machine, user,
     SID, session and elevation, and an identical list of the other 20 values, but
     the agent-side view enumerates 20 values and the interactive view 21. The
@@ -58,11 +75,15 @@ Manual verification for the Inno Setup installer. Run after `tools/Build-Install
     processes on the agent side behave the same way, so it is not a stale handle,
     and disabling the tool sandbox did not change it. Cause not identified; the
     asymmetry is reproducible and that is enough to distrust the agent-side
-    reading.
+    reading. The 16:49 snapshot and verify above were run interactively, which is
+    why they count, and an interactive `Compare-RunKeyView.ps1` at 17:06 confirms
+    the value is really gone: `count = 20`, `clici` absent through all four read
+    paths. At 16:42, with auto-start still on, that same interactive view had 21
+    values including `clici`, against the agent side's 20; both now read 20.
 
     An earlier version of this entry blamed an unidentified external writer for
     resurrecting the value. That was wrong -- it was the measurement, not the
-    machine. No evidence of any clici defect came out of it.
+    machine. No clici defect came out of any of it.
 
 Steps 10 and 11 are checked by `tools/proof/Test-LifecycleStep10-11.ps1`, which needs
 a snapshot taken *before* signing out:
