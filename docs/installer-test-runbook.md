@@ -122,6 +122,32 @@ it *without* actually signing out reports FAIL rather than a false pass.
 
 ## Upgrade / stop-before-install (AppMutex spike result)
 12. With clici running, re-run `setup.exe`.
+    Result (2026-08-29 17:35, local build `0.1.0+a891d0a0`): **PASS**. clici was
+    launched from the installed path (pid 10780 at 17:35:14) and setup was run at
+    17:35:18 as `/VERYSILENT /SUPPRESSMSGBOXES /TASKS="" /LOG=...`. It returned
+    **exit 0** in 2s. Afterwards: zero clici processes, `clici.exe` replaced (the
+    log records the existing 13:17:16 file overwritten by ours stamped 08:49:04),
+    the Start Menu shortcut recreated, and the ARP entry `clici 0.1.0` present.
+
+    The `[Code]` fallback is what carried it, and the log says so: `RestartManager
+    found no applications using one of our files`, four seconds after clici was
+    confirmed running. Nothing was left for `CloseApplications` to find because
+    `InitializeSetup`'s `taskkill /IM clici.exe /F` had already closed it. This is
+    the 2026-08-07 spike result reproduced end to end on the shipping installer.
+
+    It also confirms the `skipifsilent` note from the other side: setup finished
+    with clici *not* running, and had to be started by hand afterwards.
+
+    `/TASKS=""` was passed on purpose so the `startup` task stayed deselected and
+    the `Run` value was not rewritten. The install log shows no `[Registry]`
+    entry, which is the only way to check that without trusting an agent-side
+    registry read (see step 11). Auto-start is still off, as step 11 left it.
+    A default silent run would have re-selected the task and turned it back on.
+
+    Build caveat: `artifacts/installer/clici-0.1.0-win-x64-setup.exe` is a local
+    08:49 build from `a891d0a`, *not* the released v0.1.0 artifact (CI-built from
+    `01f99de`, published 09:17 and now attached to the GitHub release). This run
+    installed the local one over the release build that was on the box.
 13. Spike result (2026-08-07, silent `/VERYSILENT` automation): **AppMutex +
     CloseApplications alone was INSUFFICIENT** — a re-install while clici was
     running aborted with **exit 1**, because clici's tray app has no top-level
