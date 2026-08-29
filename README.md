@@ -1,5 +1,8 @@
 # clici
 
+[![CI](https://github.com/mdn87/clici/actions/workflows/ci.yml/badge.svg)](https://github.com/mdn87/clici/actions/workflows/ci.yml)
+[![License: MIT](https://img.shields.io/badge/License-MIT-blue.svg)](LICENSE)
+
 clici is a tiny Windows tray utility that corrects the unwanted common
 left margin sometimes added when copying multiline output from CLI agents such
 as Codex and Claude Code. Copy and paste normally: there is no cleanup window
@@ -332,6 +335,14 @@ you are testing, reinstall before investigating further.
   sequence-safe undo;
 - evaluate consistent rich-format (HTML/RTF) normalization;
 - evaluate signed/MSI packaging and RDP clipboard behavior.
+
+## Contributing
+
+clici rewrites the clipboard silently, so the project is biased toward refusing
+anything it cannot classify with confidence. [CONTRIBUTING.md](CONTRIBUTING.md)
+explains that bar, the `Core`/`App` split, and what a change needs before it
+can be merged. Security issues go through [SECURITY.md](SECURITY.md) rather
+than a public issue.
 
 ## License
 

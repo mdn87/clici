@@ -2,6 +2,8 @@ name: CI
 
 on:
   push:
+    branches: [main]
+    tags: ['v*']
   pull_request:
   workflow_dispatch:
 
@@ -22,3 +24,16 @@ jobs:
         run: dotnet build clici.sln --configuration Release --no-restore
       - name: Test
         run: dotnet test clici.sln --configuration Release --no-build --logger "console;verbosity=normal"
+
+  format:
+    runs-on: windows-latest
+    steps:
+      - uses: actions/checkout@v7
+      - uses: actions/setup-dotnet@v6
+        with:
+          dotnet-version: 10.0.x
+      # Whitespace only: indentation, final newlines, and line endings as
+      # declared in .editorconfig. The style rules there are :suggestion
+      # severity and are deliberately not gated in CI.
+      - name: Verify formatting
+        run: dotnet format whitespace clici.sln --verify-no-changes --verbosity diagnostic
