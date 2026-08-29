@@ -202,4 +202,74 @@ public sealed class WrappedLineJoinerTests
 
         Assert.Equal(LineJoinStatus.NotEligible, result.Status);
     }
+
+    [Fact]
+    public void JoinAllLinesRebuildsAColumnWrappedTokenWithoutInsertingSpaces()
+    {
+        // The hotkey exists to recover the copy JOIN-001a refuses. Joining
+        // that copy with spaces would rebuild the very corruption it refuses,
+        // so the seams of a column-split token are closed with nothing.
+        var fragments = new[]
+        {
+            WrappedUrl[..70], WrappedUrl[70..140], WrappedUrl[140..]
+        };
+
+        var result = _joiner.JoinAllLines(string.Join("\r\n", fragments));
+
+        Assert.Equal(LineJoinStatus.Joined, result.Status);
+        Assert.Equal(WrappedUrl, result.Text);
+        Assert.DoesNotContain(" ", result.Text);
+    }
+
+    [Fact]
+    public void JoinAllLinesRebuildsATwoLineColumnWrappedToken()
+    {
+        // Two lines carry no right-edge evidence, so the absence of internal
+        // whitespace has to carry the decision on its own.
+        var fragments = new[] { WrappedUrl[..120], WrappedUrl[120..] };
+
+        var result = _joiner.JoinAllLines(string.Join("\r\n", fragments));
+
+        Assert.Equal(LineJoinStatus.Joined, result.Status);
+        Assert.Equal(WrappedUrl, result.Text);
+    }
+
+    [Fact]
+    public void JoinAllLinesStillSpaceJoinsWordWrappedProse()
+    {
+        // Word wrapping drops the space it broke on, so a ragged edge with
+        // internal whitespace must still be rejoined with single spaces.
+        const string input =
+            "the quick brown fox jumps over the lazy dog and then keeps running east\r\n" +
+            "past the old mill until it reaches the river bank where it finally\r\n" +
+            "stops to rest.";
+
+        var result = _joiner.JoinAllLines(input);
+
+        Assert.Equal(LineJoinStatus.Joined, result.Status);
+        Assert.Equal(
+            "the quick brown fox jumps over the lazy dog and then keeps running " +
+            "east past the old mill until it reaches the river bank where it " +
+            "finally stops to rest.",
+            result.Text);
+    }
+
+    [Fact]
+    public void JoinAllLinesKeepsASeamThatStillCarriesItsWhitespace()
+    {
+        // A terminal that happened to break on a space left the evidence
+        // behind. That seam is a word boundary whatever the copy as a whole
+        // looks like, so it outranks the concatenating default.
+        const string input = "abcdefgh \r\nijklmnop";
+
+        var result = _joiner.JoinAllLines(input);
+
+        Assert.Equal(LineJoinStatus.Joined, result.Status);
+        Assert.Equal("abcdefgh ijklmnop", result.Text);
+    }
+
+    private const string WrappedUrl =
+        "https://github.com/mdn87/clici/blob/main/src/clici.Core/LineJoining/" +
+        "WrappedLineJoiner.cs?plain=1#L120-L140&ref=abcdef0123456789abcdef01" +
+        "23456789abcdef0123456789";
 }

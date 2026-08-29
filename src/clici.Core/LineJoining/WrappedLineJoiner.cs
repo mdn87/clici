@@ -1,3 +1,5 @@
+using System.Text;
+
 namespace Clici.Core.LineJoining;
 
 public enum LineJoinStatus
@@ -123,10 +125,19 @@ public sealed class WrappedLineJoiner
     }
 
     /// <summary>
-    /// Joins every nonblank line with a single space, unconditionally. Backs
-    /// the explicit hotkey, where the user has asserted the copy is one
-    /// logical line.
+    /// Joins every nonblank line unconditionally. Backs the explicit hotkey,
+    /// where the user has asserted the copy is one logical line.
     /// </summary>
+    /// <remarks>
+    /// The separator is chosen, not assumed. Word wrapping drops the space it
+    /// broke on, so those fragments must be rejoined with one; a terminal that
+    /// fills the row and continues mid-token drops nothing, so joining those
+    /// with a space rebuilds the corruption <see cref="JoinIfWrapSignature"/>
+    /// refuses — a wrapped URL, path, hash, or base64 blob is the everyday
+    /// case, and it is exactly the copy the hotkey exists to recover. The
+    /// whole-copy shape picks the default, and any seam that kept its
+    /// whitespace overrides it.
+    /// </remarks>
     public LineJoinResult JoinAllLines(string? text)
     {
         if (string.IsNullOrEmpty(text))
@@ -141,10 +152,60 @@ public sealed class WrappedLineJoiner
             return LineJoinResult.NotEligible(text, nonblank.Count);
         }
 
-        return LineJoinResult.Joined(
-            string.Join(' ', nonblank.Select(segment => segment.Trim())),
-            nonblank.Count);
+        var separator = HasWordWrapEvidence(nonblank) ? " " : string.Empty;
+
+        var builder = new StringBuilder(nonblank[0].Trim());
+        for (var index = 1; index < nonblank.Count; index++)
+        {
+            // A seam that still carries its whitespace is a word boundary
+            // whatever the copy as a whole looks like.
+            var seamKeptItsSpace =
+                EndsWithWhitespace(nonblank[index - 1]) ||
+                StartsWithWhitespace(nonblank[index]);
+
+            builder.Append(seamKeptItsSpace ? " " : separator);
+            builder.Append(nonblank[index].Trim());
+        }
+
+        return LineJoinResult.Joined(builder.ToString(), nonblank.Count);
     }
+
+    /// <summary>
+    /// Reports whether a copy carries positive evidence of word wrapping, the
+    /// only shape whose seams stand for a dropped space. Content with no
+    /// internal whitespace is one unbroken token split by column, and a right
+    /// edge flush to a single column is what mid-token wrapping produces;
+    /// neither justifies inserting a space. Mirrors the evidence
+    /// <see cref="JoinIfWrapSignature"/> requires, so the two paths disagree
+    /// about whether to join, never about what a seam means.
+    /// </summary>
+    private static bool HasWordWrapEvidence(IReadOnlyList<string> lines)
+    {
+        if (!ContainsInternalWhitespace(lines, lines.Count))
+        {
+            return false;
+        }
+
+        var maximumNonFinalLength = 0;
+        var minimumNonFinalLength = int.MaxValue;
+        for (var index = 0; index < lines.Count - 1; index++)
+        {
+            var length = lines[index].TrimEnd().Length;
+            maximumNonFinalLength = Math.Max(maximumNonFinalLength, length);
+            minimumNonFinalLength = Math.Min(minimumNonFinalLength, length);
+        }
+
+        return !HasFlushRightEdge(
+            lines.Count,
+            minimumNonFinalLength,
+            maximumNonFinalLength);
+    }
+
+    private static bool EndsWithWhitespace(string segment) =>
+        segment.Length > 0 && char.IsWhiteSpace(segment[^1]);
+
+    private static bool StartsWithWhitespace(string segment) =>
+        segment.Length > 0 && char.IsWhiteSpace(segment[0]);
 
     private static string JoinSegments(IReadOnlyList<string> segments, int lineCount)
     {
