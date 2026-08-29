@@ -23,11 +23,28 @@ jobs:
         with:
           dotnet-version: 10.0.x
 
-      # The runner image does not ship Inno Setup. Build-Installer.ps1 finds
-      # ISCC.exe on PATH or under Program Files (x86), which is where this puts
-      # it. Pinned so a new major version cannot change the output silently.
-      - name: Install Inno Setup
-        run: choco install innosetup --version=6.4.3 --no-progress -y
+      # windows-latest already ships Inno Setup 6, so this is normally a no-op.
+      # Pinning a version here fails outright when the image carries a newer
+      # one (choco refuses the downgrade), so only install when it is missing,
+      # and fail loudly if what we end up with is not the major version
+      # Build-Installer.ps1 looks for.
+      - name: Ensure Inno Setup 6
+        shell: pwsh
+        run: |
+          $default = Join-Path ${env:ProgramFiles(x86)} 'Inno Setup 6\ISCC.exe'
+          if (-not (Get-Command ISCC.exe -ErrorAction SilentlyContinue) -and
+              -not (Test-Path $default)) {
+            Write-Host 'Inno Setup 6 not found on the image; installing.'
+            choco install innosetup --no-progress -y
+          }
+          $iscc = (Get-Command ISCC.exe -ErrorAction SilentlyContinue).Source
+          if (-not $iscc) { $iscc = $default }
+          if (-not (Test-Path $iscc)) { throw "ISCC.exe still not found at '$iscc'." }
+          $version = (Get-Item $iscc).VersionInfo.ProductVersion
+          Write-Host "Using ISCC $version at $iscc"
+          if ($version -notmatch '^6\.') {
+            throw "Build-Installer.ps1 expects Inno Setup 6; found '$version'."
+          }
 
       - name: Resolve version
         id: version
