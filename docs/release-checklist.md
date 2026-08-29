@@ -33,6 +33,26 @@ Confirm these all describe the same behavior for the release:
 - [ ] Installer behavior in `docs/installer-test-runbook.md` verified
       (install, Start-with-Windows toggle, uninstall).
 
+## Tagging and publishing
+
+The installer is built by `.github/workflows/release.yml` on `windows-latest`,
+not on a maintainer's machine, so the published binary comes from a known
+checkout rather than whatever was in a working tree.
+
+- [ ] `Directory.Build.props` `<Version>` matches the tag being pushed. The
+      workflow fails the build on a mismatch rather than publishing an asset
+      under the wrong name.
+- [ ] Dry run first: **Actions → Release → Run workflow**, which builds the
+      installer and uploads it as a workflow artifact without publishing.
+- [ ] Push the tag (`git tag v0.1.0 && git push origin v0.1.0`). The workflow
+      builds the installer, writes a `.sha256` beside it, and creates a
+      **draft** release.
+- [ ] Edit the draft notes to state that the installer is **unsigned**, so
+      Windows SmartScreen warns on first run, and point at the `.sha256` file
+      for verification. An unexplained warning costs more trust than the
+      disclosure does.
+- [ ] Publish the draft.
+
 ## Privacy invariants (must hold every release)
 
 - [ ] A rewrite never adds `CanIncludeInClipboardHistory` or
