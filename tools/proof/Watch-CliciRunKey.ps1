@@ -12,6 +12,13 @@
   step. It survives until you close it; it does NOT survive the sign-out, so
   start it again after signing back in to catch post-logon writes.
 #>
+# WARNING -- run this from an ordinary interactive shell.
+# On 2026-08-29 an agent session's processes could not see the clici value under
+# HKCU\Software\Microsoft\Windows\CurrentVersion\Run while an interactive shell
+# on the same machine, user, SID and session could. Every registry read here was
+# wrong in that context, and it reported "pre-state is correct" for step 11 twice
+# when it was not. Compare-RunKeyView.ps1 detects the asymmetry.
+
 [CmdletBinding()]
 param(
     [int] $IntervalMilliseconds = 500

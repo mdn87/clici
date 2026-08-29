@@ -24,7 +24,9 @@ Manual verification for the Inno Setup installer. Run after `tools/Build-Install
 10. With auto-start enabled, sign out and back in; confirm clici starts automatically.
     Result (2026-08-29, build `0.1.0+01f99de8`): **PASS**, on the second attempt.
     After a reboot at 15:14:12 the box took RDP logons at 15:33:40 and 15:35:36.
-    With the `Run` value present, clici logged `event name=started` at 15:34:41 and
+    With the `Run` value present (recorded at 15:37:20 by a snapshot run from an
+    interactive shell, not the agent session -- see step 11), clici logged
+    `event name=started` at 15:34:41 and
     15:35:57 -- 61s and 21s after those logons -- and pid 22624 was live from the
     installed path. Neither start has a preceding `event name=stopped`, which is
     what separates a logon autostart from a manual relaunch.
@@ -38,34 +40,29 @@ Manual verification for the Inno Setup installer. Run after `tools/Build-Install
     *snapshot* proves nothing; it has to start after the *logon*, with no `stopped`
     immediately before it.
 11. Disable it, sign out/in; confirm clici does NOT start automatically.
-    Result (2026-08-29, build `0.1.0+01f99de8`): **FAIL, cause not established.**
-    The sign-out was genuine (logon 16:01:09 against a 15:47:05 snapshot) and clici
-    started 21s after logon, so the observed behaviour is a real autostart. But the
-    step did not test what it was set up to test: the snapshot recorded the `Run`
-    value **absent** at 15:47:05, and at logon it was **present**. The value came
-    back at some point between the snapshot and the sign-out, so autostart was
-    never actually disabled going into the sign-out.
+    Result (2026-08-29): **NOT RUN.** Two attempts were staged and neither had the
+    pre-state it reported. Both snapshots were taken by an agent session whose
+    processes cannot see the `clici` value under
+    `HKCU\Software\Microsoft\Windows\CurrentVersion\Run`, so both recorded the
+    value as absent -- "auto-start is off" -- while it was in fact present, and
+    clici autostarted as it was configured to.
 
-    The value was then absent again at 16:03:34, minutes after the check ran.
-    Absent -> present -> absent, and nothing in the app explains it: `config.json`
-    has no autostart field (the `Run` value *is* the entire toggle state), there is
-    no Startup-folder shortcut, no scheduled task, and nothing in `HKLM` Run or
-    either `RunOnce`. `Enable()` is only ever called from the tray
-    `CheckedChanged` handler -- there is no write on startup or shutdown -- and no
-    `startup-registration` failure was logged.
+    **Read the Run value from an ordinary interactive shell, not from an agent
+    session.** Verified 2026-08-29 16:42-16:43 with
+    `tools/proof/Compare-RunKeyView.ps1` run from both: identical machine, user,
+    SID, session and elevation, and an identical list of the other 20 values, but
+    the agent-side view enumerates 20 values and the interactive view 21. The
+    agent side reads the value as absent through all four of .NET `HKCU`, .NET
+    `HKEY_USERS\<sid>`, `reg.exe`, and a raw `RegistryKey` handle; the
+    interactive side reads it as present through all four. Freshly spawned
+    processes on the agent side behave the same way, so it is not a stale handle,
+    and disabling the tool sandbox did not change it. Cause not identified; the
+    asymmetry is reproducible and that is enough to distrust the agent-side
+    reading.
 
-    Re-run with `tools/proof/Watch-CliciRunKey.ps1` running alongside, which
-    timestamps every change to the value, so the write is attributable rather than
-    inferred. A snapshot only proves the state at snapshot time; steps 10 and 11
-    both depend on the state at *logon* time, which nothing was recording.
-
-    Separately, while reading the toggle path: `TrayApplicationContext` attaches
-    `StartWithWindowsMenuItemOnCheckedChanged` twice at construction (line ~74
-    calls `RefreshStartWithWindowsChecked`, which attaches it, then line ~75
-    attaches it again), and the handler's catch block calls `Refresh` re-entrantly
-    so the subscription count can grow. Both `Enable()` and `Disable()` are
-    idempotent, so this is latent rather than the cause here, but it should be
-    fixed -- and not mid-verification, since that changes the binary under test.
+    An earlier version of this entry blamed an unidentified external writer for
+    resurrecting the value. That was wrong -- it was the measurement, not the
+    machine. No evidence of any clici defect came out of it.
 
 Steps 10 and 11 are checked by `tools/proof/Test-LifecycleStep10-11.ps1`, which needs
 a snapshot taken *before* signing out:
