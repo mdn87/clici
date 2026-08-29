@@ -57,6 +57,20 @@ try {
         $current = Read-Value
         if ($current -ne $previous) {
             Write-Entry "CHANGED from=$previous to=$current"
+            # Anything that started in the last 90s is a suspect for the write.
+            $cutoff = (Get-Date).AddSeconds(-90)
+            $recent = @(Get-Process -ErrorAction SilentlyContinue |
+                Where-Object { $_.StartTime -and $_.StartTime -ge $cutoff } |
+                Sort-Object StartTime |
+                ForEach-Object { "$($_.ProcessName)#$($_.Id)@$($_.StartTime.ToString('HH:mm:ss'))" })
+            if ($recent.Count -gt 0) {
+                Write-Entry "  suspects (started within 90s): $($recent -join ', ')"
+            } else {
+                Write-Entry "  suspects: none started within 90s"
+            }
+            $clici = @(Get-Process clici -ErrorAction SilentlyContinue |
+                ForEach-Object { "pid=$($_.Id) start=$($_.StartTime.ToString('HH:mm:ss')) path=$($_.Path)" })
+            Write-Entry "  clici now: $(if ($clici.Count) { $clici -join ' | ' } else { 'none' })"
             $previous = $current
         }
     }
