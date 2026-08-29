@@ -44,6 +44,29 @@ jobs:
           if (-not $iscc) { throw 'ISCC.exe not found after install.' }
           Write-Host "ISCC at $iscc ($((Get-Item $iscc).VersionInfo.ProductVersion))"
 
+      - name: Resolve version
+        id: version
+        shell: pwsh
+        run: |
+          $version = if ($env:GITHUB_REF -like 'refs/tags/v*') {
+            $env:GITHUB_REF -replace '^refs/tags/v', ''
+          } else {
+            '${{ github.event.inputs.version }}'
+          }
+          if ([string]::IsNullOrWhiteSpace($version)) {
+            throw 'Could not resolve a version from the tag or the workflow input.'
+          }
+          # The installer takes its filename and AppVersion from
+          # Directory.Build.props, so a tag disagreeing with that file would
+          # publish an asset under a name that does not exist.
+          [xml]$props = Get-Content Directory.Build.props
+          $declared = "$($props.Project.PropertyGroup.Version)".Trim()
+          if ($version -ne $declared) {
+            throw "Version '$version' does not match Directory.Build.props Version '$declared'."
+          }
+          "version=$version" | Out-File -FilePath $env:GITHUB_OUTPUT -Append -Encoding utf8
+          Write-Host "Building clici $version"
+
       - name: Build installer
         run: .\tools\Build-Installer.ps1
         # Deliberately unsigned: CLICI_SIGN_CERT_THUMBPRINT is not set, so no
