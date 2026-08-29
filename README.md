@@ -78,11 +78,27 @@ trimmed and joined with single spaces. Ordinary multiline content — code,
 lists, paragraphs, tables — does not match and falls through to margin
 normalization. Set `joinWrappedLines: false` to disable.
 
-When the signature refuses a copy you know is one command, the global hotkey
-(default `Ctrl+Alt+J`, configurable via `joinLinesHotkey`, empty to disable)
-joins every nonblank line of the current clipboard unconditionally. The hotkey
-skips the source allowlist — pressing it is the authorization — but still
-honors the privacy, size, and rich-format gates.
+The signature alone is not enough, because a terminal that fills the row and
+continues the same token on the next line drops no space, so joining with one
+would corrupt the token. A wrapped URL, path, hash, or base64 blob is the
+everyday case. clici therefore also requires evidence that the seams are word
+boundaries, and refuses a copy that carries no whitespace at all (one unbroken
+token split by column) or whose non-final lines are all exactly the same width
+(an edge flush to one column, the shape mid-token wrapping produces, rather
+than the ragged edge word wrapping leaves). A refused copy is left untouched
+for margin normalization, and the hotkey below still rebuilds it on request.
+
+When the signature refuses a copy you know is one logical line, the global
+hotkey (default `Ctrl+Alt+J`, configurable via `joinLinesHotkey`, empty to
+disable) joins every nonblank line of the current clipboard unconditionally.
+It picks the separator from the same evidence rather than assuming one:
+fragments carrying the ragged edge and internal whitespace of word wrapping
+are joined with single spaces, and a token the terminal split by column is
+concatenated with nothing, so a wrapped URL comes back exactly as it was
+rather than with spaces driven into it. A seam that kept its own whitespace is
+a word boundary either way, and keeps its space. The hotkey skips the source
+allowlist — pressing it is the authorization — but still honors the privacy,
+size, and rich-format gates.
 
 clici does not use `TrimStart` and does not interpret tabs as spaces. CRLF, LF,
 mixed line endings, and trailing newlines are retained exactly. Unicode text is
@@ -304,6 +320,10 @@ you are testing, reinstall before investigating further.
 - Automatic mode is plain-text only. Items carrying HTML, RTF, CSV, files,
   images, or unknown application formats are skipped rather than rewritten;
   consistent rich-format normalization is future work.
+- A two-line copy carries no right-edge evidence — its single non-final line is
+  uniform whichever way the terminal broke it — so a seam that falls mid-token
+  inside otherwise-spaced text is still joined with a space. Copies with no
+  whitespace at all are refused at any line count.
 - Source attribution combines the clipboard owner process and the foreground
   process, but the owner signal is not perfectly reliable (clipboard brokers and
   ownerless states exist). Integrated-terminal hosts such as VS Code and Cursor

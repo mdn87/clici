@@ -212,7 +212,18 @@ longest such line; a final line no longer than that longest line plus 15
 characters; and no line whose first nonspace character is a table pipe (`|`),
 plus sign (`+`), or Unicode box-drawing character.
 
-**JOIN-002** Joining shall trim each fragment's leading and trailing
+**JOIN-001a** The wrap signature alone shall not authorize a join. Because a
+terminal that fills a row and continues the same token on the next line drops
+no space, clici shall additionally refuse a copy when (a) no content line
+carries whitespace between its first and last nonspace characters, or (b) two
+or more non-final lines were measured and they are all of exactly equal length
+(trailing whitespace excluded). Condition (a) is a single unbroken token split
+by column; condition (b) is a right edge flush to one column rather than the
+ragged edge word wrapping leaves. A copy refused under this requirement is left
+unchanged for margin normalization; JOIN-004 remains available. A two-line copy
+has one non-final line and so is not subject to (b).
+
+**JOIN-002** Automatic joining shall trim each fragment's leading and trailing
 whitespace and concatenate the fragments with single ASCII spaces. Content
 between the fragments' first and last nonspace characters shall be copied
 unchanged.
@@ -226,6 +237,19 @@ shall join every nonblank line of the current clipboard item unconditionally.
 The explicit invocation substitutes for the wrap signature and the source
 allowlist, but the privacy-policy, size, and rich-format gates of CLIP-005
 still apply.
+
+**JOIN-004a** The hotkey shall choose its separator from the same evidence
+JOIN-001a weighs rather than always inserting a space. When the copy carries
+whitespace between some content line's first and last nonspace characters and
+its non-final lines are not all of exactly equal length, fragments shall be
+concatenated with single ASCII spaces, because word wrapping dropped the space
+it broke on. Otherwise fragments shall be concatenated with nothing, because a
+terminal that fills a row and continues mid-token drops nothing and the logical
+line is the concatenation. Independently of that choice, a seam whose preceding
+fragment ends with whitespace or whose following fragment begins with
+whitespace shall be joined with a single ASCII space. Joining a copy refused
+under JOIN-001a therefore reconstructs it exactly rather than reintroducing the
+corruption JOIN-001a exists to prevent.
 
 **JOIN-005** Failure to parse or register the hotkey chord (including a chord
 owned by another application) shall be logged and shall not prevent startup;
