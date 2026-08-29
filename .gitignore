@@ -43,6 +43,7 @@ Desktop.ini
 ## Local agent/session state
 .Codex/
 .codex/
+.dias/
 .claude/handoff.md
 .claude/handoff-history/
 .lugos-wip/

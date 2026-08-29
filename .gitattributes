@@ -1,0 +1,9 @@
+# Every file in this repository is stored with LF endings, and .editorconfig
+# declares LF. Normalizing here keeps the working tree LF on Windows too, so
+# the CI whitespace check sees the same bytes on every platform.
+* text=auto eol=lf
+
+# Binary assets must never be normalized.
+*.ico binary
+*.png binary
+*.pfx binary
