@@ -1,0 +1,87 @@
+name: Bug report
+description: Something clici did to the clipboard that it should not have
+labels: [bug]
+body:
+  - type: markdown
+    attributes:
+      value: |
+        Please do not paste clipboard content you would not want published.
+        A redacted or synthetic reproduction is always acceptable.
+
+  - type: textarea
+    id: what-happened
+    attributes:
+      label: What happened
+      description: What did you copy, and what ended up on the clipboard?
+      placeholder: |
+        Copied a wrapped command from Windows Terminal; pasting produced a
+        space in the middle of a URL.
+    validations:
+      required: true
+
+  - type: textarea
+    id: expected
+    attributes:
+      label: What you expected instead
+    validations:
+      required: true
+
+  - type: textarea
+    id: source-text
+    attributes:
+      label: Source text
+      description: >
+        The copied text, redacted as needed. Leading whitespace and line breaks
+        are the whole subject here, so please paste it inside a fenced code
+        block so they survive.
+      render: text
+    validations:
+      required: false
+
+  - type: input
+    id: source-app
+    attributes:
+      label: Source application
+      description: Where the copy came from, and its version if you know it.
+      placeholder: Windows Terminal 1.19 / Claude Code
+    validations:
+      required: true
+
+  - type: input
+    id: clici-version
+    attributes:
+      label: clici version
+      description: Right-click the tray icon, or check Add/Remove Programs.
+    validations:
+      required: true
+
+  - type: input
+    id: windows-version
+    attributes:
+      label: Windows version
+      placeholder: "Windows 11 23H2"
+    validations:
+      required: true
+
+  - type: textarea
+    id: config
+    attributes:
+      label: Configuration
+      description: >
+        Contents of `%LOCALAPPDATA%\clici\config.json`, if you changed it from
+        the defaults.
+      render: json
+    validations:
+      required: false
+
+  - type: textarea
+    id: diagnostics
+    attributes:
+      label: Diagnostic log
+      description: >
+        Optional. Set `diagnosticLogging: true`, restart clici, reproduce, and
+        paste the relevant lines. The log records decisions and process names,
+        never clipboard contents.
+      render: text
+    validations:
+      required: false

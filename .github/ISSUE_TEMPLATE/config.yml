@@ -1,0 +1,7 @@
+blank_issues_enabled: true
+contact_links:
+  - name: Report a security vulnerability
+    url: https://github.com/mdn87/clici/security/advisories/new
+    about: >
+      Please report vulnerabilities privately rather than as a public issue.
+      See SECURITY.md.

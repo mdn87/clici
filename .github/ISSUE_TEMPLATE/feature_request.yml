@@ -1,0 +1,36 @@
+name: Feature request
+description: Suggest a change to what clici does
+labels: [enhancement]
+body:
+  - type: markdown
+    attributes:
+      value: |
+        clici is deliberately narrow: it corrects a common left margin on text
+        copied from terminals, and skips anything it cannot classify with
+        confidence. **Current limitations** and **Planned next steps** in the
+        README describe what is already known and intended.
+
+  - type: textarea
+    id: problem
+    attributes:
+      label: The problem
+      description: What are you doing, and where does clici get in the way?
+    validations:
+      required: true
+
+  - type: textarea
+    id: proposal
+    attributes:
+      label: What you would like it to do
+    validations:
+      required: true
+
+  - type: textarea
+    id: risk
+    attributes:
+      label: When would this be the wrong thing to do?
+      description: >
+        clici rewrites the clipboard silently, so a change that guesses wrong
+        destroys the user's copy. What content would this misfire on?
+    validations:
+      required: false
