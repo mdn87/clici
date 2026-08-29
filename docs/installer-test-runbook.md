@@ -22,15 +22,21 @@ Manual verification for the Inno Setup installer. Run after `tools/Build-Install
 
 ## Auto-start behaviour
 10. With auto-start enabled, sign out and back in; confirm clici starts automatically.
-    Result (2026-08-29, build `0.1.0+01f99de8`): **NOT PROVEN.** An earlier run
-    reported PASS, but it was a false pass. The evidence it relied on -- a
-    `clici.exe` whose start time (14:57:07) was later than the snapshot -- was an
-    application restart, not an autostart: the log shows `event name=stopped` at
-    14:57:04 followed by `event name=started` at 14:57:10, six seconds apart. No
-    sign-out had happened. `Win32_LogonSession`, `quser`, `explorer.exe`'s start
-    time and `LastBootUpTime` all agree the only interactive logon began
-    2026-08-20 23:33, immediately after boot. A process starting after the
-    *snapshot* proves nothing; it has to start after the *logon*.
+    Result (2026-08-29, build `0.1.0+01f99de8`): **PASS**, on the second attempt.
+    After a reboot at 15:14:12 the box took RDP logons at 15:33:40 and 15:35:36.
+    With the `Run` value present, clici logged `event name=started` at 15:34:41 and
+    15:35:57 -- 61s and 21s after those logons -- and pid 22624 was live from the
+    installed path. Neither start has a preceding `event name=stopped`, which is
+    what separates a logon autostart from a manual relaunch.
+
+    The first attempt reported PASS and was wrong. It concluded clici had
+    autostarted because the process start time was later than the snapshot, but
+    that only showed the app restarted: the log has `stopped` at 14:57:04 and
+    `started` at 14:57:10, six seconds apart, with no sign-out between them.
+    `Win32_LogonSession`, `quser`, `explorer.exe` and `LastBootUpTime` all put the
+    only logon at that point back at 2026-08-20 23:33. A process starting after the
+    *snapshot* proves nothing; it has to start after the *logon*, with no `stopped`
+    immediately before it.
 11. Disable it, sign out/in; confirm clici does NOT start automatically.
 
 Steps 10 and 11 are checked by `tools/proof/Test-LifecycleStep10-11.ps1`, which needs

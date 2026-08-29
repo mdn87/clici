@@ -98,6 +98,7 @@ if ($Snapshot) {
     [pscustomobject]@{
         step         = $Step
         takenAt      = (Get-Date).ToString('o')
+        logonAt      = $(if ($l = Get-LogonTime) { $l.ToString('o') } else { $null })
         build        = Get-BuildVersion
         runKey       = $runValue
         startedCount = Get-StartedCount
@@ -137,7 +138,13 @@ if (-not (Test-Path $SnapshotPath)) {
 $snap      = Get-Content $SnapshotPath -Raw | ConvertFrom-Json
 $snapTaken = [datetime]::Parse($snap.takenAt)
 $logon     = Get-LogonTime
-$realSignOut = ($null -ne $logon) -and ($logon -gt $snapTaken)
+$snapLogon = if ($snap.logonAt) { [datetime]::Parse($snap.logonAt) } else { $null }
+if ($null -ne $snapLogon -and $null -ne $logon) {
+    # Strongest form: the interactive logon session is not the one the snapshot saw.
+    $realSignOut = ($logon -ne $snapLogon)
+} else {
+    $realSignOut = ($null -ne $logon) -and ($logon -gt $snapTaken)
+}
 
 $runValue  = Get-RunKeyValue
 $runIsSet  = -not [string]::IsNullOrWhiteSpace($runValue)
@@ -145,6 +152,29 @@ $procs     = @(Get-CliciProcesses)
 $newStarts = (Get-StartedCount) - [int]$snap.startedCount
 
 $autoStarted = @($procs | Where-Object { $null -ne $logon -and $_.StartTime -ge $logon })
+
+# A logon autostart follows a logon with no clean shutdown before it; a manual
+# relaunch shows 'stopped' then 'started' a few seconds apart. This is what the
+# first (false) step 10 pass missed.
+$relaunch = $false
+$relaunchGap = 0
+if (Test-Path $LogPath) {
+    $events = @(Select-String -Path $LogPath -Pattern 'event name=(started|stopped)' |
+        ForEach-Object {
+            [pscustomobject]@{
+                When = [datetime]::Parse(($_.Line -split ' ')[0])
+                Kind = $_.Matches[0].Groups[1].Value
+            }
+        } | Sort-Object When)
+    $lastStart = $events | Where-Object { $_.Kind -eq 'started' } | Select-Object -Last 1
+    if ($lastStart) {
+        $prior = $events | Where-Object { $_.Kind -eq 'stopped' -and $_.When -lt $lastStart.When } | Select-Object -Last 1
+        if ($prior) {
+            $gap = ($lastStart.When - $prior.When).TotalSeconds
+            if ($gap -le 60) { $relaunch = $true; $relaunchGap = $gap }
+        }
+    }
+}
 
 $title   = if ($Step -eq 10) { 'STEP 10 - autostart ON, clici must start by itself' }
            else              { 'STEP 11 - autostart OFF, clici must NOT start by itself' }
@@ -157,6 +187,7 @@ if ($Step -eq 10) {
     if (-not $runIsSet)               { $failures.Add('Run key value is missing - auto-start was not enabled') }
     if ($autoStarted.Count -lt 1)     { $failures.Add('no clici process started after logon') }
     if ($newStarts -lt 1)             { $failures.Add("no new 'started' log entry since the snapshot") }
+    if ($relaunch)                    { $failures.Add("looks like a manual relaunch, not an autostart: 'stopped' logged $([int]$relaunchGap)s before the 'started'") }
 } else {
     if ($runIsSet)                    { $failures.Add("Run key value is still present: $runValue") }
     if ($autoStarted.Count -gt 0)     { $failures.Add("clici started anyway (pid $($autoStarted.Id -join ', '))") }
