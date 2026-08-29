@@ -20,6 +20,65 @@ Manual verification for the Inno Setup installer. Run after `tools/Build-Install
 8. Uncheck it; confirm the `Run\clici` value is removed.
 9. Re-check it; confirm the value is written back with the quoted installed path.
 
+### Result -- Build 1-2 and steps 1-9 (2026-08-29, build `0.1.0+b3df73a`)
+
+**PASS, all nine.** Driven by `tools/proof/Test-LifecycleStep1-9.ps1`, which
+records machine assertions and operator observations as separate kinds in
+`%LOCALAPPDATA%\clici\proof\steps1-9-result.json`. A y/n from a person is not an
+install log and the record does not treat them alike.
+
+**Build 1-2.** `tools/Build-Installer.ps1` produced
+`artifacts/installer/clici-0.1.0-win-x64-setup.exe` at 18:22:59, 45 MB,
+publishing `0.1.0+b3df73a`. Unsigned, as designed.
+
+**The install was made genuinely fresh first.** The `0.1.0+a891d0a0` build left
+behind by the steps 12/13 run was uninstalled at 18:23, exit 0; the uninstall log
+records deleting `clici.exe`, the shortcut, the ARP key and the `Run\clici`
+value. Only the empty `Programs\clici` folder survived -- the AV-lock behaviour
+already noted at step 15.
+
+1. *machine.* Log opened 18:28:00 with `/SL5=... /LOG=...` and **no** `/SILENT`,
+   so it was the wizard. `Installation process succeeded` at 18:28:08, and clici
+   logged `event name=started version=0.1.0+b3df73a` at 18:28:11 as pid 32512.
+   That launch is itself evidence the run was not silent: `[Run]` carries
+   `skipifsilent`, so a silent install would have started nothing.
+2. *operator.* clici icon present in the notification area.
+3. *machine.* `%LOCALAPPDATA%\Programs\clici\clici.exe` present, ProductVersion
+   `0.1.0+b3df73a29ae7b3cdbc5ff6654b2ee00e8847697d`.
+4. *machine.* `clici.lnk` present in the Start Menu; the install log records
+   creating the icon.
+5. *machine.* Interactive shell reads DisplayName `clici`, DisplayVersion
+   `0.1.0`; the install log records `Creating new uninstall key`.
+6. *machine.* Interactive shell reads the value as
+   `"C:\Users\Matt\AppData\Local\Programs\clici\clici.exe"`, byte-equal to the
+   expected quoted path, with 21 values under `Run`; the install log records
+   `Successfully created or set the value`.
+7. *operator.* Tray menu shows **Start with Windows** checked, agreeing with 6.
+8. *machine.* After unchecking, the value reads absent and the count drops 21 to
+   20.
+9. *machine.* After re-checking, the value reads the quoted path again and the
+   count returns 20 to 21.
+
+**The registry reads above came from an interactive shell, and the contrast is
+now sharply timed.** Step 9's read at 18:35:05 saw 21 values with `clici`
+present. Twenty-eight seconds later, at 18:35:33, an agent-session read on the
+same machine, user and session saw 20 values with `clici` absent, and could not
+see the ARP uninstall key created at 18:28:08 either -- neither by a direct key
+test nor by enumerating the `Uninstall` subkeys -- although an agent-side read
+had seen that same ARP entry at 17:35. So the blindness is not confined to the
+`Run` value, and it is not stable within a session. Treat every HKCU read from
+an agent session on this machine as void.
+
+The first attempt at this walkthrough installed cleanly and then stopped before
+writing any result file, leaving steps 2 and 6-9 with no evidence and no trace of
+where it stopped. The script now writes its result from a `finally` block and
+takes `-Resume` to re-enter at step 2; steps 2-9 above were completed that way at
+18:35.
+
+**State left behind:** auto-start is **ON** (step 9 re-checked it), and this
+machine now runs `0.1.0+b3df73a`, a build from `main` -- still not the released
+`01f99de` artifact.
+
 ## Auto-start behaviour
 10. With auto-start enabled, sign out and back in; confirm clici starts automatically.
     Result (2026-08-29, build `0.1.0+01f99de8`): **PASS**, on the second attempt.
