@@ -24,47 +24,25 @@ jobs:
           dotnet-version: 10.0.x
 
       # windows-latest already ships Inno Setup 6, so this is normally a no-op.
-      # Pinning a version here fails outright when the image carries a newer
-      # one (choco refuses the downgrade), so only install when it is missing,
-      # and fail loudly if what we end up with is not the major version
-      # Build-Installer.ps1 looks for.
+      # Do not pin a version: choco fails outright rather than treating a newer
+      # image-provided one as satisfying the request. Build-Installer.ps1 does
+      # the real resolution and throws a clear error of its own if ISCC is
+      # missing, so this step only has to guarantee it is installed.
       - name: Ensure Inno Setup 6
         shell: pwsh
         run: |
-          $default = Join-Path ${env:ProgramFiles(x86)} 'Inno Setup 6\ISCC.exe'
-          if (-not (Get-Command ISCC.exe -ErrorAction SilentlyContinue) -and
-              -not (Test-Path $default)) {
+          $real = Join-Path ${env:ProgramFiles(x86)} 'Inno Setup 6\ISCC.exe'
+          if (-not (Test-Path $real) -and
+              -not (Get-Command ISCC.exe -ErrorAction SilentlyContinue)) {
             Write-Host 'Inno Setup 6 not found on the image; installing.'
             choco install innosetup --no-progress -y
           }
-          $iscc = (Get-Command ISCC.exe -ErrorAction SilentlyContinue).Source
-          if (-not $iscc) { $iscc = $default }
-          if (-not (Test-Path $iscc)) { throw "ISCC.exe still not found at '$iscc'." }
-          $version = (Get-Item $iscc).VersionInfo.ProductVersion
-          Write-Host "Using ISCC $version at $iscc"
-          if ($version -notmatch '^6\.') {
-            throw "Build-Installer.ps1 expects Inno Setup 6; found '$version'."
-          }
-
-      - name: Resolve version
-        id: version
-        shell: pwsh
-        run: |
-          $version = if ($env:GITHUB_REF -like 'refs/tags/v*') {
-            $env:GITHUB_REF -replace '^refs/tags/v', ''
-          } else {
-            '${{ github.event.inputs.version }}'
-          }
-          # Guard against a tag that disagrees with Directory.Build.props: the
-          # installer takes its name and AppVersion from the props file, so a
-          # mismatch would publish an asset that does not exist.
-          [xml]$props = Get-Content Directory.Build.props
-          $declared = $props.Project.PropertyGroup.Version
-          if ($version -ne $declared) {
-            throw "Tag version '$version' does not match Directory.Build.props Version '$declared'."
-          }
-          "version=$version" >> $env:GITHUB_OUTPUT
-          Write-Host "Building clici $version"
+          # Prefer the real binary over a Chocolatey shim: the shim reports its
+          # own version ("Chocolatey Shim: 1.0.0"), not Inno Setup's.
+          $iscc = if (Test-Path $real) { $real }
+                  else { (Get-Command ISCC.exe -ErrorAction SilentlyContinue).Source }
+          if (-not $iscc) { throw 'ISCC.exe not found after install.' }
+          Write-Host "ISCC at $iscc ($((Get-Item $iscc).VersionInfo.ProductVersion))"
 
       - name: Build installer
         run: .\tools\Build-Installer.ps1
