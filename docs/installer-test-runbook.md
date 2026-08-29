@@ -24,6 +24,15 @@ Manual verification for the Inno Setup installer. Run after `tools/Build-Install
 10. With auto-start enabled, sign out and back in; confirm clici starts automatically.
 11. Disable it, sign out/in; confirm clici does NOT start automatically.
 
+> **Silent installs do not launch clici.** The installer's `[Run]` entry carries
+> `skipifsilent`, so `/VERYSILENT` and `/SILENT` install everything — files,
+> shortcut, ARP entry, and the `Run` value when auto-start is selected — but do
+> not start clici at the end of setup. This is Inno Setup behaving correctly, not
+> a defect. It matters twice here: an automated run of steps 12–15 must launch
+> clici itself before testing reinstall-while-running, and anyone deploying clici
+> silently should expect it to start at the *next* sign-in rather than
+> immediately.
+
 ## Upgrade / stop-before-install (AppMutex spike result)
 12. With clici running, re-run `setup.exe`.
 13. Spike result (2026-08-07, silent `/VERYSILENT` automation): **AppMutex +
