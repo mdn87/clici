@@ -285,7 +285,24 @@ Find the clici icon in the Windows notification area. Right-click it and choose
 
 ## Install for the current Windows user
 
-Build and run the installer from the repository root:
+Download `clici-<version>-win-x64-setup.exe` from the
+[latest release](https://github.com/mdn87/clici/releases/latest) and run it. No
+administrator rights are required.
+
+The installer is **unsigned**, so Windows SmartScreen will warn the first time
+you run it: choose **More info** then **Run anyway**. Each release publishes a
+`.sha256` file beside the installer if you want to verify the download first:
+
+```powershell
+Get-FileHash .\clici-0.1.0-win-x64-setup.exe -Algorithm SHA256
+```
+
+Release installers are built by GitHub Actions on `windows-latest` from the
+tagged commit, not from a maintainer's machine.
+
+### Build the installer yourself
+
+From the repository root:
 
 ```powershell
 .\tools\Build-Installer.ps1
