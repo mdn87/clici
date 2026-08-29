@@ -19,6 +19,9 @@ Confirm these all describe the same behavior for the release:
 - [ ] `docs/v0.1-test-runbook.md` — operator steps match current behavior.
 - [ ] `docs/v0.1-resilience-report.md` — findings still hold.
 - [ ] `tools/proof/fixtures.json` — proof fixtures match the normalizer.
+- [ ] `docs/v0.1-proof-ledger.md` — the nineteen manual functional cases have
+      been run against the build being released, or the release notes say which
+      are unverified. As of v0.1.0 none had been run.
 
 ## Configuration
 
