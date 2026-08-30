@@ -223,3 +223,38 @@ it *without* actually signing out reports FAIL rather than a false pass.
     behind due to an AV lock on the just-terminated exe; exiting clici from the
     tray before uninstalling avoids this, and Windows clears the empty folder on
     reboot.)
+
+### Result -- steps 14-15 (2026-08-29, build removed: `0.1.0+a891d0a0`)
+
+**PASS, with one scope limit stated up front:** the uninstall was driven by the
+installed uninstaller, not by clicking through **Add or remove programs**.
+`%LOCALAPPDATA%\Programs\clici\unins000.exe /VERYSILENT /SUPPRESSMSGBOXES /LOG=`
+at 18:23:21, exit 0. That is the same binary ARP invokes, but the Settings UI
+path itself was not exercised, so step 14's wording is only partly covered. This
+ran as the teardown before the fresh install recorded at steps 1-9, so the build
+removed was `0.1.0+a891d0a0`, the one the steps 12/13 run left behind.
+
+clici **was running** when it started, so the `[Code]` `InitializeUninstall`
+force-close path was exercised too, not just the file deletes.
+
+*machine.* The uninstall log records, in order at 18:23:21:
+`Deleting registry key HKEY_CURRENT_USER\...\Uninstall\{B7A6E4C2-...}_is1`,
+`Deleting file ...\Start Menu\Programs\clici.lnk`,
+`Deleting file ...\Programs\clici\clici.exe`,
+`Deleting registry value HKEY_CURRENT_USER\...\Run\clici`, then
+`Deleting Uninstall data files`.
+
+*machine.* State immediately after: `clici.exe` gone, `clici.lnk` gone, zero
+clici processes. `%LOCALAPPDATA%\Programs\clici` remained, empty -- the AV-lock
+behaviour described above, and this run force-killed a running clici, which is
+precisely the condition that provokes it.
+
+**The ARP entry's removal rests on the uninstall log alone.** The post-uninstall
+registry check was made from an agent session, and by the rule established at
+steps 1-9 every HKCU read from an agent session on this machine is void: that
+same session could not see that key at 18:30 when it demonstrably *did* exist.
+The log is the evidence here; the read is not, in either direction.
+
+Log kept at
+`artifacts/v0.1-proof/installer-steps1-9-20260829/clici-step1-uninstall.log`
+(untracked -- `artifacts/` is gitignored).
