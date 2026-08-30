@@ -11,6 +11,7 @@ namespace Clici.App.Clipboard;
 internal sealed class ClipboardNormalizationCoordinator
 {
     private readonly IClipboardService _clipboardService;
+    private readonly IClipboardImageExporter _clipboardImageExporter;
     private readonly IForegroundProcessProvider _foregroundProcessProvider;
     private readonly IDiagnosticLogger _logger;
     private readonly MarginNormalizer _normalizer;
@@ -25,9 +26,12 @@ internal sealed class ClipboardNormalizationCoordinator
         IClipboardService clipboardService,
         IForegroundProcessProvider foregroundProcessProvider,
         IDiagnosticLogger logger,
-        CliciConfiguration configuration)
+        CliciConfiguration configuration,
+        IClipboardImageExporter? clipboardImageExporter = null)
     {
         _clipboardService = clipboardService;
+        _clipboardImageExporter =
+            clipboardImageExporter ?? new WinFormsClipboardImageExporter();
         _foregroundProcessProvider = foregroundProcessProvider;
         _logger = logger;
         _configuration = configuration;
@@ -67,7 +71,21 @@ internal sealed class ClipboardNormalizationCoordinator
         {
             _processing = true;
 
-            if (!_configuration.Enabled || _paused)
+            if (!_configuration.Enabled)
+            {
+                return;
+            }
+
+            // Image export is a separate configured clipboard action. It runs
+            // before the normalization pause gate so "Pause normalization" does
+            // not break the screenshot bridge. A successful image export ends
+            // this notification without reading or replacing text content.
+            if (TryHandleClipboardImageExport())
+            {
+                return;
+            }
+
+            if (_paused)
             {
                 return;
             }
@@ -290,6 +308,46 @@ internal sealed class ClipboardNormalizationCoordinator
         finally
         {
             _processing = false;
+        }
+    }
+
+    private bool TryHandleClipboardImageExport()
+    {
+        if (string.IsNullOrWhiteSpace(_configuration.ClipboardImageExportPath))
+        {
+            return false;
+        }
+
+        var result = _clipboardImageExporter.TryExport(
+            _configuration.ClipboardImageExportPath,
+            _configuration.ClipboardImageExportHistory);
+
+        switch (result.Status)
+        {
+            case ClipboardImageExportStatus.NoImage:
+                return false;
+            case ClipboardImageExportStatus.Exported:
+                _logger.Event("exported-clipboard-image");
+                return true;
+            case ClipboardImageExportStatus.SkippedMonitorProcessing:
+                _logger.Event("skipped-monitor-processing-exclusion");
+                return true;
+            case ClipboardImageExportStatus.SkippedUnreadablePrivacyPolicy:
+                _logger.Event("skipped-unreadable-privacy-policy");
+                return true;
+            case ClipboardImageExportStatus.Busy:
+            case ClipboardImageExportStatus.Failed:
+                _logger.Failure(
+                    "clipboard-image-export",
+                    null,
+                    result.ExceptionType);
+                return true;
+            default:
+                _logger.Failure(
+                    "clipboard-image-export",
+                    null,
+                    "unknown-status");
+                return true;
         }
     }
 

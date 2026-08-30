@@ -44,6 +44,24 @@ public sealed record CliciConfiguration
     /// </summary>
     public string JoinLinesHotkey { get; init; } = "Ctrl+Alt+J";
 
+    /// <summary>
+    /// Optional fully qualified Windows destination for clipboard images. A
+    /// local path or a WSL path under \\wsl.localhost is accepted. Images are
+    /// written as PNG without replacing or otherwise changing the clipboard.
+    /// Empty disables image export.
+    /// </summary>
+    public string ClipboardImageExportPath { get; init; } = string.Empty;
+
+    /// <summary>
+    /// How many timestamped copies of exported clipboard images to keep beside
+    /// the stable destination. Each export writes
+    /// <c>clipboard-yyyyMMdd-HHmmss-fff.png</c> as well as the stable file, so a
+    /// second image arriving before the first is read does not destroy it. The
+    /// oldest archives beyond this count are deleted. Zero keeps only the
+    /// stable destination and restores the plain overwrite behavior.
+    /// </summary>
+    public int ClipboardImageExportHistory { get; init; } = 20;
+
     public bool DiagnosticLogging { get; init; }
 
     /// <summary>
