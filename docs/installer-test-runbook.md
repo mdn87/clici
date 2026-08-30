@@ -76,8 +76,9 @@ takes `-Resume` to re-enter at step 2; steps 2-9 above were completed that way a
 18:35.
 
 **State left behind:** auto-start is **ON** (step 9 re-checked it), and this
-machine now runs `0.1.0+b3df73a`, a build from `main` -- still not the released
-`01f99de` artifact.
+machine ran `0.1.0+b3df73a`, a build from `main`. Superseded at 21:44 the same
+evening -- see the published-artifact result below, after which the machine is
+back on the released `01f99de` build.
 
 ## Auto-start behaviour
 10. With auto-start enabled, sign out and back in; confirm clici starts automatically.
@@ -213,6 +214,44 @@ it *without* actually signing out reports FAIL rather than a false pass.
     window for `CloseApplications` to close. The `[Code]`
     `InitializeSetup`/`InitializeUninstall` `taskkill /IM clici.exe /F` fallback
     was added; after it, reinstall-while-running returns **exit 0**.
+
+
+### Result -- steps 12/13 against the published v0.1.0 artifact (2026-08-29)
+
+The 17:35 run above proved the mechanism on a local build. This run repeats it on
+the artifact users actually download, which is the only version of the claim that
+matters to them. **PASS.**
+
+*machine.* The asset was downloaded from the public Releases page with
+`gh release download v0.1.0`. Its SHA-256 is
+`a3b4449c30337ea3cacc880d65bf7041ae5bb68643f6221c1c28916a21a1e6bd`, matching both
+the published `.sha256` companion file and the digest GitHub reports for the
+asset. So the binary exercised below is byte-identical to the published one.
+
+*machine.* clici was running from the installed path (pid 32512) on the
+`0.1.0+b3df73a` build when the released installer was run at 21:44:39 as
+`/VERYSILENT /SUPPRESSMSGBOXES /LOG=`, with default tasks rather than
+`/TASKS=""` -- auto-start was already ON, so letting the `startup` task run
+exercises the `[Registry]` write instead of skipping it, and leaves the state
+unchanged. **Exit 0 in 2s.**
+
+*machine.* `RestartManager found no applications using one of our files` at
+21:44:39.824, a fifth of a second after the log opened and while clici had been
+running -- `InitializeSetup`'s `taskkill` had already closed it. Zero clici
+processes afterwards. Same fallback behaviour as the local build, on the shipped
+binary.
+
+*machine.* The installed `clici.exe` is now
+`0.1.0+01f99de8280003008c3736541d2dc49f2deebbcc` with the CI file timestamp
+`2026-08-29 13:17:16Z`, replacing the `18:22:54` local build. The Start Menu
+shortcut survived and the log records `Successfully created or set the value` for
+`Run\clici`.
+
+**This machine is back on the released artifact**, relaunched by hand at 21:44:43
+as pid 37856, logging `started version=0.1.0+01f99de8`. Auto-start remains ON.
+
+Log: `artifacts/v0.1-proof/release-artifact-20260829/clici-item3-release-install.log`
+(untracked -- `artifacts/` is gitignored).
 
 ## Uninstall
 14. Uninstall via Add/Remove Programs.
