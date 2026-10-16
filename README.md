@@ -383,7 +383,11 @@ you are testing, reinstall before investigating further.
 ## Planned next steps
 
 - evaluate optional previous/next user-prompt navigation in Windows Terminal;
-  see the [prompt navigation implementation plan](docs/prompt-navigation-plan.md);
+  the [development probe and proof report](docs/prompt-navigation-proof-report.md)
+  establish COM scrolling and tested navigation decisions, while agent-native
+  session/anchor integration remains under investigation; see the
+  [implementation plan](docs/prompt-navigation-plan.md). Navigation is not yet
+  available in the tray app;
 - exercise clipboard behavior across Windows Terminal, PowerShell, cmd, WSL,
   Codex, and Claude Code, and build a real source-fingerprint matrix;
 - add focused-control detection (UI Automation) so VS Code and Cursor

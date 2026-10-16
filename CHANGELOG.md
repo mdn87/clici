@@ -11,7 +11,12 @@ between minor versions where a classification proves to be wrong.
 
 ## [Unreleased]
 
-Nothing yet.
+### Added
+
+- Development-only Windows Terminal COM navigation probe and isolated fixture
+  runbook, plus pure previous/next prompt decisions with 24 tests (NAV-001,
+  NAV-002, NAV-005). Navigation is not integrated into the tray app. The proof
+  report records native-mark failures and remaining agent-native integration work.
 
 ## 0.1.0 — 2026-08-29
 

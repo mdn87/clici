@@ -1,6 +1,6 @@
 # Clici prompt navigation implementation plan
 
-- **Status:** Reviewed; terminal targeting and message recognition still require a prototype.
+- **Status:** COM access and synthetic scrolling proved; pure navigation decisions implemented. Session eligibility and recognition still require agent-native qualification.
 - **Date:** 2026-10-15
 - **Outcome:** Jump between user messages in the active Claude Code or Codex
   terminal session with configurable shortcuts, initially Ctrl+Up and Ctrl+Down.
@@ -21,6 +21,11 @@ records the evidence, corrections, and remaining experiments behind this revisio
 
 ## Prerequisites and open decisions
 
+- **Keep existing launch commands (operator decision, 2026-10-16).** Do not
+  introduce `clici claude` / `clici codex` as a prerequisite. Investigate
+  agent-native integration while retaining classic scrollback. The
+  [first proof report](prompt-navigation-proof-report.md) records the native-mark
+  failures, successful COM experiments, remaining gaps, and native API research.
 - **Pre-navigation baseline.** Before Phase 3, retain an unmodified build and
   record its commit and full informational version. Run relevant clipboard
   checks and actual Ctrl+Alt+J delivery, disabled/paused behavior, and conflict
@@ -337,3 +342,12 @@ and proof report, then the COM probe if native settings cannot meet the agreed
 behavior. Settle current-session eligibility, terminal access, recognition,
 scrolling/live-follow, shortcut isolation, and product placement before adding
 a permanent navigation service to Clici.
+
+**Batch outcome (2026-10-16):** the native route fails NAV-001/NAV-004. The COM
+probe reads both tested renderers, scrolls synthetic/Claude text, restores
+synthetic live follow, and targets one split pane. Agent exit can leave the same
+pane identity without a focus event, and observed text attributes do not identify
+roles. The independent core now has 24 navigation tests; recognizers and service
+integration remain unimplemented. Continue with the agent-native qualification
+in the proof report, preserving existing launch commands. Do not treat this
+partial Phase 1/2 batch as permission to register Ctrl+Up/Down globally.
