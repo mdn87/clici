@@ -18,9 +18,19 @@ internal static class Program
         try
         {
             NativeWindows.UsePhysicalCoordinates();
+            if (args.Length == 2 && args[0] == "renderer-bridge")
+            {
+                RendererBridge.Run(int.Parse(args[1]));
+                return 0;
+            }
+            if (args.Length == 2 && args[0] == "anchor-fixture")
+            {
+                ColorAnchorProbe.Fixture(args[1]);
+                return 0;
+            }
             if (args.Length == 0)
             {
-                Console.WriteLine("Commands: windows | snapshot <hwnd> [maxCharacters] | inspect|select|jump <hwnd> <syntheticMarker> | live <hwnd> | watch <hwnd> <seconds> | key <hwnd> enter|ctrl-up|ctrl-down|stream|finish|cancel | place <hwnd> <x> <y> <width> <height> | fixture clean|osc <eventFile>");
+                Console.WriteLine("Commands: windows | snapshot <hwnd> [maxCharacters] | inspect|select|jump <hwnd> <syntheticMarker> | live|show <hwnd> | watch <hwnd> <seconds> | key <hwnd> enter|ctrl-up|ctrl-down|stream|finish|cancel | place <hwnd> <x> <y> <width> <height> | fixture clean|osc <eventFile> | anchor-fixture <directory> | renderer-inspect <hwnd> <bindings-or-report.json> | renderer-bridge <parentPID>");
                 return 0;
             }
 
@@ -43,6 +53,23 @@ internal static class Program
 
             var hwnd = new nint(long.Parse(args[1], System.Globalization.CultureInfo.InvariantCulture));
             var window = NativeWindows.RequireProofWindow(hwnd, ProofTitlePrefix);
+            if (args[0] == "show")
+            {
+                NativeWindows.ShowProofWindow(hwnd);
+                Write(NativeWindows.RequireProofWindow(hwnd, ProofTitlePrefix));
+                return 0;
+            }
+            if (args[0] == "renderer-inspect")
+            {
+                using var data = JsonDocument.Parse(File.ReadAllText(args[2]));
+                var bindings = data.RootElement.ValueKind == JsonValueKind.Array
+                    ? data.RootElement : data.RootElement.GetProperty("prompts");
+                var prompts = bindings.EnumerateArray().Select(item =>
+                    new Clici.Core.Navigation.RenderedPromptBinding(item.GetProperty("messageId").GetString()!,
+                        item.GetProperty("nonce").GetString()!)).ToArray();
+                Write(RendererBridge.Inspect(hwnd, prompts));
+                return 0;
+            }
             if (args[0] == "place")
             {
                 NativeWindows.Place(hwnd, int.Parse(args[2]), int.Parse(args[3]), int.Parse(args[4]), int.Parse(args[5]));
@@ -419,6 +446,15 @@ public sealed class ProofFocusHandler(int processId) : IUIAutomationFocusChanged
 internal static class NativeWindows
 {
     internal static bool IsForeground(nint hwnd) => GetForegroundWindow() == hwnd;
+    internal static void ShowProofWindow(nint hwnd)
+    {
+        RequireProofWindow(hwnd, "CLICI-PROOF-");
+        ShowWindow(hwnd, 9);
+        SetForegroundWindow(hwnd);
+    }
+
+    [DllImport("user32.dll")]
+    private static extern bool ShowWindow(nint hwnd, int command);
     internal static void UsePhysicalCoordinates() => SetProcessDpiAwarenessContext(new nint(-4));
 
     internal static void RequireActiveProofPane(nint hwnd, IUIAutomationElement element)
@@ -495,6 +531,33 @@ internal static class NativeWindows
         return results;
     }
 
+    // Live renderer mode is separately opted in. Identity still comes from
+    // private native metadata matched to actual painted anchors, never a title.
+    internal static ProofWindow? ForegroundRendererWindow(bool proofOnly)
+    {
+        var hwnd = GetForegroundWindow();
+        if (hwnd == 0) return null;
+        try
+        {
+            if (proofOnly) return RequireProofWindow(hwnd, "CLICI-PROOF-");
+            GetWindowThreadProcessId(hwnd, out var pid);
+            using var process = Process.GetProcessById((int)pid);
+            var path = process.MainModule?.FileName ?? "";
+            if (!Path.GetFileName(path).Equals("WindowsTerminal.exe", StringComparison.OrdinalIgnoreCase)) return null;
+            GetWindowRect(hwnd, out var rect);
+            return new(hwnd.ToInt64(), (int)pid, Title(hwnd), path,
+                rect.Left, rect.Top, rect.Right - rect.Left, rect.Bottom - rect.Top);
+        }
+        catch (Exception exception) when (exception is InvalidOperationException or System.ComponentModel.Win32Exception or ArgumentException)
+        { return null; }
+    }
+
+    internal static void RequireActiveRendererPane(nint window, IUIAutomationElement pane, bool proofOnly)
+    {
+        if (ForegroundRendererWindow(proofOnly)?.Handle != window.ToInt64() || pane.CurrentHasKeyboardFocus == 0)
+            throw new InvalidOperationException("Renderer pane no longer owns foreground input.");
+    }
+
     internal static ProofWindow RequireProofWindow(nint hwnd, string prefix)
     {
         var title = Title(hwnd);
@@ -533,7 +596,7 @@ internal static class NativeWindows
         public static Input Key(ushort key, bool up) => new()
         {
             Type = 1,
-            Data = new InputData { Keyboard = new KeyboardInput { VirtualKey = key, Flags = (up ? 2u : 0u) | (key is 0x26 or 0x28 ? 1u : 0u) } }
+            Data = new InputData { Keyboard = new KeyboardInput { VirtualKey = key, Flags = (up ? 2u : 0u) | (key is 0x26 or 0x28 ? 1u : 0u), ExtraInfo = 0xC11C1 } }
         };
     }
 
