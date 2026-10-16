@@ -384,8 +384,9 @@ you are testing, reinstall before investigating further.
 
 - evaluate optional previous/next user-prompt navigation in Windows Terminal;
   the [development probe and proof report](docs/prompt-navigation-proof-report.md)
-  establish COM scrolling and tested navigation decisions, while agent-native
-  session/anchor integration remains under investigation; see the
+  establish COM scrolling, native identity validation and bounded key admission.
+  A Claude metadata probe is tested; the classic-mode renderer/key bridge remains
+  unqualified. See the [native bridge contract](docs/prompt-navigation-native-contract.md) and
   [implementation plan](docs/prompt-navigation-plan.md). Navigation is not yet
   available in the tray app;
 - exercise clipboard behavior across Windows Terminal, PowerShell, cmd, WSL,

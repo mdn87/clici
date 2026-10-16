@@ -4,14 +4,20 @@ public enum NavigationDirection { Previous, Next }
 public enum PaneEligibility { Unknown, Ineligible, Eligible }
 public enum NavigationAction { PassThrough, Jump, ReturnToLive, NoOp, Refused, CaptureLimit }
 public enum NavigationReason { None, PaneNotEligible, InvalidSnapshot, StaleCursor, OutsideCapture, OldestPrompt, AlreadyLive }
+public enum AgentKind { ClaudeCode, Codex }
+
+// Native IDs are namespaced by agent and session. SessionEpoch still separates
+// incarnations of a resumed/cleared session even if its native ID is reused.
+public sealed record AgentSessionIdentity(AgentKind Agent, string SessionId);
 
 // Positions are meaningful only within this pane/session/layout, never within a
 // string slice. Reflow and eviction must advance LayoutEpoch in the adapter.
-public sealed record NavigationIdentity(string PaneId, long SessionEpoch, long LayoutEpoch);
+public sealed record NavigationIdentity(string PaneId, long SessionEpoch, long LayoutEpoch, AgentSessionIdentity Session);
 
 // Only complete, positively recognized rendered user messages belong here.
-// ContextKey must identify the occurrence's surrounding evidence, not just its text.
-public sealed record PromptOccurrence(long Start, long End, string ContextKey);
+// MessageId is the agent's immutable message ID, never prompt text or a text hash.
+// ContextKey identifies the rendered occurrence's evidence, independently of that ID.
+public sealed record PromptOccurrence(long Start, long End, string ContextKey, string MessageId);
 
 public sealed record NavigationSnapshot(
     NavigationIdentity Identity,
@@ -120,7 +126,7 @@ public static class PromptNavigation
 
     private static bool Valid(NavigationSnapshot snapshot)
     {
-        if (snapshot.Identity is null || string.IsNullOrWhiteSpace(snapshot.Identity.PaneId) ||
+        if (!ValidIdentity(snapshot.Identity) ||
             !snapshot.BoundariesComplete || snapshot.Prompts is null ||
             snapshot.CaptureStart < 0 || snapshot.CaptureEnd < snapshot.CaptureStart)
         {
@@ -128,10 +134,12 @@ public static class PromptNavigation
         }
 
         var previousEnd = snapshot.CaptureStart;
+        var ids = new HashSet<string>(StringComparer.Ordinal);
         foreach (var prompt in snapshot.Prompts)
         {
             if (prompt is null || prompt.Start < previousEnd || prompt.End <= prompt.Start ||
-                prompt.End > snapshot.CaptureEnd || string.IsNullOrWhiteSpace(prompt.ContextKey))
+                prompt.End > snapshot.CaptureEnd || string.IsNullOrWhiteSpace(prompt.ContextKey) ||
+                string.IsNullOrWhiteSpace(prompt.MessageId) || !ids.Add(prompt.MessageId))
             {
                 return false;
             }
@@ -141,6 +149,11 @@ public static class PromptNavigation
 
         return true;
     }
+
+    internal static bool ValidIdentity(NavigationIdentity? identity) => identity is not null &&
+        !string.IsNullOrWhiteSpace(identity.PaneId) && identity.SessionEpoch >= 0 && identity.LayoutEpoch >= 0 &&
+        identity.Session is not null && Enum.IsDefined(identity.Session.Agent) &&
+        !string.IsNullOrWhiteSpace(identity.Session.SessionId);
 
     private static NavigationDecision Jump(PromptOccurrence prompt) => new(NavigationAction.Jump, Target: prompt);
     private static NavigationDecision Limit() => new(NavigationAction.CaptureLimit, NavigationReason.OutsideCapture);

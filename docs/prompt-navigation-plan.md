@@ -1,6 +1,6 @@
 # Clici prompt navigation implementation plan
 
-- **Status:** COM access and synthetic scrolling proved; pure navigation decisions implemented. Session eligibility and recognition still require agent-native qualification.
+- **Status:** COM scrolling, native identity validation and bounded key admission implemented. Claude metadata collector tested. The classic-mode renderer/input bridge remains unqualified; navigation is not enabled.
 - **Date:** 2026-10-15
 - **Outcome:** Jump between user messages in the active Claude Code or Codex
   terminal session with configurable shortcuts, initially Ctrl+Up and Ctrl+Down.
@@ -26,6 +26,10 @@ records the evidence, corrections, and remaining experiments behind this revisio
   agent-native integration while retaining classic scrollback. The
   [first proof report](prompt-navigation-proof-report.md) records the native-mark
   failures, successful COM experiments, remaining gaps, and native API research.
+  The [native bridge contract](prompt-navigation-native-contract.md) now records
+  the implemented identity/key boundary and the precise missing capabilities in
+  Claude 2.1.296 and Codex 0.162.1. Do not equate tested key admission with a
+  qualified Windows hook, or a native message ID with a terminal position.
 - **Pre-navigation baseline.** Before Phase 3, retain an unmodified build and
   record its commit and full informational version. Run relevant clipboard
   checks and actual Ctrl+Alt+J delivery, disabled/paused behavior, and conflict
@@ -65,8 +69,9 @@ research baseline; do not infer it from the installed version alone.
 
 Clici already has a tray lifecycle, JSON configuration, a clipboard listener,
 and a global join-lines hotkey. Its foreground provider returns a process name,
-which cannot distinguish terminal panes. `HotkeyParser` currently accepts
-letters, digits, and function keys; arrow keys need explicit support.
+which cannot distinguish terminal panes. `HotkeyParser.TryParseNavigation`
+accepts modified arrows; the existing global join-hotkey grammar is unchanged.
+Neither parser establishes the pane scope required for navigation.
 
 ## User behavior and scope
 
@@ -217,6 +222,12 @@ rendered user-message line.
 
 Add pure navigation decisions under `src/clici.Core/Navigation/`, with fixtures
 and tests in `tests/clici.Core.Tests/`.
+
+The decision core now requires native agent/session/message IDs independently
+of position/context evidence. `NavigationInputQueue` implements bounded admission,
+one action per physical press, deadlines and invalidation. The Claude probe
+collects IDs but intentionally reports no navigation eligibility. Actual renderer
+recognition, pane ownership, COM coordination and OS key delivery remain below.
 
 - Define a bounded terminal snapshot with capture origin/extent, actual versus
   artificial edge flags, complete-message boundaries, ordered prompt

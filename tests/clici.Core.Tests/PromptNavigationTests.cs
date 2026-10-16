@@ -4,10 +4,10 @@ namespace Clici.Core.Tests;
 
 public sealed class PromptNavigationTests
 {
-    private static readonly NavigationIdentity Identity = new("pane-a", 1, 1);
-    private static readonly PromptOccurrence First = new(10, 14, "before:hello/after:first response");
-    private static readonly PromptOccurrence Second = new(50, 56, "before:hello/after:second response");
-    private static readonly PromptOccurrence Third = new(90, 98, "before:Unicode prompt/after:third response");
+    private static readonly NavigationIdentity Identity = new("pane-a", 1, 1, new(AgentKind.ClaudeCode, "session-a"));
+    private static readonly PromptOccurrence First = new(10, 14, "before:hello/after:first response", "message-1");
+    private static readonly PromptOccurrence Second = new(50, 56, "before:hello/after:second response", "message-2");
+    private static readonly PromptOccurrence Third = new(90, 98, "before:Unicode prompt/after:third response", "message-3");
 
     private static NavigationSnapshot Snapshot() => new(Identity, 1, PaneEligibility.Eligible,
         0, 130, true, true, true, 80, true, [First, Second, Third]);
@@ -38,7 +38,7 @@ public sealed class PromptNavigationTests
     [Fact]
     public void NewlyAppendedPromptAfterLastJumpIsNextRatherThanReturningToLive()
     {
-        var fourth = new PromptOccurrence(140, 150, "before:next question/after:fourth response");
+        var fourth = new PromptOccurrence(140, 150, "before:next question/after:fourth response", "message-4");
         var snapshot = Snapshot() with { ObservationRevision = 2, CaptureEnd = 180, Prompts = [First, Second, Third, fourth] };
         Assert.Equal(fourth, PromptNavigation.Decide(snapshot, NavigationDirection.Next, new(Identity, Third)).Target);
     }
@@ -121,7 +121,7 @@ public sealed class PromptNavigationTests
     [InlineData("pane-a", 1, 2)]
     public void PaneSessionOrLayoutChangeRefusesStaleCursor(string pane, long session, long layout)
     {
-        var snapshot = Snapshot() with { Identity = new(pane, session, layout) };
+        var snapshot = Snapshot() with { Identity = Identity with { PaneId = pane, SessionEpoch = session, LayoutEpoch = layout } };
         var decision = PromptNavigation.Decide(snapshot, NavigationDirection.Previous, new(Identity, Third));
         Assert.Equal(NavigationAction.Refused, decision.Action);
         Assert.Equal(NavigationReason.StaleCursor, decision.Reason);
@@ -160,12 +160,47 @@ public sealed class PromptNavigationTests
     [Fact]
     public void UnorderedOverlappingOrOutOfBoundsOccurrencesAreRefused()
     {
-        PromptOccurrence[][] invalid = [[Second, First], [First, First], [new(5, 15, "overlap"), First],
-            [new(-1, 5, "outside")], [new(120, 140, "partial")], [new(50, 50, "empty")], [new(50, 60, "")]];
+        PromptOccurrence[][] invalid = [[Second, First], [First, First], [new(5, 15, "overlap", "other"), First],
+            [new(-1, 5, "outside", "id")], [new(120, 140, "partial", "id")], [new(50, 50, "empty", "id")], [new(50, 60, "", "id")]];
         foreach (var prompts in invalid)
         {
             Assert.Equal(NavigationAction.Refused, PromptNavigation.Decide(Snapshot() with { Prompts = prompts },
                 NavigationDirection.Previous).Action);
+        }
+    }
+
+    [Fact]
+    public void MessageIdentityIsRequiredAndCannotNameTwoOccurrences()
+    {
+        foreach (var prompts in new PromptOccurrence[][] { [First with { MessageId = "" }], [First, Second with { MessageId = First.MessageId }] })
+        {
+            Assert.Equal(NavigationAction.Refused, PromptNavigation.Decide(Snapshot() with { Prompts = prompts }, NavigationDirection.Previous).Action);
+        }
+    }
+
+    [Fact]
+    public void ANewMessageAtTheSamePositionAndWithTheSameTextIsNotTheOldTarget()
+    {
+        var snapshot = Snapshot() with { Prompts = [First, Second, Third with { MessageId = "replacement" }] };
+        Assert.Equal(NavigationReason.StaleCursor, PromptNavigation.Decide(snapshot, NavigationDirection.Previous, new(Identity, Third)).Reason);
+    }
+
+    [Theory]
+    [InlineData(AgentKind.ClaudeCode, "session-b")]
+    [InlineData(AgentKind.Codex, "session-a")]
+    public void IdenticalMessageIdsFromAnotherAgentOrSessionDoNotRevalidate(AgentKind agent, string session)
+    {
+        var snapshot = Snapshot() with { Identity = Identity with { Session = new(agent, session) } };
+        Assert.Equal(NavigationReason.StaleCursor, PromptNavigation.Decide(snapshot, NavigationDirection.Previous, new(Identity, Third)).Reason);
+    }
+
+    [Fact]
+    public void MissingOrUnknownNativeSessionIdentityRefusesNavigation()
+    {
+        foreach (var session in new AgentSessionIdentity[] { new(AgentKind.ClaudeCode, ""), new((AgentKind)99, "session-a") })
+        {
+            var snapshot = Snapshot() with { Identity = Identity with { Session = session } };
+            Assert.Equal(NavigationReason.InvalidSnapshot, PromptNavigation.Decide(snapshot, NavigationDirection.Previous).Reason);
         }
     }
 }

@@ -24,6 +24,11 @@ jobs:
         run: dotnet build clici.sln --configuration Release --no-restore
       - name: Test
         run: dotnet test clici.sln --configuration Release --no-build --logger "console;verbosity=normal"
+      - uses: actions/setup-node@v6
+        with:
+          node-version: '24'
+      - name: Test native prompt metadata ledger
+        run: node --test tools/proof/prompt-navigation/claude-identity/tests/ledger.node.mjs
 
   format:
     runs-on: windows-latest

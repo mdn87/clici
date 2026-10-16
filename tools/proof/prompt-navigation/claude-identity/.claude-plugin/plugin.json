@@ -1,0 +1,6 @@
+{
+  "name": "clici-prompt-identity-probe",
+  "version": "0.0.1",
+  "description": "Development-only inspection of native prompt identities; does not navigate or bind keys.",
+  "author": { "name": "Clici" }
+}

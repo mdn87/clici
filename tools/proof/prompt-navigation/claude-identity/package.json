@@ -1,0 +1,7 @@
+{
+  "name": "clici-prompt-identity-probe",
+  "private": true,
+  "type": "module",
+  "scripts": { "test": "node --test tests/ledger.node.mjs" },
+  "engines": { "node": ">=24" }
+}
