@@ -13,6 +13,10 @@ between minor versions where a classification proves to be wrong.
 
 ### Added
 
+- Development-only Codex 0.162.1 renderer patch and private-pipe COM bridge.
+  Native message IDs map to independently observed colored blank-row anchors;
+  ambiguous or incomplete paint refuses navigation. Native shortcut handling
+  remains a separate diagnostic because Terminal processes those keys first.
 - Development-only native prompt identity validation, bounded key admission with
   held-key/deadline handling, and navigation-specific arrow parsing (NAV-003,
   NAV-004, NAV-005). A Claude function-hook probe collects IDs without retaining

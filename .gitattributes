@@ -7,3 +7,7 @@
 *.ico binary
 *.png binary
 *.pfx binary
+
+# Unified patches encode an empty context line as a single space. Preserve it;
+# git apply --whitespace=error-all separately checks the source changes.
+tools/proof/prompt-navigation/codex-renderer/*.patch whitespace=-blank-at-eol

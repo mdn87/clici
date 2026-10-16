@@ -6,6 +6,14 @@ the clipboard. It does **not** recognize Claude/Codex sessions or message roles.
 Read the [proof report](../../../docs/prompt-navigation-proof-report.md) before
 using its findings as support evidence.
 
+The opt-in [Codex renderer experiment](codex-renderer/README.md) adds a separate
+source patch and private-pipe helper. `renderer-inspect HWND bindings-or-report.json`
+observes painted RGB anchors without scrolling. `anchor-fixture directory`
+prints repeated synthetic prompts and writes `anchors.json`; `show HWND`
+restores a proof window (Windows may still withhold foreground focus).
+`renderer-bridge parentPID` is the native renderer's private child protocol.
+These commands do not enable navigation in the tray app.
+
 The probe targets .NET 10 on Windows; the helper scripts require PowerShell 7.
 It uses the COM `IUIAutomation` client
 from the pinned NuGet package `Interop.UIAutomationClient` 10.19041.0. It does

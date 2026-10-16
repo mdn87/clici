@@ -1,7 +1,7 @@
 # Clici prompt navigation implementation plan
 
-- **Status:** COM scrolling, native identity validation and bounded key admission implemented. Claude metadata collector tested. The classic-mode renderer/input bridge remains unqualified; navigation is not enabled.
-- **Date:** 2026-10-15
+- **Status:** COM scrolling, identity/key admission and an opt-in Codex renderer bridge prototype are implemented. The shortcut adapter and full classic-mode matrix remain unqualified; navigation is not enabled.
+- **Date:** 2026-10-16
 - **Outcome:** Jump between user messages in the active Claude Code or Codex
   terminal session with configurable shortcuts, initially Ctrl+Up and Ctrl+Down.
 - **Initial target:** Windows Terminal on Windows 11, using the normal scrollback
@@ -21,6 +21,15 @@ records the evidence, corrections, and remaining experiments behind this revisio
 
 ## Prerequisites and open decisions
 
+- **Renderer experiment (2026-10-16).** The pinned
+  [Codex patch and private-pipe helper](../tools/proof/prompt-navigation/codex-renderer/README.md)
+  carry native item IDs to independently observed colored blank-row anchors.
+  Windows Terminal handles selection and snap-on-input before delivering a key
+  to Codex, so a native shortcut alone cannot meet NAV-003. Keep passive metadata
+  publication separate from the diagnostic key path. The next adapter must
+  intercept before Terminal, obtain fresh native input eligibility, verify its
+  pane binding, and qualify manual-scroll invalidation and hook recovery.
+  Do not enable navigation from the passive report's input-context flag.
 - **Keep existing launch commands (operator decision, 2026-10-16).** Do not
   introduce `clici claude` / `clici codex` as a prerequisite. Investigate
   agent-native integration while retaining classic scrollback. The

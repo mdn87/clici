@@ -6,5 +6,6 @@
   </PropertyGroup>
   <ItemGroup>
     <PackageReference Include="Interop.UIAutomationClient" Version="10.19041.0" />
+    <ProjectReference Include="../../../src/clici.Core/clici.Core.csproj" />
   </ItemGroup>
 </Project>
