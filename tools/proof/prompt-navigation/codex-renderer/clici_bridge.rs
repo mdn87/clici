@@ -40,6 +40,7 @@ fn state() -> &'static Mutex<State> {
 fn enabled() -> bool {
     cfg!(windows)
         && std::env::var_os("WT_SESSION").is_some()
+        && std::env::var_os("NO_COLOR").is_none()
         && std::env::var_os("CLICI_RENDERER_BRIDGE").is_some()
 }
 

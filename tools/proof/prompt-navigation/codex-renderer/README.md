@@ -29,7 +29,8 @@ Clici navigation, or change ordinary `codex` / `claude` launch commands.
 
 The companion helper operates only in explicitly named portable
 `CLICI-PROOF-*` Windows Terminal windows. Its bound is 4,096 prompts/rows,
-1 MiB per request/capture, and at most one second per request. It validates the
+1 MiB per native request, 1,048,576 characters per COM capture, and at most one
+second per request. It validates the
 foreground pane and document again before `ScrollIntoView`, checks selection
 and viewport readback, and commits the cursor only after verification. A failed
 readback after a possible scroll consumes the request; it never replays a key.
@@ -60,6 +61,8 @@ Patched upstream files retain the [Codex Apache-2.0 license](https://github.com/
 Inside a disposable portable proof Terminal, set `CLICI_RENDERER_BRIDGE` to the
 absolute `PromptNavigation.Probe.exe` path and run the built `codex-tui.exe`
 with `--no-alt-screen --no-daemon`. The opt-in is inherited by that process only.
+`NO_COLOR` disables the native bridge: suppressed RGB output cannot establish
+anchors. The live experiment uses a separate color-enabled proof process.
 Optionally set `CLICI_RENDERER_REPORT` to an explicit evidence-file path: the
 helper writes the latest passive metadata frame there. Inspect its painted
 anchors with `renderer-inspect HWND report.json`.
