@@ -1,5 +1,5 @@
-using System.Diagnostics;
 using System.Collections.Concurrent;
+using System.Diagnostics;
 using System.Runtime.InteropServices;
 using System.Text;
 using System.Text.Json;
@@ -531,6 +531,33 @@ internal static class NativeWindows
         return results;
     }
 
+    // Live renderer mode is separately opted in. Identity still comes from
+    // private native metadata matched to actual painted anchors, never a title.
+    internal static ProofWindow? ForegroundRendererWindow(bool proofOnly)
+    {
+        var hwnd = GetForegroundWindow();
+        if (hwnd == 0) return null;
+        try
+        {
+            if (proofOnly) return RequireProofWindow(hwnd, "CLICI-PROOF-");
+            GetWindowThreadProcessId(hwnd, out var pid);
+            using var process = Process.GetProcessById((int)pid);
+            var path = process.MainModule?.FileName ?? "";
+            if (!Path.GetFileName(path).Equals("WindowsTerminal.exe", StringComparison.OrdinalIgnoreCase)) return null;
+            GetWindowRect(hwnd, out var rect);
+            return new(hwnd.ToInt64(), (int)pid, Title(hwnd), path,
+                rect.Left, rect.Top, rect.Right - rect.Left, rect.Bottom - rect.Top);
+        }
+        catch (Exception exception) when (exception is InvalidOperationException or System.ComponentModel.Win32Exception or ArgumentException)
+        { return null; }
+    }
+
+    internal static void RequireActiveRendererPane(nint window, IUIAutomationElement pane, bool proofOnly)
+    {
+        if (ForegroundRendererWindow(proofOnly)?.Handle != window.ToInt64() || pane.CurrentHasKeyboardFocus == 0)
+            throw new InvalidOperationException("Renderer pane no longer owns foreground input.");
+    }
+
     internal static ProofWindow RequireProofWindow(nint hwnd, string prefix)
     {
         var title = Title(hwnd);
@@ -569,7 +596,7 @@ internal static class NativeWindows
         public static Input Key(ushort key, bool up) => new()
         {
             Type = 1,
-            Data = new InputData { Keyboard = new KeyboardInput { VirtualKey = key, Flags = (up ? 2u : 0u) | (key is 0x26 or 0x28 ? 1u : 0u) } }
+            Data = new InputData { Keyboard = new KeyboardInput { VirtualKey = key, Flags = (up ? 2u : 0u) | (key is 0x26 or 0x28 ? 1u : 0u), ExtraInfo = 0xC11C1 } }
         };
     }
 

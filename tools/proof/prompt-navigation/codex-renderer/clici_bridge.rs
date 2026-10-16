@@ -44,6 +44,21 @@ fn enabled() -> bool {
         && std::env::var_os("CLICI_RENDERER_BRIDGE").is_some()
 }
 
+pub(crate) fn keyboard_enabled() -> bool {
+    enabled() && std::env::var("CLICI_RENDERER_KEYS").as_deref() == Ok("1")
+}
+
+// Capture before the caller examines composer/modal state. Serialization or
+// child startup must never make an older input observation appear fresh.
+pub(crate) fn observation_time() -> u64 {
+    protocol::monotonic_milliseconds()
+}
+
+pub(crate) fn poll_keyboard() -> bool {
+    keyboard_enabled()
+        && state().lock().is_ok_and(|state| state.client.as_ref().is_some_and(Client::is_available))
+}
+
 pub(crate) fn anchor(item_id: Option<&str>, client_id: Option<&str>) -> Option<Anchor> {
     if !enabled() {
         return None;
@@ -142,6 +157,29 @@ pub(crate) fn event(
     }
     if !eligible {
         state.keys.invalidate();
+        // Modal/overlay draws may bypass the normal composer publication path.
+        // Withdraw the input lease before handing their input to the application.
+        if keyboard_enabled() && state.client.is_some() {
+            state.sequence += 1;
+            if let Some(session) = session.as_deref() {
+                let request = Request {
+                    version: 1,
+                    sequence: state.sequence,
+                    deadline: protocol::monotonic_milliseconds() + 750,
+                    input_observed_at: protocol::monotonic_milliseconds(),
+                    process_id: std::process::id(),
+                    session_id: session,
+                    epoch: state.epoch,
+                    direction: "observe",
+                    history_complete,
+                    composer_owns_input: false,
+                    prompts: &[],
+                };
+                if let Some(client) = state.client.as_mut() {
+                    let _ = client.navigate(&request);
+                }
+            }
+        }
     }
     if std::env::var("CLICI_NATIVE_KEY_PROBE").as_deref() != Ok("1") {
         return false;
@@ -197,6 +235,7 @@ pub(crate) fn event(
         version: 1,
         sequence: state.sequence,
         deadline: protocol::monotonic_milliseconds() + 750,
+        input_observed_at: protocol::monotonic_milliseconds(),
         process_id: std::process::id(),
         session_id: &session,
         epoch: state.epoch,
@@ -233,6 +272,7 @@ pub(crate) fn publish(
     cells: &[Arc<dyn HistoryCell>],
     eligible: bool,
     history_complete: bool,
+    input_observed_at: u64,
 ) {
     if !enabled() {
         return;
@@ -258,7 +298,7 @@ pub(crate) fn publish(
         history_complete,
         bindings.clone(),
     );
-    if state.last_frame.as_ref() == Some(&frame) {
+    if !keyboard_enabled() && state.last_frame.as_ref() == Some(&frame) {
         return;
     }
     state.last_frame = Some(frame);
@@ -279,7 +319,8 @@ pub(crate) fn publish(
     let request = Request {
         version: 1,
         sequence: state.sequence,
-        deadline: protocol::monotonic_milliseconds() + 750,
+        deadline: input_observed_at + 750,
+        input_observed_at,
         process_id: std::process::id(),
         session_id: &session,
         epoch: state.epoch,

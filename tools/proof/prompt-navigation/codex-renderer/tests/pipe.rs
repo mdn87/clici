@@ -7,6 +7,7 @@ fn request(session: &str) -> Request<'_> {
         version: 1,
         sequence: 7,
         deadline: 750,
+        input_observed_at: 0,
         process_id: std::process::id(),
         session_id: session,
         epoch: 1,

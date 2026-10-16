@@ -258,3 +258,43 @@ The broader native history-cell run exposed three existing release-version
 snapshots expecting `0.0.0` while the tag reports `0.162.1`; those snapshots were
 left unchanged and excluded from the subsequent focused run. They are not
 reported as passing. Native warnings from the pinned upstream code remain.
+
+## Pre-Terminal input connection — 2026-10-16
+
+The opt-in Codex adapter now intercepts Ctrl+Up/Down before Windows Terminal
+handles selection or snap-on-input. A cached lease only admits a press: the
+helper requires a native input observation taken after that press, resolves the
+painted anchors again, and verifies the scroll before advancing its cursor.
+Focus, pointer, ordinary key, modal and geometry changes invalidate pending work.
+
+The full native CLI was tested in classic mode in Windows Terminal 1.24.12741.0,
+using an isolated `CODEX_HOME` and a local HTTP response fixture. No normal Codex
+account or remote model was used. The foreground test passed newest → previous
+→ newest → live, with three distinct native IDs including duplicate prompt text.
+A subsequent jump preserved a nonempty selection and an unsent draft; terminal
+text and the local provider request count were unchanged. Five handled requests
+took approximately 143, 144, 597, 212 and 215 ms. These were explicitly marked
+injected keys through the real Windows hook, not physical-keyboard trials.
+
+The native run exposed a row-mapping bug: `GetText` joins soft-wrapped rows, so
+counting CRLFs skipped complete start markers after a wrapped startup line.
+Discovery now enumerates UIA line units, matching the units used for scrolling.
+Read-only inspection then recovered all three complete marker pairs. The
+repeatable synthetic hook fixture also contains a long soft-wrapped prefix.
+Incomplete or ambiguous markers still refuse navigation.
+
+Evidence is retained locally under
+`artifacts/prompt-navigation/20261016-input/evidence/`: `native-input-live.json`,
+`native-physical-row-inspection.json`, `dotnet-tests-closing.txt`,
+`native-input-tests-final.txt`, `native-cli-build-final.txt`, and
+`activation-smoke.txt`. The native build and eight focused native tests pass;
+201 .NET tests, 11 standalone Rust tests and six Node ledger tests pass.
+The three upstream version snapshots described above remain unchanged.
+
+Session activation selects the full bundled CLI through PATH and verifies its
+hash manifest. Activation/disable restored the original environment, including
+absent variables. It does not modify profiles or replace the installed CLI.
+The bridge remains experimental and opt-in, limited to local, non-elevated,
+single-pane Codex sessions. Physical keyboards, IME, the full modal/exit/eviction
+matrix and recovery after silent hook removal need broader qualification.
+Claude navigation and tray integration remain unfinished.

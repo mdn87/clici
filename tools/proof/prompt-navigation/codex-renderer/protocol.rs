@@ -164,6 +164,7 @@ pub struct Request<'a> {
     pub version: u8,
     pub sequence: u64,
     pub deadline: u64,
+    pub input_observed_at: u64,
     pub process_id: u32,
     pub session_id: &'a str,
     pub epoch: u64,
@@ -190,6 +191,10 @@ pub struct Client {
 }
 
 impl Client {
+    pub fn is_available(&self) -> bool {
+        !self.failed
+    }
+
     pub fn start(executable: &std::path::Path) -> Result<Self, String> {
         if !executable.is_absolute() {
             return Err("bridge executable must be an absolute path".into());

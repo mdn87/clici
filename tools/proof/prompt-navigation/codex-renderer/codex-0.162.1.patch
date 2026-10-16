@@ -1431,7 +1431,7 @@ index 1cee117..b30500b 100644
   "anyhow",
   "assert_cmd",
 diff --git a/codex-rs/tui/src/app.rs b/codex-rs/tui/src/app.rs
-index 5dfc3ad..7c9aab2 100644
+index 5dfc3ad..6d4672f 100644
 --- a/codex-rs/tui/src/app.rs
 +++ b/codex-rs/tui/src/app.rs
 @@ -849,6 +849,25 @@ impl App {
@@ -1460,10 +1460,11 @@ index 5dfc3ad..7c9aab2 100644
          tui.link_hover.observe(&event);
          self.refresh_link_hover(tui)?;
          self.invalidate_right_click_paste(&event);
-@@ -1105,6 +1124,20 @@ impl App {
+@@ -1105,6 +1124,25 @@ impl App {
                      self.chat_widget.pre_draw_tick();
                      self.refresh_agents_overview_usage(app_server, tui.frame_requester());
                      let rendered_area = self.render_chat_widget_frame(tui, screen_size)?;
++                    let clici_input_observed_at = crate::clici_bridge::observation_time();
 +                    crate::clici_bridge::publish(
 +                        self.current_displayed_thread_id().map(|id| id.to_string()),
 +                        &self.transcript_cells,
@@ -1477,7 +1478,11 @@ index 5dfc3ad..7c9aab2 100644
 +                            && !self.backtrack.primed
 +                            && !self.backtrack.overlay_preview_active,
 +                        !self.scrollback_has_older_history,
++                        clici_input_observed_at,
 +                    );
++                    if crate::clici_bridge::poll_keyboard() {
++                        tui.frame_requester().schedule_frame_in(std::time::Duration::from_millis(100));
++                    }
                      if tui.is_owned_screen()
                          && self.transcript_view.history
                              != crate::pager_overlay::TranscriptHistoryState::Failed

@@ -40,6 +40,9 @@ internal static class ColorAnchorProbe
         }).ToArray();
         File.WriteAllText(Path.Combine(directory, "anchors.json"), JsonSerializer.Serialize(anchors));
         Console.WriteLine("CLICI_FIXTURE_COLOR_ANCHORS");
+        // Force terminal soft wrapping before every anchor. GetText omits those
+        // physical row boundaries; navigation must use UIA line units instead.
+        Console.WriteLine("CLICI_FIXTURE_WRAPPED_PREFIX " + new string('x', 350));
         foreach (var anchor in anchors)
         {
             Print(anchor.nonce, false);

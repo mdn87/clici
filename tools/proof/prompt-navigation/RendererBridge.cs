@@ -6,9 +6,9 @@ using Interop.UIAutomationClient;
 
 namespace Clici.PromptNavigation.Probe;
 
-// Private stdin/stdout child of the opt-in native renderer. Development-only:
-// it operates solely in CLICI-PROOF-* portable Terminal windows. No global hook,
-// clipboard access, listening socket, transcript file, or shell input injection.
+// Private stdin/stdout child of the opt-in native renderer. Proof windows are
+// the default; live Terminal and keyboard admission require separate opt-ins.
+// No clipboard access, listening socket, transcript file or input replay.
 internal sealed class RendererBridge
 {
     private const int MaximumCharacters = 1_048_576;
@@ -25,6 +25,15 @@ internal sealed class RendererBridge
     private string? scope;
     private string? lastViewport;
     private long layoutEpoch;
+    private RendererKeyboardHook? keyboard;
+    private NavigationInputRequest? inFlight;
+    private readonly bool proofOnly = Environment.GetEnvironmentVariable("CLICI_RENDERER_TERMINALS") != "1";
+    private NavigationIdentity? qualifiedIdentity;
+    private IReadOnlyList<RenderedPromptBinding>? qualifiedPrompts;
+    private IUIAutomationElement? qualifiedPane;
+    private ProofWindow? qualifiedWindow;
+    private long qualifiedRevision = -1;
+    private (int Width, int Height) qualifiedSize;
 
     private RendererBridge(int parentId)
     {
@@ -58,12 +67,18 @@ internal sealed class RendererBridge
 
     internal sealed record Request(int Version, long Sequence, long Deadline, int ProcessId,
         string SessionId, long Epoch, string Direction, bool HistoryComplete, bool ComposerOwnsInput,
-        IReadOnlyList<RenderedPromptBinding> Prompts);
+        IReadOnlyList<RenderedPromptBinding> Prompts, long InputObservedAt = 0);
 
     internal static void Run(int parentId)
     {
         var bridge = new RendererBridge(parentId);
-        Console.WriteLine("{\"version\":1,\"ready\":true}");
+        if (!bridge.proofOnly && new System.Security.Principal.WindowsPrincipal(
+                System.Security.Principal.WindowsIdentity.GetCurrent()).IsInRole(System.Security.Principal.WindowsBuiltInRole.Administrator))
+            throw new InvalidOperationException("Elevated renderer navigation is not supported.");
+        using var keyboard = Environment.GetEnvironmentVariable("CLICI_RENDERER_KEYS") == "1"
+            ? new RendererKeyboardHook(bridge.parent, bridge.proofOnly) : null;
+        bridge.keyboard = keyboard;
+        Console.WriteLine("""{"version":1,"ready":true}""");
         while (ReadLine() is { } line)
         {
             Request? request = null;
@@ -72,11 +87,16 @@ internal sealed class RendererBridge
                 request = JsonSerializer.Deserialize<Request>(line, Json);
                 if (request is null) throw new InvalidOperationException("Missing request.");
                 var result = bridge.Navigate(request);
-                Console.WriteLine(JsonSerializer.Serialize(result, Json));
+                var resultJson = JsonSerializer.Serialize(result, Json);
+                if (resultJson.Contains("\"handled\":true", StringComparison.Ordinal) &&
+                    Environment.GetEnvironmentVariable("CLICI_RENDERER_RESULT") is { Length: > 0 } resultPath)
+                    File.WriteAllText(resultPath, resultJson);
+                Console.WriteLine(resultJson);
             }
             catch (Exception exception) when (exception is not OutOfMemoryException)
             {
                 bridge.cursor = null;
+                keyboard?.Invalidate();
                 Console.WriteLine(JsonSerializer.Serialize(new
                 {
                     sequence = request?.Sequence ?? 0,
@@ -85,6 +105,12 @@ internal sealed class RendererBridge
                     reason = exception.GetType().Name,
                     detail = exception.Message
                 }, Json));
+            }
+            finally
+            {
+                if (bridge.inFlight is { } active)
+                    keyboard?.Session.Complete(active, Environment.TickCount64);
+                bridge.inFlight = null;
             }
         }
     }
@@ -112,60 +138,115 @@ internal sealed class RendererBridge
             action,
             reason,
             messageId,
+            admission = keyboard?.LastAdmission,
+            invalidation = keyboard?.LastInvalidation,
+            revision = keyboard?.Revision,
             elapsedMilliseconds = timer.Elapsed.TotalMilliseconds
         };
         CheckRequest(request);
+        var hookRevision = keyboard?.Revision ?? 0;
         if (request.Direction is not ("previous" or "next" or "observe")) throw new InvalidOperationException("Unknown direction.");
         if (request.Direction == "observe")
         {
-            cursor = null;
             // Explicit development evidence path; contains identities and input
             // context only. No terminal or prompt text is written to this file.
             if (Environment.GetEnvironmentVariable("CLICI_RENDERER_REPORT") is { Length: > 0 } report)
                 File.WriteAllText(report, JsonSerializer.Serialize(request, Json));
-            return Result(false, "Observed", "Metadata received; no navigation requested");
+            if (keyboard is null) return Result(false, "Observed", "Metadata received; no navigation requested");
         }
 
-        if (!request.ComposerOwnsInput) return Result(false, "PassThrough", "Native composer does not own input");
-        var window = NativeWindows.ListProofWindows("CLICI-PROOF-")
-            .SingleOrDefault(candidate => NativeWindows.IsForeground((nint)candidate.Handle));
-        if (window is null) return Result(false, "PassThrough", "No foreground proof window");
+        if (!request.ComposerOwnsInput || request.Prompts.Count == 0)
+        {
+            keyboard?.Invalidate();
+            cursor = null;
+            return Result(false, "PassThrough", "Native composer does not own input or has no complete prompts");
+        }
+        // Keep lease renewal independent of expensive window/pane discovery.
+        // The focused COM element and native window are still checked each time;
+        // keyboard, mouse and focus events invalidate this cached qualification.
+        if (request.Direction == "observe" && keyboard is not null && qualifiedPane is not null &&
+            qualifiedWindow is not null && qualifiedIdentity?.Session?.SessionId == request.SessionId &&
+            qualifiedIdentity.SessionEpoch == request.Epoch && qualifiedRevision == hookRevision &&
+            qualifiedPrompts is not null && qualifiedPrompts.SequenceEqual(request.Prompts) &&
+            NativeWindows.IsForeground((nint)qualifiedWindow.Handle) && qualifiedPane.CurrentHasKeyboardFocus != 0)
+        {
+            var size = qualifiedPane.CurrentBoundingRectangle;
+            if (qualifiedSize == (size.right - size.left, size.bottom - size.top))
+            {
+                if (!PublishLease(request, qualifiedWindow, qualifiedIdentity, hookRevision))
+                    return Result(false, "PassThrough", "No fresh native input lease");
+                inFlight = keyboard.Session.TakeConfirmed(Environment.TickCount64);
+                if (inFlight is null) return Result(false, "Observed", "Keyboard lease renewed; no confirmed press");
+            }
+        }
+        var window = NativeWindows.ForegroundRendererWindow(proofOnly);
+        if (window is null) { keyboard?.Invalidate(); return Result(false, "PassThrough", "No foreground proof window"); }
         var root = automation.ElementFromHandle((nint)window.Handle);
+        if (root.FindAll(TreeScope.TreeScope_Subtree,
+            automation.CreatePropertyCondition(UIA_PropertyIds.UIA_ClassNamePropertyId, "TermControl")).Length != 1)
+        {
+            keyboard?.Invalidate();
+            return Result(false, "PassThrough", "Only a single terminal pane is qualified");
+        }
         var condition = automation.CreateAndCondition(
             automation.CreatePropertyCondition(UIA_PropertyIds.UIA_ClassNamePropertyId, "TermControl"),
             automation.CreatePropertyCondition(UIA_PropertyIds.UIA_HasKeyboardFocusPropertyId, true));
         var elements = root.FindAll(TreeScope.TreeScope_Subtree, condition);
-        if (elements.Length != 1) return Result(false, "PassThrough", "No unique focused pane");
+        if (elements.Length != 1) { keyboard?.Invalidate(); return Result(false, "PassThrough", "No unique focused pane"); }
         var pane = elements.GetElement(0);
         var pattern = (IUIAutomationTextPattern)pane.GetCurrentPattern(UIA_PatternIds.UIA_TextPatternId);
         var rect = pane.CurrentBoundingRectangle;
         var paneId = $"{window.ProcessId}:{window.Handle}:{string.Join(',', pane.GetRuntimeId())}";
-        var currentScope = $"{paneId}:{request.SessionId}:{request.Epoch}:{rect.right - rect.left}:{rect.bottom - rect.top}";
+        var currentScope = $"{paneId}:{request.SessionId}:{request.Epoch}:{hookRevision}:{rect.right - rect.left}:{rect.bottom - rect.top}";
         var observation = Observe(pattern, request);
         var mapping = RenderedPromptMap.Resolve(request.Prompts, observation.Anchors, observation.RowCount);
         if (!mapping.Success)
         {
             cursor = null;
+            keyboard?.Invalidate();
             return Result(false, "PassThrough", "Incomplete or ambiguous rendered anchors");
         }
 
         // Native focus/resize/mouse events advance Epoch. Terminal-owned manual
         // scroll is additionally detected by comparing fresh visible ranges.
-        if (scope != currentScope || lastViewport != observation.ViewportKey)
+        if (scope != currentScope)
         {
             cursor = null;
             layoutEpoch++;
+        }
+        else if (lastViewport != observation.ViewportKey)
+        {
+            // Passive output can move the live viewport without changing input
+            // ownership or layout. Rebase navigation on the fresh viewport;
+            // do not discard a confirmed press as though the pane had changed.
+            // Actual pointer/focus input already invalidates the hook revision.
+            cursor = null;
         }
 
         scope = currentScope;
         var identity = new NavigationIdentity(paneId, request.Epoch, layoutEpoch,
             new(AgentKind.Codex, request.SessionId));
+        qualifiedIdentity = identity;
+        qualifiedPrompts = request.Prompts;
+        qualifiedPane = pane;
+        qualifiedWindow = window;
+        qualifiedRevision = hookRevision;
+        qualifiedSize = (rect.right - rect.left, rect.bottom - rect.top);
+        var direction = request.Direction == "previous" ? NavigationDirection.Previous : NavigationDirection.Next;
+        if (request.Direction == "observe" && keyboard is not null)
+        {
+            if (!PublishLease(request, window, identity, hookRevision))
+                return Result(false, "PassThrough", "No fresh native input lease");
+            inFlight = keyboard.Session.TakeConfirmed(Environment.TickCount64);
+            lastViewport = observation.ViewportKey;
+            if (inFlight is null) return Result(false, "Observed", "Keyboard lease renewed; no confirmed press");
+            direction = inFlight.Direction;
+        }
         if (cursor is not null && !mapping.Prompts.Contains(cursor.Prompt)) cursor = null;
         var snapshot = new NavigationSnapshot(identity, request.Sequence, PaneEligibility.Eligible,
             mapping.Prompts[0].Start, observation.RowCount,
             request.HistoryComplete && mapping.ReachesHistoryStart, true, true,
             observation.ViewportRow, observation.AtLive, mapping.Prompts);
-        var direction = request.Direction == "previous" ? NavigationDirection.Previous : NavigationDirection.Next;
         var decision = Clici.Core.Navigation.PromptNavigation.Decide(snapshot, direction, cursor);
         lastViewport = observation.ViewportKey;
         if (decision.Action is not (NavigationAction.Jump or NavigationAction.ReturnToLive))
@@ -177,7 +258,7 @@ internal sealed class RendererBridge
             target.MoveEndpointByRange(TextPatternRangeEndpoint.TextPatternRangeEndpoint_Start,
                 target, TextPatternRangeEndpoint.TextPatternRangeEndpoint_End);
         CheckLive(request);
-        NativeWindows.RequireActiveProofPane((nint)window.Handle, pane);
+        NativeWindows.RequireActiveRendererPane((nint)window.Handle, pane, proofOnly);
         var latestRect = pane.CurrentBoundingRectangle;
         if (latestRect.right - latestRect.left != rect.right - rect.left ||
             latestRect.bottom - latestRect.top != rect.bottom - rect.top ||
@@ -190,7 +271,7 @@ internal sealed class RendererBridge
         {
             target.ScrollIntoView(1);
             CheckLive(request);
-            NativeWindows.RequireActiveProofPane((nint)window.Handle, pane);
+            NativeWindows.RequireActiveRendererPane((nint)window.Handle, pane, proofOnly);
             var visible = pattern.GetVisibleRanges();
             if (visible.Length != 1) throw new InvalidOperationException("Ambiguous scroll readback.");
             var viewport = visible.GetElement(0);
@@ -214,6 +295,11 @@ internal sealed class RendererBridge
         }
     }
 
+    private bool PublishLease(Request request, ProofWindow window, NavigationIdentity identity, long revision) =>
+        request.InputObservedAt > 0 && request.InputObservedAt <= Environment.TickCount64 &&
+        request.Deadline - request.InputObservedAt <= 750 &&
+        keyboard!.Publish((nint)window.Handle, new(identity, revision, request.Deadline), request.InputObservedAt, revision);
+
     private void CheckRequest(Request request)
     {
         if (request.Version != 1 || request.Sequence <= lastSequence || request.ProcessId != parent.Id ||
@@ -228,7 +314,8 @@ internal sealed class RendererBridge
     private void CheckLive(Request request)
     {
         if (parent.HasExited || request.Deadline <= Environment.TickCount64 ||
-            request.Deadline - Environment.TickCount64 > 1000)
+            request.Deadline - Environment.TickCount64 > 1000 ||
+            inFlight is not null && keyboard?.Session.CanExecute(inFlight, Environment.TickCount64) != true)
             throw new InvalidOperationException("Renderer request expired or its process exited.");
     }
 
@@ -252,21 +339,31 @@ internal sealed class RendererBridge
         var document = pattern.DocumentRange;
         var text = document.GetText(MaximumCharacters + 1);
         if (text.Length > MaximumCharacters) throw new InvalidOperationException("Terminal capture limit.");
-        var lines = text.Split("\r\n", StringSplitOptions.None);
-        if (lines.Length > MaximumRows) throw new InvalidOperationException("Terminal row limit.");
         var visibleRanges = pattern.GetVisibleRanges();
         if (visibleRanges.Length != 1) throw new InvalidOperationException("Ambiguous viewport.");
         var visible = visibleRanges.GetElement(0);
         var found = new Dictionary<string, List<(int Row, bool End)>>(StringComparer.Ordinal);
-        var prefix = document.Clone();
-        prefix.MoveEndpointByRange(TextPatternRangeEndpoint.TextPatternRangeEndpoint_End,
-            visible, TextPatternRangeEndpoint.TextPatternRangeEndpoint_Start);
-        var viewportRow = prefix.GetText(MaximumCharacters).Count(character => character == '\n');
-        for (var index = 0; index < lines.Length; index++)
+        // GetText joins soft-wrapped rows without CRLF. Use the same UIA line
+        // units for discovery, viewport coordinates and later scroll targets.
+        var rows = new List<IUIAutomationTextRange>();
+        var viewportRow = 0;
+        for (var index = 0; ; index++)
         {
             CheckLive(request);
-            if (lines[index].Length < 6 || lines[index].AsSpan(0, 6).IndexOfAnyExcept(' ') >= 0) continue;
+            if (index >= MaximumRows) throw new InvalidOperationException("Terminal row limit.");
             var row = RowAt(document, index);
+            rows.Add(row);
+            if (row.CompareEndpoints(TextPatternRangeEndpoint.TextPatternRangeEndpoint_Start,
+                visible, TextPatternRangeEndpoint.TextPatternRangeEndpoint_Start) <= 0) viewportRow = index;
+            if (row.CompareEndpoints(TextPatternRangeEndpoint.TextPatternRangeEndpoint_End,
+                document, TextPatternRangeEndpoint.TextPatternRangeEndpoint_End) == 0) break;
+        }
+        for (var index = 0; index < rows.Count; index++)
+        {
+            CheckLive(request);
+            var row = rows[index];
+            var beginning = row.GetText(6);
+            if (beginning.Length != 6 || beginning.AsSpan().IndexOfAnyExcept(' ') >= 0) continue;
             var cell = row.Clone();
             cell.MoveEndpointByRange(TextPatternRangeEndpoint.TextPatternRangeEndpoint_End,
                 cell, TextPatternRangeEndpoint.TextPatternRangeEndpoint_Start);
@@ -289,9 +386,6 @@ internal sealed class RendererBridge
             }
         }
 
-        if (lines.Length == 0 || RowAt(document, lines.Length - 1).CompareEndpoints(TextPatternRangeEndpoint.TextPatternRangeEndpoint_End,
-            document, TextPatternRangeEndpoint.TextPatternRangeEndpoint_End) != 0)
-            throw new InvalidOperationException("Incomplete physical row mapping.");
         var anchors = new List<PaintedPromptAnchor>();
         foreach (var (nonce, pair) in found)
         {
@@ -300,7 +394,7 @@ internal sealed class RendererBridge
             anchors.Add(new(nonce, pair[0].Row, pair[1].Row));
         }
 
-        return new(anchors, text, lines.Length, viewportRow,
+        return new(anchors, text, rows.Count, viewportRow,
             visible.CompareEndpoints(TextPatternRangeEndpoint.TextPatternRangeEndpoint_End,
                 document, TextPatternRangeEndpoint.TextPatternRangeEndpoint_End) >= 0,
             ViewportKey(pattern, visible));
