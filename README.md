@@ -382,6 +382,8 @@ you are testing, reinstall before investigating further.
 
 ## Planned next steps
 
+- evaluate optional previous/next user-prompt navigation in Windows Terminal;
+  see the [prompt navigation implementation plan](docs/prompt-navigation-plan.md);
 - exercise clipboard behavior across Windows Terminal, PowerShell, cmd, WSL,
   Codex, and Claude Code, and build a real source-fingerprint matrix;
 - add focused-control detection (UI Automation) so VS Code and Cursor
