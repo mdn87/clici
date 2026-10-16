@@ -1,6 +1,6 @@
 # Clici prompt navigation implementation plan
 
-- **Status:** Proposed; terminal targeting and message recognition require a prototype.
+- **Status:** Reviewed; terminal targeting and message recognition still require a prototype.
 - **Date:** 2026-10-15
 - **Outcome:** Jump between user messages in the active Claude Code or Codex
   terminal session with configurable shortcuts, initially Ctrl+Up and Ctrl+Down.
@@ -16,21 +16,30 @@ This is a proposed expansion of Clici's clipboard-only product scope. It does
 not change the existing v0.1 proof plan. Implementation must update the product
 scope and support claims alongside the new behavior.
 
+The [Autowork/Roundtable review of 4667398](prompt-navigation-review-4667398.md)
+records the evidence, corrections, and remaining experiments behind this revision.
+
 ## Prerequisites and open decisions
 
-- **v0.1 functional baseline.** The 19 functional cases in
-  `docs/v0.1-proof-ledger.md` had not been run as of the 2026-08-29 handoff.
-  Phase 4 requires copying and Ctrl+Alt+J to keep working, which needs a
-  recorded baseline to compare against. Run the ledger before Phase 4.
+- **Pre-navigation baseline.** Before Phase 3, retain an unmodified build and
+  record its commit and full informational version. Run relevant clipboard
+  checks and actual Ctrl+Alt+J delivery, disabled/paused behavior, and conflict
+  cases on it, then repeat them on the integrated build. Recheck
+  `docs/v0.1-proof-ledger.md`: its 19 manual rows do not include the join
+  hotkey, and `docs/v0.1-test-runbook.md` identifies stale RichFormat/History
+  expectations that must be repaired before those cases count as evidence.
+  Keep the full v0.1 proof work under its existing plan and report actual
+  results and unmet prerequisites. It does not block the isolated Phase 1 probe.
 - **Product placement.** `CONTRIBUTING.md` defines margin cleanup and line
   rejoining as the whole product, and the README promises no global keyboard
   hook. The reusable parts are the tray, JSON configuration, and hotkey
-  plumbing. A component that reads terminal text through UI Automation, and
-  possibly hooks the keyboard, can look keylogger-shaped to Defender and EDR
-  heuristics. Decide before Phase 3 whether navigation ships inside Clici or as
-  a separate executable that shares `clici.Core` and lifecycle code. The Phase 3
-  layout below assumes the in-process option and changes if the separate
-  executable is chosen.
+  plumbing. After Phase 1 establishes the input mechanism, decide before
+  Phase 3 whether navigation ships inside Clici or as a separate executable,
+  based on that evidence and the intended product scope. The Phase 3 layout
+  assumes the in-process option. A separate executable needs explicit
+  configuration ownership and single-instance/lifecycle rules; two processes
+  must not independently overwrite the same cached configuration. A native
+  settings-only alternative requires its own supported-behavior decision.
 
 ## Existing work and starting point
 
@@ -40,12 +49,14 @@ scope and support claims alongside the new behavior.
 | [Claude prompt-jump mod](https://github.com/ruanss4/prompt-jump) | Tracks user-message IDs and calls the renderer's scroll API. Its previous/next controls and one waypoint per prompt are useful interaction references. Fullscreen is required. |
 | [Codex Ctrl+Up/Down implementation](https://github.com/openai/codex/issues/47300) | A community fork implements these keys through backtrack browsing. That interface retains Enter-to-rewind and is not the behavior Clici should invoke. |
 | [Windows Terminal shell integration](https://learn.microsoft.com/en-us/windows/terminal/tutorials/shell-integration) | Native `scrollToMark` actions provide the desired motion once marks exist. Shell integration alone does not identify each conversation turn. |
-| [UI Automation ScrollIntoView](https://learn.microsoft.com/en-us/dotnet/api/system.windows.automation.text.textpatternrange.scrollintoview?view=windowsdesktop-10.0) | Supports aligning a text range to the viewport top. Windows Terminal implements this in [UiaTextRangeBase.cpp](https://github.com/microsoft/terminal/blob/main/src/types/UiaTextRangeBase.cpp). Live feasibility remains to be tested. |
+| [COM UI Automation ScrollIntoView](https://learn.microsoft.com/en-us/windows/win32/api/uiautomationclient/nf-uiautomationclient-iuiautomationtextrange-scrollintoview) | Supports aligning a text range to the viewport top. Windows Terminal implements this in [UiaTextRangeBase.cpp](https://github.com/microsoft/terminal/blob/v1.24.12741.0/src/types/UiaTextRangeBase.cpp). Live feasibility remains to be tested. |
 
 The research baseline found Windows Terminal 1.24.12741.0 running, with npm
 packages Claude Code 2.1.296 and Codex 0.162.1 installed. Claude's user settings
 select `tui=default` and set `CLAUDE_CODE_DISABLE_ALTERNATE_SCREEN=1`. Record
-actual executable versions and renderer modes again when running the prototype.
+actual executable versions, launch options, and renderer modes for both agents
+when running the prototype. Codex's renderer mode was not recorded in the
+research baseline; do not infer it from the installed version alone.
 
 Clici already has a tray lifecycle, JSON configuration, a clipboard listener,
 and a global join-lines hotkey. Its foreground provider returns a process name,
@@ -57,26 +68,46 @@ letters, digits, and function keys; arrow keys need explicit support.
 | Requirement | Expected behavior |
 | --- | --- |
 | NAV-001 Previous prompt | Ctrl+Up brings the owning user prompt to the top if its beginning is above the viewport. If the last jump targeted that prompt, another press goes to the preceding user prompt. From live output, the first press reaches the latest user prompt. |
-| NAV-002 Next prompt | Ctrl+Down advances to the next user prompt. Advancing past the newest prompt returns to live output. At live output it does nothing. Phase 1 must name the mechanism that returns the viewport to live output. |
+| NAV-002 Next prompt | Ctrl+Down advances to the next user prompt. Advancing past the proven newest prompt returns to live output, which follows subsequently appended output. At live output it does nothing. Phase 1 must demonstrate that mechanism. |
 | NAV-003 Reading only | Navigation preserves the input draft, selection, clipboard, and conversation. It never submits text, recalls input history, rewinds, forks, or interrupts a running agent. |
 | NAV-004 Correct pane | Only the active eligible terminal pane moves. Unsupported apps, ordinary shells, and other panes keep their normal keyboard behavior. |
 | NAV-005 Stable targets | Repeated prompts remain separate waypoints. Resizing, reflow, buffer eviction, session changes, and redraws invalidate stale targets before scrolling. |
-| NAV-006 Optional feature | Navigation is disabled by default and has its own enable switch and configurable shortcuts. Turning it off removes its input interception. Existing clipboard controls retain their meaning. |
+| NAV-006 Optional feature | Navigation is disabled by default and has its own enable switch and configurable shortcuts. Turning it off removes interception immediately and invalidates pending work. Existing clipboard controls retain their meaning. |
 | NAV-007 Clear limits | When the pane, renderer, or prompt boundary cannot be established, leave the viewport unchanged and expose a concise reason in the tray status. |
 
 NAV-001 cannot infer "already at this prompt" from the viewport alone. Near the
-buffer end a prompt may never reach the top row, so a viewport test would keep
-re-selecting the same prompt. Keep a navigation cursor holding the last target,
-its pane identity, and its snapshot generation. Fall back to viewport position
-only after the cursor is invalidated by NAV-005 events or manual scrolling.
+buffer end a prompt may never reach the top row. Keep a cursor for the last
+verified target occurrence and its pane/session identity. A fresh snapshot is
+an observation revision, not automatically a new session/layout epoch. Preserve
+the cursor across append-only output only when its occurrence can be revalidated
+by position and contextual evidence; identical text alone is not identity.
+Reflow, eviction, session changes, or ambiguous redraw invalidate stale ranges.
+
+| State before the key | Ctrl+Up | Ctrl+Down |
+| --- | --- | --- |
+| Live, proven by viewport/follow state | Latest user prompt | No-op |
+| Browsing a revalidated last jump target | Previous occurrence | Next occurrence, or live only when no later prompt is proven |
+| No cursor after manual scrolling; viewport and boundaries known | Owning prompt if its start is above the viewport; otherwise the preceding prompt | First prompt beginning below the viewport top, or proven live boundary |
+| Target or coverage cannot be established | Refuse without scrolling | Refuse without scrolling |
+
+At the true oldest retained prompt, Up is a no-op. At an artificial capture
+limit, acquire adjacent bounded coverage or report the limit; do not claim the
+history ended. In a positively eligible pane, navigation consumes its chords,
+including no-ops and refusals after interception. Unknown/ineligible contexts
+pass input through before interception; never replay a consumed chord.
+Commit the cursor only after verifying the jump, retain it through the jump's
+own viewport notifications, and clear it on return-to-live or manual scrolling.
+Phase 1 must establish how those viewport changes are distinguished.
 
 The initial feature covers retained scrollback in tested Windows Terminal
 configurations. Fullscreen/alternate-screen agents, VS Code/Cursor terminals,
 other terminal emulators, SSH, and WSL require separate qualification.
-Elevated (administrator) Windows Terminal windows are out of scope: UIPI blocks
-a non-elevated process from UI Automation access to them and from hooking their
-input. Older
-messages that have left the terminal buffer are outside this feature's scope.
+The adapter runs non-elevated. Elevated (administrator) Windows Terminal
+windows are out of scope for that UI Automation client; treat them and
+inaccessible panes as ineligible and verify shortcut pass-through. UIA access
+restrictions do not prove that a global hotkey or low-level hook leaves their
+input alone. Messages evicted from the buffer or outside the declared capture
+coverage are unavailable; report a capture limit distinctly from eviction.
 Do not change an agent's renderer automatically.
 
 ## Phase 1 Prove terminal access and shortcut handling
@@ -84,25 +115,36 @@ Do not change an agent's renderer automatically.
 Build a small development probe under `tools/proof/prompt-navigation/`. Use
 synthetic conversations in disposable test panes. Keep the probe independent
 of Clici's clipboard pipeline. Use the COM UI Automation client
-(`IUIAutomation`), the same client the shipped adapter would use. The managed
-`System.Windows.Automation` wrapper linked above is the legacy client, lacks
-`TextPattern2`, and behaves differently, so its evidence would not transfer.
+(`IUIAutomation`) intended for the shipped adapter. Enumerate patterns exposed
+by the tested provider; do not assume `TextPattern2` is available or required.
+Record the pinned/generated interop source and prove the probe builds with
+`dotnet build` before relying on its evidence.
 
-0. Test Windows Terminal's native marks before building the UI Automation
-   probe. In a scratch profile, enable `experimental.autoMarkPrompts` (marks
-   the row where Enter is pressed), bind `scrollToMark` with `previous` and
-   `next` to Ctrl+Up and Ctrl+Down, and run a Claude session and a Codex
-   session. Record whether marks land on the rendered user message and
-   survive renderer redraws, resize, and streaming output. If they do, Windows
-   Terminal already provides pane targeting, scrolling, and shortcut isolation
-   (its bindings never leave Windows Terminal), and steps 1, 3, and 5 and most
-   of Phase 3 may be unnecessary. The known cost is that Windows Terminal
-   bindings apply to every profile, so ordinary shells also lose Ctrl+Up and
-   Ctrl+Down; that conflicts with NAV-004 and needs an explicit decision. If
-   the marks do not hold, continue with step 1.
+0. Test native marks before building the UI Automation probe. Use a disposable
+   Windows Terminal instance with a verified independent settings store; a
+   scratch profile alone does not isolate key bindings. Enable
+   `autoMarkPrompts`, bind `scrollToMark` `previous`/`next` to Ctrl+Up/Down,
+   and test both agents. Record OSC 133 shell integration and test both the
+   intended shell and a clean shell without command marks: an existing OSC
+   command mark can prevent subsequent Enter presses from adding marks.
+   Check one mark per rendered user message, exact start-row alignment where
+   possible, multiline entry, dialogs/pickers, redraw/reflow, and streaming.
+   Test repeated jumps near the buffer end, Up from live with the latest
+   prompt already visible, and Down past the last mark followed by new output.
+   Check ordinary shells with and without marks. Bindings apply across
+   profiles, so staying inside Windows Terminal does not satisfy NAV-004.
+   Record results against every NAV requirement, including optional enable
+   and status behavior. If native settings alone are useful, document that
+   alternative and obtain an explicit scope decision before waiving any NAV
+   requirement or replacing later implementation phases. Otherwise continue
+   with step 1. Do not change the user's existing settings for this experiment.
 1. Resolve the foreground Windows Terminal window and its focused text control.
    Establish pane identity from the window and UI Automation element, rather
    than treating every pane belonging to `WindowsTerminal.exe` as one session.
+   Prove positive eligibility for the currently running supported renderer,
+   not merely old transcript text. Define startup/enable discovery, refresh,
+   expiry, and invalidation for agent start/exit, clear/resume, and renderer
+   changes in the same focused pane. Unknown eligibility passes input through.
 2. Read visible ranges and bounded retained text through UI Automation. Inspect
    available text attributes and layout evidence for Claude and Codex user
    messages. Include the current composer and assistant code that imitates
@@ -110,39 +152,59 @@ of Clici's clipboard pipeline. Use the COM UI Automation client
 3. Find a known synthetic message and call `ScrollIntoView(true)`. Verify the
    actual viewport, including alignment near the buffer end where a full
    top-alignment may be impossible. Repeat in split panes and multiple tabs.
+   Demonstrate return-to-live, then append output and verify continued follow
+   with draft and selection preserved. A candidate is a fresh document range
+   collapsed to its end with `ScrollIntoView(true)`; qualify it rather than
+   assuming bottom-aligning the last text row restores follow mode.
 4. Exercise resize/reflow, new streaming output, manual scrolling, clear/resume,
    repeated message text, and focus changes. Determine which text ranges can
    be reused and which must be reacquired.
+   Include a full history buffer evicting rows during generation, cold start
+   in an existing session, shell-to-agent-to-shell without changing focus,
+   alternate-screen transitions, and stale transcripts left in ordinary shells.
 5. Prove how shortcuts can be scoped to an eligible pane. `RegisterHotKey` is
    system-wide: checking focus after receiving `WM_HOTKEY` does not restore a
    chord already consumed in another application. Test focus-scoped registration
    and its transitions before choosing it. Switching panes or tabs inside one
    Windows Terminal window does not change the foreground window, so
-   focus-scoped registration needs UI Automation focus-changed events, not
-   only foreground-window events.
+   use UI Automation focus-changed events as a candidate alongside foreground
+   events, and prove their coverage and timing rather than assuming them.
+   Marshal registration changes to the owning thread. Press the key immediately
+   after window/tab/split changes, including Terminal search UI, ordinary
+   shells, and elevated windows. Bind requests to the pane and eligibility
+   revision observed at interception. A later refusal cannot restore input
+   already consumed; failure here means the mechanism does not meet NAV-004.
 
 If registration cannot preserve normal input outside eligible panes, evaluate
 a narrowly filtered keyboard hook. Its callback may only consult cached
 eligibility, queue one of the two navigation actions, or pass input through;
-it must never call UI Automation or retain typing. Windows silently removes a
-low-level hook whose callback exceeds `LowLevelHooksTimeout`, so the hook needs
-removal detection, reinstallation, and a test that forces the condition. This
-would revise Clici's current no-global-keyboard-hook claim and must be
-documented explicitly.
+it must never call UI Automation or retain typing. Install it on a dedicated
+thread with its own message loop. Windows can silently remove a hook after
+`LowLevelHooksTimeout` and provides no direct removal notification. Demonstrate
+a bounded liveness/reinstallation policy that distinguishes idle input from
+failure. Force a callback timeout in the disposable probe without changing the
+system timeout, then verify recovery and normal input. Do not select the hook
+without that evidence. This revises Clici's no-global-keyboard-hook claim and
+must be documented explicitly.
 The prototype must resolve this choice before integration. Do not silently
 substitute different keys or ship unconditional Ctrl+Up/Down registration.
 
 Save environment details, synthetic fixtures, timings, and viewport captures
-under `artifacts/prompt-navigation/<run>/`. Prefer remotedesk/lugos.vision for
-captures when available. Summarize results in
+under the Git-ignored `artifacts/prompt-navigation/<run>/`. Include Terminal
+history size, capture bounds/coverage, and exact renderer launch options.
+Use only disposable synthetic sessions and crop captures to the target pane
+in both Phase 1 and Phase 4. Prefer remotedesk/lugos.vision for captures when
+available. Summarize results in
 `docs/prompt-navigation-proof-report.md`.
 
-**Exit condition:** Both agents have evidence for correct pane targeting,
-recognizable user messages, reliable scrolling, and shortcut isolation. If a
-renderer lacks sufficient evidence, identify the missing capability and narrow
-the supported scope. If neither renderer is viable and step 0's native marks
-also failed, record an alternative design using app-native anchors or
-deliberately emitted terminal marks before building the integrated feature.
+**Exit condition:** Each declared agent configuration has evidence for current
+session eligibility, correct pane targeting, recognizable user messages,
+reliable scrolling/live-follow, and shortcut isolation. If an agent or renderer
+lacks evidence, identify the missing capability and explicitly narrow the
+release scope; do not claim support for both by default. If neither renderer
+is viable and native marks also failed, record an alternative using app-native
+anchors or deliberately emitted terminal marks before building the integrated
+feature.
 A hook firing at submission time alone does not prove that a mark lands on the
 rendered user-message line.
 
@@ -151,8 +213,12 @@ rendered user-message line.
 Add pure navigation decisions under `src/clici.Core/Navigation/`, with fixtures
 and tests in `tests/clici.Core.Tests/`.
 
-- Define a bounded terminal snapshot, ordered prompt candidates, viewport
-  position, navigation direction, and explicit success/refusal results.
+- Define a bounded terminal snapshot with capture origin/extent, actual versus
+  artificial edge flags, complete-message boundaries, ordered prompt
+  candidates, viewport position, and explicit success/refusal/limit results.
+  A local snapshot index is not a stable buffer position. At an artificial
+  edge, acquire adjacent bounded coverage or refuse; return to live only after
+  proving that no later prompt exists, never just because the slice ran out.
 - Implement separate Claude and Codex recognizers using the evidence established
   in Phase 1. A leading `>` or similar glyph alone is insufficient: shell
   prompts, quoted replies, and code examples can contain it too.
@@ -160,8 +226,15 @@ and tests in `tests/clici.Core.Tests/`.
   renderer layouts. Only rendered user messages become waypoints.
 - Select previous/next targets by position in the active pane's snapshot. Do not
   identify a repeated prompt by searching for its text and taking the first match.
-- Keep pane identity and snapshot generation with every target. Reacquire ranges
-  after invalidation and confirm the pane is still active before acting.
+- Model Live, Browsing, and Unknown states using the transition table above.
+  Keep observation revisions separate from pane/session/layout epochs.
+  Revalidate target occurrences across refresh/append; invalidate coordinates
+  on reflow/eviction and refuse if identity cannot be re-established.
+- Bind work to its request, pane, eligibility revision, and deadline. Disable,
+  manual scroll, session changes, and focus changes invalidate queued work.
+  Before scrolling, recheck eligibility and target position/context; read back
+  the resulting viewport before committing a cursor. Discard late results;
+  this cannot undo a COM scroll that has already started.
 
 Start with on-demand bounded snapshots. Optimize caching only after measurements
 justify it. Avoid scanning private session-history directories as a substitute
@@ -170,7 +243,11 @@ first define an explicit pane-to-session binding and its lifecycle.
 
 **Exit condition:** Tests cover previous/next semantics, duplicate prompts,
 multiline and Unicode content, false prompt examples, composer exclusion,
-buffer boundaries, and stale-target refusal using realistic synthetic fixtures.
+and stale-target refusal. Include two distinct presses across refresh/append
+near the buffer end, own-scroll versus manual-scroll notifications, pending
+reads followed by disable/focus change, and held repeats versus distinct presses.
+Test duplicate/partial prompts across capture cutoffs, a newer prompt beyond
+the slice, long responses without a captured prompt, and true history ends.
 
 ## Phase 3 Integrate an optional Windows navigation service
 
@@ -178,13 +255,15 @@ buffer boundaries, and stale-target refusal using realistic synthetic fixtures.
 | --- | --- |
 | `src/clici.App/Navigation/` | Interfaces and Windows Terminal adapter for pane discovery, snapshots, range resolution, and scrolling. |
 | `src/clici.App/Input/` | Arrow-key parsing and the shortcut mechanism qualified in Phase 1. Keep it independent of clipboard notifications. |
-| `src/clici.App/TrayApplicationContext.cs` | Own the navigation service lifecycle, enable control, and concise status. Configuration changes currently require a restart; state whether the tray toggle and shortcut fields apply at runtime or after restart. |
+| `src/clici.App/TrayApplicationContext.cs` | Own service lifecycle, immediate runtime enable/disable, and concise status. Disable removes interception and invalidates pending work. Manual JSON shortcut edits take effect after restart. Persist the toggle only when persistence is allowed, matching existing tray behavior. |
 | `src/clici.Core/Configuration/CliciConfiguration.cs` | Add `promptNavigationEnabled` defaulting to `false`, `previousPromptHotkey` defaulting to `Ctrl+Up`, and `nextPromptHotkey` defaulting to `Ctrl+Down`. |
 | Configuration store and tests | Increment the schema version when fields ship; preserve old-file defaults and malformed-file behavior. Reject conflicting navigation chords without disabling clipboard cleanup. |
 
-Keep UI Automation off the tray/message-loop thread. Use one bounded worker
-queue and coalesce held-key repeats rather than accumulating scroll requests.
-Apply a request deadline and recheck pane identity before moving the viewport.
+Run UI Automation on an MTA worker that owns no windows; add/remove event
+handlers on that same thread. Keep it off the tray and any hook message loop.
+Use one bounded queue, coalescing held-key repeats while preserving distinct
+presses or explicitly refusing excess work. Apply a request deadline and the
+eligibility/target checks from Phase 2 immediately before moving the viewport.
 A timeout does not cancel an in-flight COM call: do not spawn replacement
 workers indefinitely when a provider hangs. Suspend the adapter, report the
 failure, and keep the tray and clipboard service responsive.
@@ -194,34 +273,36 @@ counts, timings, and supported-version information, but no prompt or terminal
 contents. Navigation must not use the clipboard as a transport or send
 synthetic conversation commands.
 
-**Exit condition:** Clici can toggle navigation, handle configuration and input
-conflicts, survive adapter failures, and shut down without leaving shortcuts
-registered. Existing clipboard tests remain green.
+**Exit condition:** Clici applies the tray toggle immediately, handles
+configuration/input conflicts, survives adapter failures, and shuts down
+without leaving shortcuts registered. Pending results do not re-enable a
+disabled service. Existing clipboard tests remain green.
 
 ## Phase 4 Validate the complete user interaction
 
-Run the following matrix for both qualified agent renderers:
+Run the following matrix for every qualified agent configuration:
 
 | Case | Evidence required |
 | --- | --- |
 | Long conversation | Repeated Up/Down presses land on the expected prompts in order and return to live output. |
 | Ambiguous text | Assistant code, shell syntax, echoed prompts, repeated prompts, and dialog text are not mistaken for a user-message boundary. |
 | Layout changes | Wrapped text, Unicode, window resizing, and font/zoom changes preserve correct targeting or produce a safe refusal. |
-| Active generation | The agent continues working; navigation preserves draft text and remains stable while output arrives. |
-| Multiple panes | Tab/split switching and rapid focus changes move only the active eligible pane. |
-| Other input contexts | Editors, browsers, ordinary shells, unsupported/fullscreen agents, elevated Windows Terminal windows, and disabled navigation retain their normal shortcuts. |
-| History changes | Buffer eviction, clear, resume, and compaction/redraw behavior do not reuse stale anchors. |
-| Failure and coexistence | Shortcut conflicts, provider timeouts, restart, disable, and exit leave Clici responsive; copying and Ctrl+Alt+J still work. |
+| Active generation | Draft and selection survive streaming, including a full buffer evicting rows. Repeated presses preserve cursor continuity; returning live follows subsequent output. |
+| Multiple panes | Immediate keys after window/tab/split changes move only the intended eligible pane and preserve input in other contexts. |
+| Other input contexts | Editors, browsers, ordinary shells, Terminal search UI, unsupported/fullscreen agents, elevated/inaccessible windows, and disabled navigation retain normal shortcuts. Include agent exit leaving old transcript text and renderer changes without a focus change. |
+| History and capture changes | Eviction, clear, resume, redraw, partial prompts, and artificial capture edges never reuse stale anchors or skip unseen prompts. |
+| Failure and coexistence | Conflicts, timeouts, restart, disable during pending work, and exit leave Clici responsive; compare clipboard and actual Ctrl+Alt+J behavior with the pinned baseline, including existing Enabled/Pause semantics. If using a hook, include forced-timeout recovery. |
 
 Use fakes for coordinator ordering and failures, pure fixtures for recognition,
 and actual Windows Terminal sessions for UI Automation and keyboard behavior.
 Screenshots must demonstrate the requested prompt and the viewport after the
 jump; a successful API return alone is insufficient.
 
-Measure cold and repeated navigation on the declared buffer limit. Aim for
-repeated jumps within 250 ms and fail a stalled request within one second,
-without blocking clipboard processing. Record actual limits and timings in the
-proof report rather than claiming unlimited scrollback support.
+Measure cold and repeated navigation against the declared Terminal history
+size and capture limits. Treat 250 ms for repeated jumps as a measured target;
+fail a stalled request within one second without blocking clipboard processing.
+Record actual limits, coverage/refusal behavior, and timings in the proof report
+rather than claiming unlimited scrollback or cancellation of in-flight COM work.
 
 After meaningful implementation batches, run targeted tests. Before landing the
 finished feature, inspect the full scoped diff and run:
@@ -247,11 +328,12 @@ installer. Retain the previous installer for recovery. Installing the new build
 or changing user-level settings is a separate execution action; this plan does
 not perform either.
 
-The feature is complete when both declared agent configurations pass the live
+The feature is complete when every declared agent configuration passes the live
 matrix, unsupported contexts retain normal input, clipboard behavior still
 passes its existing checks, and the published support claims match the evidence.
 
-**First implementation batch:** the Phase 1 step 0 native-marks test, then the
-probe and proof report if the marks do not hold. Settle terminal access, prompt
-recognition, shortcut scoping, and product placement before adding a permanent
-navigation service to Clici.
+**First implementation batch:** the isolated Phase 1 step 0 native-marks test
+and proof report, then the COM probe if native settings cannot meet the agreed
+behavior. Settle current-session eligibility, terminal access, recognition,
+scrolling/live-follow, shortcut isolation, and product placement before adding
+a permanent navigation service to Clici.
