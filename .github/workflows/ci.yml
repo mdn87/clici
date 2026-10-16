@@ -29,6 +29,8 @@ jobs:
           node-version: '24'
       - name: Test native prompt metadata ledger
         run: node --test tools/proof/prompt-navigation/claude-identity/tests/ledger.node.mjs
+      - name: Test renderer bridge protocol
+        run: cargo +stable test --manifest-path tools/proof/prompt-navigation/codex-renderer/Cargo.toml --locked
 
   format:
     runs-on: windows-latest

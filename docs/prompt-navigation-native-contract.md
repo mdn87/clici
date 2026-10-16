@@ -52,7 +52,7 @@ startup; a low-level Windows hook does not provide a repeat flag by itself.
 | --- | --- | --- |
 | Claude 2.1.296 function hooks | `session.append` pins the stored UUID, origin, role and main/subagent loop. `UserMessage.requestId` names the render instance. The development collector joins those observations without scanning history. | A classic-mode buffer anchor and a composer-wide read-only key action. A render request is not a successful paint. Render-only observations do not establish main-loop membership. |
 | Claude function-hook input | `ui.press` addresses plugin Buttons/links; `ui.input` addresses plugin Inputs. `ClientSurface.onKey` requires focus in the plugin's region. Button actions reuse existing engine actions. | A new scoped action that can receive Ctrl+Up/Down from the composer without borrowing another action or moving focus away from the draft. |
-| Codex 0.162.1 protocol | [`UserMessageItem.id`](https://github.com/openai/codex/blob/rust-v0.162.1/codex-rs/protocol/src/items.rs) is a native per-item identity; `client_id` also correlates submitted input with receipts. | Carry the item ID through display/history construction and publish a renderer anchor for it. A hook's `turn_id` does not substitute for an individual user-message ID. |
+| Codex 0.162.1 protocol | [`UserMessageItem.id`](https://github.com/openai/codex/blob/rust-v0.162.1/codex-rs/protocol/src/items.rs) is a native per-item identity; `client_id` correlates submitted input with receipts. The pinned development patch carries these through live/replay history construction and publishes blank-row anchor metadata. | Production qualification of replay, steering, redraw, eviction and pane ownership. A hook's `turn_id` does not substitute for an individual user-message ID. |
 | Codex TUI | [`on_committed_user_message` and `on_user_message_display`](https://github.com/openai/codex/blob/rust-v0.162.1/codex-rs/tui/src/chatwidget.rs) construct user history cells and handle steering/replay. [`app/input.rs`](https://github.com/openai/codex/blob/rust-v0.162.1/codex-rs/tui/src/app/input.rs) dispatches input. | A separate read-only navigation action. Existing [backtracking](https://github.com/openai/codex/blob/rust-v0.162.1/codex-rs/tui/src/app_backtrack.rs) retains rewind semantics and is not an adapter. |
 
 Claude's current local declaration and the real plugin test runtime are the
@@ -92,6 +92,25 @@ dispatch, with a distinct navigation state separate from `app_backtrack`. For
 Claude they require an expanded vendor API or a separately qualified external
 input/anchor mechanism. Clici cannot supply the missing renderer facts by adding
 more confidence checks around the current hooks.
+
+The [Codex renderer experiment](../tools/proof/prompt-navigation/codex-renderer/README.md)
+implements the identity-to-paint portion in a separate pinned source build.
+Two six-cell RGB signatures in existing blank separator rows bind a rendered
+occurrence to its native item ID. `RenderedPromptMap` requires complete, unique,
+ordered pairs and treats an evicted prefix as a capture boundary. Metadata is
+carried over private pipes; the helper verifies actual COM attributes and the
+viewport before accepting a jump. Its process and request bounds are explicit.
+
+This does not establish shortcut eligibility. Terminal's
+[`ControlCore::TrySendKeyEvent`](https://github.com/microsoft/terminal/blob/v1.24.12741.0/src/cascadia/TerminalControl/ControlCore.cpp)
+can change selection, and
+[`Terminal::SendKeyEvent`](https://github.com/microsoft/terminal/blob/v1.24.12741.0/src/cascadia/TerminalCore/Terminal.cpp)
+can snap to live output before the native handler runs. The source finding and
+live snap test rule out a native-only shortcut under ordinary defaults.
+`CLICI_NATIVE_KEY_PROBE=1` is therefore a separate diagnostic; passive renderer
+publication is the default. A pre-Terminal input adapter still needs a fresh
+eligibility handshake, pane proof, event-based invalidation and hook recovery.
+Neither the saved metadata report nor its `composerOwnsInput` field is a lease.
 
 Maintaining a Codex renderer fork would require a pinned build, replay/steering
 identity tests, input-context tests, and a repeated classic Windows Terminal

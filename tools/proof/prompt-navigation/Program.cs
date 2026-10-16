@@ -18,9 +18,19 @@ internal static class Program
         try
         {
             NativeWindows.UsePhysicalCoordinates();
+            if (args.Length == 2 && args[0] == "renderer-bridge")
+            {
+                RendererBridge.Run(int.Parse(args[1]));
+                return 0;
+            }
+            if (args.Length == 2 && args[0] == "anchor-fixture")
+            {
+                ColorAnchorProbe.Fixture(args[1]);
+                return 0;
+            }
             if (args.Length == 0)
             {
-                Console.WriteLine("Commands: windows | snapshot <hwnd> [maxCharacters] | inspect|select|jump <hwnd> <syntheticMarker> | live <hwnd> | watch <hwnd> <seconds> | key <hwnd> enter|ctrl-up|ctrl-down|stream|finish|cancel | place <hwnd> <x> <y> <width> <height> | fixture clean|osc <eventFile>");
+                Console.WriteLine("Commands: windows | snapshot <hwnd> [maxCharacters] | inspect|select|jump <hwnd> <syntheticMarker> | live|show <hwnd> | watch <hwnd> <seconds> | key <hwnd> enter|ctrl-up|ctrl-down|stream|finish|cancel | place <hwnd> <x> <y> <width> <height> | fixture clean|osc <eventFile> | anchor-fixture <directory> | renderer-inspect <hwnd> <bindings-or-report.json> | renderer-bridge <parentPID>");
                 return 0;
             }
 
@@ -43,6 +53,23 @@ internal static class Program
 
             var hwnd = new nint(long.Parse(args[1], System.Globalization.CultureInfo.InvariantCulture));
             var window = NativeWindows.RequireProofWindow(hwnd, ProofTitlePrefix);
+            if (args[0] == "show")
+            {
+                NativeWindows.ShowProofWindow(hwnd);
+                Write(NativeWindows.RequireProofWindow(hwnd, ProofTitlePrefix));
+                return 0;
+            }
+            if (args[0] == "renderer-inspect")
+            {
+                using var data = JsonDocument.Parse(File.ReadAllText(args[2]));
+                var bindings = data.RootElement.ValueKind == JsonValueKind.Array
+                    ? data.RootElement : data.RootElement.GetProperty("prompts");
+                var prompts = bindings.EnumerateArray().Select(item =>
+                    new Clici.Core.Navigation.RenderedPromptBinding(item.GetProperty("messageId").GetString()!,
+                        item.GetProperty("nonce").GetString()!)).ToArray();
+                Write(RendererBridge.Inspect(hwnd, prompts));
+                return 0;
+            }
             if (args[0] == "place")
             {
                 NativeWindows.Place(hwnd, int.Parse(args[2]), int.Parse(args[3]), int.Parse(args[4]), int.Parse(args[5]));
@@ -419,6 +446,15 @@ public sealed class ProofFocusHandler(int processId) : IUIAutomationFocusChanged
 internal static class NativeWindows
 {
     internal static bool IsForeground(nint hwnd) => GetForegroundWindow() == hwnd;
+    internal static void ShowProofWindow(nint hwnd)
+    {
+        RequireProofWindow(hwnd, "CLICI-PROOF-");
+        ShowWindow(hwnd, 9);
+        SetForegroundWindow(hwnd);
+    }
+
+    [DllImport("user32.dll")]
+    private static extern bool ShowWindow(nint hwnd, int command);
     internal static void UsePhysicalCoordinates() => SetProcessDpiAwarenessContext(new nint(-4));
 
     internal static void RequireActiveProofPane(nint hwnd, IUIAutomationElement element)

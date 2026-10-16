@@ -185,3 +185,76 @@ These checks do not establish real interactive render anchors, raw keyboard
 delivery/isolation, live draft/selection preservation, hook-timeout recovery or
 the Phase 1 exit condition. Those limits remain explicit rather than enabling
 navigation on a metadata-only signal.
+
+## Follow-up: Codex renderer bridge
+
+Evidence: `artifacts/prompt-navigation/20261016-renderer/`, based on Clici
+`86fab8d` and Codex tag `rust-v0.162.1`, commit
+`092d3acd6bec3e3a14bdc7e7a2810ab628ab759d`. The
+[reproducible source patch](../tools/proof/prompt-navigation/codex-renderer/README.md)
+is opt-in and operates with the COM helper in portable proof windows only.
+Installed CLI binaries and the user's normal launch commands were not replaced.
+
+### What was observed
+
+- The actual patched Codex TUI ran in classic scrollback mode against an isolated
+  loopback response fixture, with a separate Codex home. No account credentials
+  or external model request were needed. Its private child received the native
+  user-item ID and nonce, and COM independently found both painted blank-row
+  anchors around a wrapped Unicode prompt. The native prompt covered rows 8–11
+  at the original window size; after resizing to 650 and 1,100 pixels wide,
+  fresh observations found it at 8–12 and 7–9 with the same native ID and nonce.
+  See `evidence/native-renderer-color-inspection.json` and `native-resize.json`.
+- In a separate synthetic fixture, three identical Unicode prompts retained
+  separate IDs and anchors. Four private-pipe requests verified latest →
+  previous → latest → live. The four RPCs took approximately 313, 356, 66 and
+  75 ms. Selection readback verified the existing empty selection; preservation
+  of a nonempty selection was not established in this batch. See
+  `evidence/anchor-live-batch.json` and `renderer-visible.png`.
+- Sending Ctrl+Up to that fixture after scrolling up changed the viewport back
+  to live before the fixture did anything with the key. This confirms the
+  snap-on-input path in Terminal 1.24.12741.0. Its source also handles selection
+  before native key delivery. Native Ctrl+Up/Down is therefore a separately
+  gated diagnostic, not the supported shortcut implementation.
+- A color-disabled native trial published metadata but had no painted anchors;
+  the helper refused the map. The launcher had inherited `NO_COLOR=1` from the
+  tool environment. The final native bridge explicitly stays off under
+  `NO_COLOR`; the successful trial enabled color only in its disposable process.
+- The native writer regression test first failed because wrapping removed the
+  colored spaces. A narrow wrapping exception now preserves the six-cell blank
+  anchors. The test uses the real history writer and VT100 backend at widths 24
+  and 80, verifies RGB attributes, and compares the complete visible text grid.
+  Explicit spaces differ from implicit blank padding for consumers that retain
+  trailing whitespace, so this is not a claim of identical rich/plain clipboard
+  serialization. No clipboard API is called by the bridge.
+
+### Implementation and limits
+
+Native item IDs are carried through committed messages, optimistic receipts,
+steering and replay construction. Metadata crosses private pipes without prompt
+text. Complete RGB anchor pairs are resolved against the native order; missing
+interior/newest messages, duplicate IDs/nonces and ambiguous paint refuse.
+An evicted prefix creates a capture boundary. Requests have bounded sizes and
+monotonic deadlines; the native caller stops its owned helper after a pipe or
+provider timeout. A possible scroll is never followed by key replay.
+
+Passive publication is not a fresh input-ownership lease. No global hook or tray
+feature is enabled. A pre-Terminal input adapter still needs fresh native
+eligibility, verified pane ownership, event-based manual-scroll invalidation,
+timeout recovery and the full draft/selection/modal/IME/split/exit matrix.
+Manual scrolling away and back between observations is not detected. Large
+histories fail closed at the documented bounds. Claude's API limitation remains.
+The full Phase 1 exit condition is still unmet.
+
+Validation: **197 .NET tests**, **11 standalone Rust protocol/pipe tests**, and
+**6 Node ledger tests** pass. The native source builds with Rust 1.99/MSVC, and
+the eight focused bridge/writer tests pass. Patch application was checked on a
+clean checkout at the pinned commit and compared with the built source.
+Across the selected native bridge, history-cell, submission, projection,
+receipt and replay checks, **231 tests passed and two were ignored**. The last
+four groups used the same compiled test executable directly while another
+build held Cargo's shared output lock.
+The broader native history-cell run exposed three existing release-version
+snapshots expecting `0.0.0` while the tag reports `0.162.1`; those snapshots were
+left unchanged and excluded from the subsequent focused run. They are not
+reported as passing. Native warnings from the pinned upstream code remain.
