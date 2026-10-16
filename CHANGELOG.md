@@ -13,6 +13,12 @@ between minor versions where a classification proves to be wrong.
 
 ### Added
 
+- Experimental Codex pre-Terminal keyboard adapter for Ctrl+Up/Down (NAV-003).
+  A native confirmation after each press is required before scrolling; focus,
+  pointer, modal, layout and expiry checks cancel stale work. Session-only full
+  CLI bundles provide activation and disable without replacing the installed CLI.
+  This is limited to local, non-elevated, single-pane Windows Terminal sessions;
+  broader qualification, Claude support and tray integration remain open.
 - Development-only Codex 0.162.1 renderer patch and private-pipe COM bridge.
   Native message IDs map to independently observed colored blank-row anchors;
   ambiguous or incomplete paint refuses navigation. Native shortcut handling

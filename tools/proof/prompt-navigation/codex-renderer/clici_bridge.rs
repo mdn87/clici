@@ -48,6 +48,17 @@ pub(crate) fn keyboard_enabled() -> bool {
     enabled() && std::env::var("CLICI_RENDERER_KEYS").as_deref() == Ok("1")
 }
 
+// Capture before the caller examines composer/modal state. Serialization or
+// child startup must never make an older input observation appear fresh.
+pub(crate) fn observation_time() -> u64 {
+    protocol::monotonic_milliseconds()
+}
+
+pub(crate) fn poll_keyboard() -> bool {
+    keyboard_enabled()
+        && state().lock().is_ok_and(|state| state.client.as_ref().is_some_and(Client::is_available))
+}
+
 pub(crate) fn anchor(item_id: Option<&str>, client_id: Option<&str>) -> Option<Anchor> {
     if !enabled() {
         return None;
@@ -261,6 +272,7 @@ pub(crate) fn publish(
     cells: &[Arc<dyn HistoryCell>],
     eligible: bool,
     history_complete: bool,
+    input_observed_at: u64,
 ) {
     if !enabled() {
         return;
@@ -307,8 +319,8 @@ pub(crate) fn publish(
     let request = Request {
         version: 1,
         sequence: state.sequence,
-        deadline: protocol::monotonic_milliseconds() + 750,
-        input_observed_at: protocol::monotonic_milliseconds(),
+        deadline: input_observed_at + 750,
+        input_observed_at,
         process_id: std::process::id(),
         session_id: &session,
         epoch: state.epoch,

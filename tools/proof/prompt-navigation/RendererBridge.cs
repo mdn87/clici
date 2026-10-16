@@ -6,9 +6,9 @@ using Interop.UIAutomationClient;
 
 namespace Clici.PromptNavigation.Probe;
 
-// Private stdin/stdout child of the opt-in native renderer. Development-only:
-// it operates solely in CLICI-PROOF-* portable Terminal windows. No global hook,
-// clipboard access, listening socket, transcript file, or shell input injection.
+// Private stdin/stdout child of the opt-in native renderer. Proof windows are
+// the default; live Terminal and keyboard admission require separate opt-ins.
+// No clipboard access, listening socket, transcript file or input replay.
 internal sealed class RendererBridge
 {
     private const int MaximumCharacters = 1_048_576;
@@ -78,7 +78,7 @@ internal sealed class RendererBridge
         using var keyboard = Environment.GetEnvironmentVariable("CLICI_RENDERER_KEYS") == "1"
             ? new RendererKeyboardHook(bridge.parent, bridge.proofOnly) : null;
         bridge.keyboard = keyboard;
-        Console.WriteLine("{\"version\":1,\"ready\":true}");
+        Console.WriteLine("""{"version":1,"ready":true}""");
         while (ReadLine() is { } line)
         {
             Request? request = null;
@@ -198,18 +198,6 @@ internal sealed class RendererBridge
         var rect = pane.CurrentBoundingRectangle;
         var paneId = $"{window.ProcessId}:{window.Handle}:{string.Join(',', pane.GetRuntimeId())}";
         var currentScope = $"{paneId}:{request.SessionId}:{request.Epoch}:{hookRevision}:{rect.right - rect.left}:{rect.bottom - rect.top}";
-        // A heartbeat renews the native input lease without scanning all of
-        // scrollback. Every actual key still resolves fresh painted anchors.
-        // Changed pane, focus/mouse revision, layout, session or prompt bindings
-        // require requalification before another key can be admitted.
-        if (request.Direction == "observe" && keyboard is not null && scope == currentScope &&
-            qualifiedIdentity is not null && qualifiedPrompts is not null && qualifiedPrompts.SequenceEqual(request.Prompts))
-        {
-            if (!PublishLease(request, window, qualifiedIdentity, hookRevision))
-                return Result(false, "PassThrough", "No fresh native input lease");
-            inFlight = keyboard.Session.TakeConfirmed(Environment.TickCount64);
-            if (inFlight is null) return Result(false, "Observed", "Keyboard lease renewed; no confirmed press");
-        }
         var observation = Observe(pattern, request);
         var mapping = RenderedPromptMap.Resolve(request.Prompts, observation.Anchors, observation.RowCount);
         if (!mapping.Success)
@@ -221,10 +209,18 @@ internal sealed class RendererBridge
 
         // Native focus/resize/mouse events advance Epoch. Terminal-owned manual
         // scroll is additionally detected by comparing fresh visible ranges.
-        if (scope != currentScope || lastViewport != observation.ViewportKey)
+        if (scope != currentScope)
         {
             cursor = null;
             layoutEpoch++;
+        }
+        else if (lastViewport != observation.ViewportKey)
+        {
+            // Passive output can move the live viewport without changing input
+            // ownership or layout. Rebase navigation on the fresh viewport;
+            // do not discard a confirmed press as though the pane had changed.
+            // Actual pointer/focus input already invalidates the hook revision.
+            cursor = null;
         }
 
         scope = currentScope;
@@ -343,21 +339,31 @@ internal sealed class RendererBridge
         var document = pattern.DocumentRange;
         var text = document.GetText(MaximumCharacters + 1);
         if (text.Length > MaximumCharacters) throw new InvalidOperationException("Terminal capture limit.");
-        var lines = text.Split("\r\n", StringSplitOptions.None);
-        if (lines.Length > MaximumRows) throw new InvalidOperationException("Terminal row limit.");
         var visibleRanges = pattern.GetVisibleRanges();
         if (visibleRanges.Length != 1) throw new InvalidOperationException("Ambiguous viewport.");
         var visible = visibleRanges.GetElement(0);
         var found = new Dictionary<string, List<(int Row, bool End)>>(StringComparer.Ordinal);
-        var prefix = document.Clone();
-        prefix.MoveEndpointByRange(TextPatternRangeEndpoint.TextPatternRangeEndpoint_End,
-            visible, TextPatternRangeEndpoint.TextPatternRangeEndpoint_Start);
-        var viewportRow = prefix.GetText(MaximumCharacters).Count(character => character == '\n');
-        for (var index = 0; index < lines.Length; index++)
+        // GetText joins soft-wrapped rows without CRLF. Use the same UIA line
+        // units for discovery, viewport coordinates and later scroll targets.
+        var rows = new List<IUIAutomationTextRange>();
+        var viewportRow = 0;
+        for (var index = 0; ; index++)
         {
             CheckLive(request);
-            if (lines[index].Length < 6 || lines[index].AsSpan(0, 6).IndexOfAnyExcept(' ') >= 0) continue;
+            if (index >= MaximumRows) throw new InvalidOperationException("Terminal row limit.");
             var row = RowAt(document, index);
+            rows.Add(row);
+            if (row.CompareEndpoints(TextPatternRangeEndpoint.TextPatternRangeEndpoint_Start,
+                visible, TextPatternRangeEndpoint.TextPatternRangeEndpoint_Start) <= 0) viewportRow = index;
+            if (row.CompareEndpoints(TextPatternRangeEndpoint.TextPatternRangeEndpoint_End,
+                document, TextPatternRangeEndpoint.TextPatternRangeEndpoint_End) == 0) break;
+        }
+        for (var index = 0; index < rows.Count; index++)
+        {
+            CheckLive(request);
+            var row = rows[index];
+            var beginning = row.GetText(6);
+            if (beginning.Length != 6 || beginning.AsSpan().IndexOfAnyExcept(' ') >= 0) continue;
             var cell = row.Clone();
             cell.MoveEndpointByRange(TextPatternRangeEndpoint.TextPatternRangeEndpoint_End,
                 cell, TextPatternRangeEndpoint.TextPatternRangeEndpoint_Start);
@@ -380,9 +386,6 @@ internal sealed class RendererBridge
             }
         }
 
-        if (lines.Length == 0 || RowAt(document, lines.Length - 1).CompareEndpoints(TextPatternRangeEndpoint.TextPatternRangeEndpoint_End,
-            document, TextPatternRangeEndpoint.TextPatternRangeEndpoint_End) != 0)
-            throw new InvalidOperationException("Incomplete physical row mapping.");
         var anchors = new List<PaintedPromptAnchor>();
         foreach (var (nonce, pair) in found)
         {
@@ -391,7 +394,7 @@ internal sealed class RendererBridge
             anchors.Add(new(nonce, pair[0].Row, pair[1].Row));
         }
 
-        return new(anchors, text, lines.Length, viewportRow,
+        return new(anchors, text, rows.Count, viewportRow,
             visible.CompareEndpoints(TextPatternRangeEndpoint.TextPatternRangeEndpoint_End,
                 document, TextPatternRangeEndpoint.TextPatternRangeEndpoint_End) >= 0,
             ViewportKey(pattern, visible));

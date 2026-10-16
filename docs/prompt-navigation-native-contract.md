@@ -1,8 +1,13 @@
 # Native prompt identity and keyboard bridge
 
-**2026-10-16: the identity model, metadata probe and key-admission logic are
-implemented; an end-to-end classic-scrollback bridge is not available.**
+**2026-10-16: the Codex renderer bridge now has an experimental pre-Terminal
+keyboard adapter with fresh native confirmation. It is opt-in and single-pane;
+the full qualification matrix and Claude integration remain unfinished.**
 Keep the operator's existing `claude` and `codex` commands and classic renderer.
+
+The [session activation runbook](../tools/proof/prompt-navigation/codex-renderer/README.md)
+describes the pinned full Codex CLI bundle, scope checks, immediate disable,
+and remaining limitations. Building Clici does not install or activate it.
 
 ## Implemented contract
 
@@ -13,10 +18,13 @@ positions make the observation ambiguous and are refused. A cursor needs both
 the same native identity and freshly verified position/context evidence; a UUID
 alone never authorizes scrolling.
 
-`NavigationInputQueue` defaults to Ctrl+Up/Down and disabled. A future adapter
+`NavigationInputQueue` defaults to Ctrl+Up/Down and disabled. Its adapter
 must publish a **positively eligible, foreground, focused pane** with an
 eligibility revision and a monotonic expiry. Unknown contexts pass through.
-The queue does not establish eligibility or register Windows input handlers.
+The queue itself does not establish eligibility or register Windows input handlers.
+`RendererNavigationSession` additionally requires a native observation made after
+the intercepted press. `RendererKeyboardHook` supplies input events; the private
+renderer bridge supplies short leases and checks the actual pane and anchors.
 
 Each physical press admits at most one request; held repeats are consumed only
 while the same chord and context remain owned. A press that began outside the
@@ -41,8 +49,9 @@ readback. This cannot undo a COM call already started, cancel a hung provider, o
 authorize replacement COM workers. Those responsibilities remain in the adapter.
 
 `HotkeyParser.TryParseNavigation` adds modified arrows for this future adapter.
-The existing join-hotkey parser retains its grammar. No navigation settings,
-global hotkey, low-level hook, or tray service is installed by these changes.
+The existing join-hotkey parser retains its grammar. The experimental helper
+installs its low-level hook only when explicitly enabled; no tray navigation
+setting or persistent keyboard service is installed.
 An adapter must report key-up/repeat events and account for keys already held at
 startup; a low-level Windows hook does not provide a repeat flag by itself.
 
@@ -108,11 +117,12 @@ can change selection, and
 can snap to live output before the native handler runs. The source finding and
 live snap test rule out a native-only shortcut under ordinary defaults.
 `CLICI_NATIVE_KEY_PROBE=1` is therefore a separate diagnostic; passive renderer
-publication is the default. A pre-Terminal input adapter still needs a fresh
-eligibility handshake, pane proof, event-based invalidation and hook recovery.
+publication is the default. The opt-in pre-Terminal adapter now adds fresh
+eligibility confirmation, pane checks and event-based invalidation. Recovery
+after Windows silently removes a hook still requires manual qualification.
 Neither the saved metadata report nor its `composerOwnsInput` field is a lease.
 
-Maintaining a Codex renderer fork would require a pinned build, replay/steering
+Maintaining the experimental Codex renderer build requires replay/steering
 identity tests, input-context tests, and a repeated classic Windows Terminal
 matrix on upgrades. It would still not solve Claude's missing API. No vendor
 binary has been replaced or fork installed; switching to fullscreen or adding

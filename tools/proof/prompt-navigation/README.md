@@ -1,13 +1,14 @@
 # Windows Terminal navigation probe
 
 Development instrumentation for NAV-001 through NAV-005. It is independent of
-the tray application, installs no hotkey or keyboard hook, and never accesses
-the clipboard. It does **not** recognize Claude/Codex sessions or message roles.
+the tray application and never accesses the clipboard. Basic fixture commands
+do not recognize Claude/Codex sessions or message roles or install input hooks.
 Read the [proof report](../../../docs/prompt-navigation-proof-report.md) before
 using its findings as support evidence.
 
 The opt-in [Codex renderer experiment](codex-renderer/README.md) adds a separate
-source patch and private-pipe helper. `renderer-inspect HWND bindings-or-report.json`
+source patch and private-pipe helper with separately opted-in keyboard interception.
+`renderer-inspect HWND bindings-or-report.json`
 observes painted RGB anchors without scrolling. `anchor-fixture directory`
 prints repeated synthetic prompts and writes `anchors.json`; `show HWND`
 restores a proof window (Windows may still withhold foreground focus).
@@ -84,7 +85,8 @@ in that Terminal process. Close them when finished.
 `CurrentHasKeyboardFocus` can remain true while another application's window
 is foreground; both signals matter. Focus event registration/removal runs on
 the same MTA worker. Focus events alone do not identify the agent running in a
-pane. No keyboard interception mechanism has been selected or qualified.
+pane. The separate renderer bridge adds native identity, painted-anchor checks,
+and bounded pre-Terminal key admission; see its runbook for qualification limits.
 
 Snapshot text is padded by the provider. A character limit can truncate a
 visible range; it must not be interpreted as the real viewport bottom. Reported

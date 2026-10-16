@@ -191,6 +191,10 @@ pub struct Client {
 }
 
 impl Client {
+    pub fn is_available(&self) -> bool {
+        !self.failed
+    }
+
     pub fn start(executable: &std::path::Path) -> Result<Self, String> {
         if !executable.is_absolute() {
             return Err("bridge executable must be an absolute path".into());

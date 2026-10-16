@@ -10,16 +10,40 @@ if ($MyInvocation.InvocationName -ne '.') {
 }
 if ($Disable) {
     if (Get-Variable CliciRendererPreviousEnvironment -Scope Global -ErrorAction SilentlyContinue) {
+        # Stop only renderer children of the bundled native CLI launched beneath
+        # this shell. The CLI and its draft/session remain alive.
+        $processes = @(Get-CimInstance Win32_Process -Property ProcessId,ParentProcessId,ExecutablePath)
+        $byId = @{}
+        foreach ($process in $processes) { $byId[[uint32]$process.ProcessId] = $process }
+        foreach ($process in $processes) {
+            if ($process.ExecutablePath -ne $global:CliciRendererHelperPath) { continue }
+            $ancestor = $byId[[uint32]$process.ParentProcessId]
+            if (-not $ancestor -or $ancestor.ExecutablePath -ne $global:CliciRendererNativePath) { continue }
+            $seen = @{}
+            while ($ancestor -and -not $seen.ContainsKey([uint32]$ancestor.ProcessId)) {
+                if ($ancestor.ProcessId -eq $PID) {
+                    Stop-Process -Id $process.ProcessId -ErrorAction SilentlyContinue
+                    break
+                }
+                $seen[[uint32]$ancestor.ProcessId] = $true
+                $ancestor = $byId[[uint32]$ancestor.ParentProcessId]
+            }
+        }
         foreach ($entry in $global:CliciRendererPreviousEnvironment.GetEnumerator()) {
-            [Environment]::SetEnvironmentVariable($entry.Key, $entry.Value, 'Process')
+            $restoreValue = if ($null -eq $entry.Value) { [System.Management.Automation.Language.NullString]::Value } else { $entry.Value }
+            [Environment]::SetEnvironmentVariable($entry.Key, $restoreValue, 'Process')
         }
         Remove-Variable CliciRendererPreviousEnvironment -Scope Global
+        Remove-Variable CliciRendererHelperPath,CliciRendererNativePath -Scope Global
     }
-    Write-Output 'Renderer navigation disabled for future launches in this shell. Close an existing opted-in Codex session to stop its helper.'
+    Write-Output 'Renderer navigation disabled in this shell and its running Codex children. Native sessions remain open.'
     return
 }
 if (-not $IsWindows -or -not $env:WT_SESSION) {
     throw 'Use a local, non-elevated PowerShell 7 session in Windows Terminal.'
+}
+if (Test-Path Env:NO_COLOR) {
+    throw 'NO_COLOR disables renderer anchors. Use a color-enabled Terminal session; this script preserves your color preference.'
 }
 $principal = [Security.Principal.WindowsPrincipal]::new([Security.Principal.WindowsIdentity]::GetCurrent())
 if ($principal.IsInRole([Security.Principal.WindowsBuiltInRole]::Administrator)) {
@@ -51,6 +75,8 @@ if ($resolved -and $resolved.CommandType -in @('Alias', 'Function')) {
     throw 'A codex alias/function would override PATH. Keep it unchanged and invoke the bundled bin/codex.exe explicitly.'
 }
 $global:CliciRendererPreviousEnvironment = @{}
+$global:CliciRendererHelperPath = $helper
+$global:CliciRendererNativePath = $native
 foreach ($name in @('PATH', 'CLICI_RENDERER_BRIDGE', 'CLICI_RENDERER_KEYS', 'CLICI_RENDERER_TERMINALS', 'CLICI_NATIVE_KEY_PROBE')) {
     $global:CliciRendererPreviousEnvironment[$name] = [Environment]::GetEnvironmentVariable($name, 'Process')
 }
