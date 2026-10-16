@@ -13,6 +13,11 @@ between minor versions where a classification proves to be wrong.
 
 ### Added
 
+- Development-only native prompt identity validation, bounded key admission with
+  held-key/deadline handling, and navigation-specific arrow parsing (NAV-003,
+  NAV-004, NAV-005). A Claude function-hook probe collects IDs without retaining
+  prompt text. Navigation remains disabled: a classic-mode renderer/key bridge
+  still needs qualification; no input hook or plugin is installed.
 - Development-only Windows Terminal COM navigation probe and isolated fixture
   runbook, plus pure previous/next prompt decisions with 24 tests (NAV-001,
   NAV-002, NAV-005). Navigation is not integrated into the tray app. The proof

@@ -3,9 +3,11 @@
 **2026-10-16 — development prototype, not a supported navigation feature.**
 
 COM UI Automation can read and scroll the tested Windows Terminal panes. Native
-mark bindings fail the requested navigation/isolation behavior. Current-session
-eligibility and message recognition are still unproved, so no navigation service,
-shortcut registration, or keyboard hook has been added to Clici.
+mark bindings fail the requested navigation/isolation behavior. A follow-up batch
+adds native identity validation, bounded key admission and a tested Claude ID
+collector. Current-pane ownership and the classic-mode renderer/input bridge
+remain unproved, so no navigation service, shortcut registration, or keyboard
+hook has been added to Clici.
 
 The operator chose to **keep existing `claude` and `codex` launch commands and
 investigate agent-native integration**, rather than introduce a Clici launcher.
@@ -136,3 +138,50 @@ No launcher, plugin installation, vendor binary patch, global setting, or
 renderer change was made. Product placement before Phase 3 remains open;
 the no-wrapper decision is settled. The feature's Phase 1 exit condition and
 full Phase 2 recognition tests remain unmet.
+
+## Follow-up: prompt IDs and key admission
+
+Evidence: `artifacts/prompt-navigation/20261016-native/`, based on `153dc4a`.
+The [native bridge contract](prompt-navigation-native-contract.md) describes the
+implemented API and what remains outside its guarantees.
+
+- Native agent/session IDs now namespace each snapshot. Each rendered occurrence
+  requires an immutable message ID in addition to position/context evidence.
+  Missing/duplicate IDs refuse navigation; identical text or a reused position
+  cannot revalidate a different message.
+- `NavigationInputQueue` starts disabled, bounds pending work, coalesces held
+  repeats to one action per press, preserves distinct presses, and rejects stale
+  work on focus/session/layout/eligibility changes, manual scroll, disable and
+  deadlines. It handles admission only; it installs no OS input mechanism.
+- `TryParseNavigation` accepts modified arrow keys without widening the existing
+  join-hotkey grammar. No configuration schema or clipboard behavior changed.
+- The [Claude identity probe](../tools/proof/prompt-navigation/claude-identity/README.md)
+  collects main composer append UUIDs and corresponding render-request IDs,
+  discards old generations on clear/resume/compaction/exit, and stores no prompt
+  text. Render-only candidates are not proof of main-loop membership or a painted
+  terminal row. Reports always say `navigationEligible: false`.
+
+Claude's embedded 2.1.296 declaration confirms that `ui.press` and `ui.input`
+are plugin-control events. `ClientSurface.onKey` requires plugin-region focus;
+Button actions reuse existing engine bindings. The classic main screen does not
+supply `onScreen` transcript coordinates. This establishes an API limitation,
+not a successful native Ctrl+Up/Down path. The headless loader did not generate
+declarations, so the run inspected its embedded API declaration read-only and
+type-checked the probe against it; no vendor code is committed.
+
+Codex's pinned 0.162.1 protocol provides `UserMessageItem.id`. Its committed-user
+display path handles steering/replay and constructs history cells without a
+message-ID argument. A renderer extension must preserve that ID and expose a
+read-only action; remapping the existing backtrack flow remains unsuitable.
+
+Validation: **184 .NET tests** (121 Core, 63 App), **8 Claude runtime tests**,
+and **6 independent Node ledger tests** pass. TypeScript checking and native
+plugin validation pass. The actual headless Claude CLI loaded the plugin and
+ran `/clici-prompt-ids` without a model request; it correctly reported inactive,
+empty metadata in that noninteractive run. CI includes the Node tests; the
+Claude runtime/type checks require the installed pinned build and run locally.
+
+These checks do not establish real interactive render anchors, raw keyboard
+delivery/isolation, live draft/selection preservation, hook-timeout recovery or
+the Phase 1 exit condition. Those limits remain explicit rather than enabling
+navigation on a metadata-only signal.
