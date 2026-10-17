@@ -1,0 +1,6 @@
+{
+  "name": "clici-renderer",
+  "version": "0.0.1",
+  "description": "Experimental native prompt anchors for Clici terminal navigation.",
+  "author": { "name": "Clici" }
+}

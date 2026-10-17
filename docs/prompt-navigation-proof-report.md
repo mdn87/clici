@@ -10,6 +10,12 @@ verified live jump; the complete live sequence remains unqualified. The dated
 sections below distinguish earlier findings from later implementation evidence.
 Claude navigation and tray integration remain unfinished.
 
+The [2026-10-17 Claude renderer qualification](claude-renderer-qualification.md)
+adds a concrete deployment blocker: the real classic-mode control retains three
+prompt rows, while a one-hook pass-through reproduction retains only one on both
+2.1.296 and 2.1.302. The new adapter and reproducible console test remain
+development artifacts; no Claude activation was installed.
+
 The operator chose to **keep existing `claude` and `codex` launch commands and
 investigate agent-native integration**, rather than introduce a Clici launcher.
 Classic retained scrollback remains the target; fullscreen has not been accepted

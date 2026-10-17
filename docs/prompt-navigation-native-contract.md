@@ -5,6 +5,13 @@ keyboard adapter with fresh native confirmation. It is opt-in and single-pane;
 the full qualification matrix and Claude integration remain unfinished.**
 Keep the operator's existing `claude` and `codex` commands and classic renderer.
 
+**2026-10-17 Claude qualification:** native blank-row anchors can be emitted,
+but the repeated-prompt acceptance test fails. A single pass-through
+`UserMessage` render hook reproduces missing retained prompt rows on 2.1.296 and
+2.1.302. The [qualification report](claude-renderer-qualification.md) contains
+the controls and reduced reproduction. Claude activation remains undeployed;
+the keyboard-scope decision alone cannot resolve this renderer failure.
+
 The [session activation runbook](../tools/proof/prompt-navigation/codex-renderer/README.md)
 describes the pinned full Codex CLI bundle, scope checks, immediate disable,
 and remaining limitations. Building Clici does not install or activate it.
