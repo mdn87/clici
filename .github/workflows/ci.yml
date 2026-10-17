@@ -29,6 +29,11 @@ jobs:
           node-version: '24'
       - name: Test native prompt metadata ledger
         run: node --test tools/proof/prompt-navigation/claude-identity/tests/ledger.node.mjs
+      - uses: actions/setup-python@v6
+        with:
+          python-version: '3.14'
+      - name: Test renderer deployment
+        run: python tools/proof/prompt-navigation/codex-renderer/test_install_renderer.py
       - name: Test renderer bridge protocol
         run: cargo +stable test --manifest-path tools/proof/prompt-navigation/codex-renderer/Cargo.toml --locked
 
