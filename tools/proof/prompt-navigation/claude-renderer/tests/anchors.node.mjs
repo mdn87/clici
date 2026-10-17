@@ -72,3 +72,14 @@ test('overflow and malformed identifiers cannot silently expand coverage', () =>
     const b = registry();
     for (const id of ['', ' ', 'x'.repeat(513)]) assert.equal(b.render(id, b.epoch), undefined);
 });
+
+test('published nonces are uppercase hex, as the helper map requires', () => {
+    const a = new PromptAnchors(() => 'bc0eff841a98418d9cf1a7783910ff90');
+    a.reset(true);
+    a.bind('session-a', a.epoch);
+    a.beginAppend('one', a.epoch); a.commit('one', a.epoch);
+    assert.equal(a.render('one', a.epoch), 'BC0EFF841A98418D9CF1A7783910FF90');
+    assert.equal(a.report().prompts[0].nonce, 'BC0EFF841A98418D9CF1A7783910FF90');
+    assert.deepEqual(anchorColors('BC0EFF841A98418D9CF1A7783910FF90', false),
+        anchorColors('bc0eff841a98418d9cf1a7783910ff90', false));
+});
