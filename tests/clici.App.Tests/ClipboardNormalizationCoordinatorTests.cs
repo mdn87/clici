@@ -19,7 +19,8 @@ public sealed class ClipboardNormalizationCoordinatorTests
                 ClipboardAccessStatus.Success,
                 Source,
                 1,
-                null));
+                null,
+                OwnerProcessName: "pwsh"));
         var logger = new RecordingLogger();
         var coordinator = CreateCoordinator(
             clipboard,
@@ -38,14 +39,15 @@ public sealed class ClipboardNormalizationCoordinatorTests
     }
 
     [Fact]
-    public void IneligibleForegroundProcessIsSkippedWithoutWritingClipboard()
+    public void IneligibleOwnerProcessIsSkippedWithoutWritingClipboard()
     {
         var clipboard = new FakeClipboardService(
             new ClipboardReadResult(
                 ClipboardAccessStatus.Success,
                 Source,
                 1,
-                null));
+                null,
+                OwnerProcessName: "notepad"));
         var coordinator = CreateCoordinator(
             clipboard,
             new StubProcessProvider(true, "notepad"),
@@ -135,7 +137,8 @@ public sealed class ClipboardNormalizationCoordinatorTests
                     ClipboardAccessStatus.Success,
                     Source,
                     1,
-                    null)
+                    null,
+                    OwnerProcessName: "pwsh")
             ],
             [
                 new ClipboardWriteResult(
@@ -210,12 +213,14 @@ public sealed class ClipboardNormalizationCoordinatorTests
                     ClipboardAccessStatus.Success,
                     Source,
                     1,
-                    null),
+                    null,
+                    OwnerProcessName: "pwsh"),
                 new ClipboardReadResult(
                     ClipboardAccessStatus.Success,
                     Source,
                     2,
-                    null)
+                    null,
+                    OwnerProcessName: "pwsh")
             ],
             [
                 new ClipboardWriteResult(
@@ -250,12 +255,14 @@ public sealed class ClipboardNormalizationCoordinatorTests
                     ClipboardAccessStatus.Success,
                     Source,
                     1,
-                    null),
+                    null,
+                    OwnerProcessName: "pwsh"),
                 new ClipboardReadResult(
                     ClipboardAccessStatus.Success,
                     Expected,
                     2,
-                    null)
+                    null,
+                    OwnerProcessName: "pwsh")
             ]);
         var coordinator = CreateCoordinator(
             clipboard,
@@ -283,7 +290,8 @@ public sealed class ClipboardNormalizationCoordinatorTests
                 ClipboardAccessStatus.Success,
                 Source,
                 1,
-                null));
+                null,
+                OwnerProcessName: "pwsh"));
         var coordinator = CreateCoordinator(
             clipboard,
             new StubProcessProvider(true, "pwsh"),
@@ -452,6 +460,32 @@ public sealed class ClipboardNormalizationCoordinatorTests
         Assert.Equal(Expected, write.Text);
     }
 
+    [Fact]
+    public void OwnerlessCopyIsSkippedEvenWhenForegroundIsAllowed()
+    {
+        // Win11 Notepad re-posts its clipboard with no owner when it exits, by
+        // which time a terminal may be foreground. An ownerless write has no
+        // trustworthy source, so it is left untouched.
+        var clipboard = new FakeClipboardService(
+            new ClipboardReadResult(
+                ClipboardAccessStatus.Success,
+                Source,
+                1,
+                null,
+                OwnerProcessName: null));
+        var logger = new RecordingLogger();
+        var coordinator = CreateCoordinator(
+            clipboard,
+            new StubProcessProvider(true, "WindowsTerminal"),
+            logger,
+            new CliciConfiguration());
+
+        coordinator.HandleClipboardChanged();
+
+        Assert.Empty(clipboard.Writes);
+        Assert.Contains("skipped-ownerless-source", logger.Events);
+    }
+
     private const string WrappedCommand =
         "python3 scripts/orca.py begin --envelope .agents/read-elicitation.envelope.json\r\n  --json";
 
@@ -466,7 +500,8 @@ public sealed class ClipboardNormalizationCoordinatorTests
                 ClipboardAccessStatus.Success,
                 WrappedCommand,
                 1,
-                null));
+                null,
+                OwnerProcessName: "pwsh"));
         var logger = new RecordingLogger();
         var coordinator = CreateCoordinator(clipboard, logger, new CliciConfiguration());
 
@@ -487,7 +522,8 @@ public sealed class ClipboardNormalizationCoordinatorTests
                 ClipboardAccessStatus.Success,
                 WrappedCommand,
                 1,
-                null));
+                null,
+                OwnerProcessName: "notepad"));
         var logger = new RecordingLogger();
         var coordinator = CreateCoordinator(
             clipboard,
@@ -509,7 +545,8 @@ public sealed class ClipboardNormalizationCoordinatorTests
                 ClipboardAccessStatus.Success,
                 WrappedCommand,
                 1,
-                null));
+                null,
+                OwnerProcessName: "pwsh"));
         var logger = new RecordingLogger();
         var coordinator = CreateCoordinator(
             clipboard,
