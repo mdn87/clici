@@ -42,7 +42,8 @@ export class PromptAnchors {
         let entry = this.entries.get(id);
         if (!entry) {
             if (this.entries.size >= this.capacity) { this.overflow = true; return; }
-            const nonce = this.nonce();
+            // The helper map accepts only uppercase hex, the form Codex emits.
+            const nonce = this.nonce().toUpperCase();
             if (!/^[a-fA-F0-9]{32}$/.test(nonce)) { this.reset(false); return; }
             entry = { messageId: id, nonce, stored: false, rendered: false };
             this.entries.set(id, entry);
