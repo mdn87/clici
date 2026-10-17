@@ -137,11 +137,12 @@ clici targets Windows and uses WinForms, `NotifyIcon`, and
 `AddClipboardFormatListener`. It has no main window, web UI, local server, or
 network access.
 
-clici attributes a copy to its source primarily by the clipboard **owner
-process** (`GetClipboardOwner`), falling back to the foreground process only
-when the owner is unknown. This means a disallowed background process that
-writes the clipboard while a terminal is in the foreground is not misattributed,
-and a terminal copy survives a focus change. It does **not** install a global
+clici attributes a copy to its source by the clipboard **owner process**
+(`GetClipboardOwner`). A copy with no owner is skipped rather than attributed to
+the foreground process (Win11 Notepad, for example, re-posts its clipboard with
+no owner when it exits). This means a disallowed background process that writes
+the clipboard while a terminal is in the foreground is not misattributed, and a
+terminal copy survives a focus change. It does **not** install a global
 keyboard hook. Both signals are behind interfaces so another targeting strategy
 can be evaluated later without changing the normalization core.
 
@@ -363,9 +364,9 @@ you are testing, reinstall before investigating further.
   uniform whichever way the terminal broke it — so a seam that falls mid-token
   inside otherwise-spaced text is still joined with a space. Copies with no
   whitespace at all are refused at any line count.
-- Source attribution combines the clipboard owner process and the foreground
-  process, but the owner signal is not perfectly reliable (clipboard brokers and
-  ownerless states exist). Integrated-terminal hosts such as VS Code and Cursor
+- Source attribution uses the clipboard owner process only, and that signal is
+  not perfectly reliable: copies relayed by a clipboard broker or written with
+  no owner are skipped, even when they came from an approved terminal. Integrated-terminal hosts such as VS Code and Cursor
   share one process across editor and terminal, so owner-process matching alone
   cannot yet distinguish a terminal copy from an editor copy in those hosts.
 - Clipboard operations are attempted up to four times with short bounded
