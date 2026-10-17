@@ -2,15 +2,17 @@
 
 **2026-10-16: the Codex renderer bridge now has an experimental pre-Terminal
 keyboard adapter with fresh native confirmation. It is opt-in and single-pane;
-the full qualification matrix and Claude integration remain unfinished.**
+the full qualification matrix remains unfinished.**
 Keep the operator's existing `claude` and `codex` commands and classic renderer.
 
-**2026-10-17 Claude qualification:** native blank-row anchors can be emitted,
-but the repeated-prompt acceptance test fails. A single pass-through
-`UserMessage` render hook reproduces missing retained prompt rows on 2.1.296 and
-2.1.302. The [qualification report](claude-renderer-qualification.md) contains
-the controls and reduced reproduction. Claude activation remains undeployed;
-the keyboard-scope decision alone cannot resolve this renderer failure.
+**2026-10-17 Claude integration:** the morning's repeated-prompt failure was a
+fixture artifact (a 0 ms fake reply); with a 500 ms reply the stock,
+pass-through and anchor cases all retain every prompt. The Claude 2.1.296 plugin
+now publishes anchor bindings and composer ownership to the same helper, lease
+and keyboard adapter as Codex through a frame file, and the renderer bundle
+installer loads it for new shells. The [qualification report](claude-renderer-qualification.md)
+has the evidence. Physical Windows Terminal keyboard qualification for Claude
+and the composer-only versus whole-pane capture decision remain open.
 
 The [session activation runbook](../tools/proof/prompt-navigation/codex-renderer/README.md)
 describes the pinned full Codex CLI bundle, scope checks, immediate disable,
@@ -70,8 +72,8 @@ startup; a low-level Windows hook does not provide a repeat flag by itself.
 
 | Surface | Established evidence | Missing capability |
 | --- | --- | --- |
-| Claude 2.1.296 function hooks | `session.append` pins the stored UUID, origin, role and main/subagent loop. `UserMessage.requestId` names the render instance. The development collector joins those observations without scanning history. | A classic-mode buffer anchor and a composer-wide read-only key action. A render request is not a successful paint. Render-only observations do not establish main-loop membership. |
-| Claude function-hook input | `ui.press` addresses plugin Buttons/links; `ui.input` addresses plugin Inputs. `ClientSurface.onKey` requires focus in the plugin's region. Button actions reuse existing engine actions. | A new scoped action that can receive Ctrl+Up/Down from the composer without borrowing another action or moving focus away from the draft. |
+| Claude 2.1.296 function hooks | `session.append` pins the stored UUID, origin, role and main/subagent loop. `ui.render` for `UserMessage` wraps the drawing in blank RGB anchor rows that the COM resolver reads back; a render request is still not a paint, the helper verifies painted rows. The plugin writes frames (session, epoch, bindings, `composerOwnsInput`, wall-clock `observedAt`) to a private file that `renderer-bridge-frames` converts into observe requests with a 750 ms lease. | A read-only composer-focus observation. Ownership is inferred from hook events (anchors active, classic viewport, no dialog awaiting a `tool.check` verdict, no slash-command panel) and withdrawn on any doubt. |
+| Claude function-hook input | `ui.press` addresses plugin Buttons/links; `ui.input` addresses plugin Inputs. `ClientSurface.onKey` requires focus in the plugin's region. Keys are therefore taken by Clici's pre-Terminal adapter, as for Codex, never by the plugin. | Nothing from the vendor while capture stays composer-only. Whole-pane capture, including engine dialogs, was never approved and is not implemented. |
 | Codex 0.162.1 protocol | [`UserMessageItem.id`](https://github.com/openai/codex/blob/rust-v0.162.1/codex-rs/protocol/src/items.rs) is a native per-item identity; `client_id` correlates submitted input with receipts. The pinned development patch carries these through live/replay history construction and publishes blank-row anchor metadata. | Production qualification of replay, steering, redraw, eviction and pane ownership. A hook's `turn_id` does not substitute for an individual user-message ID. |
 | Codex TUI | [`on_committed_user_message` and `on_user_message_display`](https://github.com/openai/codex/blob/rust-v0.162.1/codex-rs/tui/src/chatwidget.rs) construct user history cells and handle steering/replay. [`app/input.rs`](https://github.com/openai/codex/blob/rust-v0.162.1/codex-rs/tui/src/app/input.rs) dispatches input. | A separate read-only navigation action. Existing [backtracking](https://github.com/openai/codex/blob/rust-v0.162.1/codex-rs/tui/src/app_backtrack.rs) retains rewind semantics and is not an adapter. |
 
@@ -109,9 +111,9 @@ A concrete bridge needs all of the following before it can enable navigation:
 
 For Codex these changes belong in its protocol-to-history projection and input
 dispatch, with a distinct navigation state separate from `app_backtrack`. For
-Claude they require an expanded vendor API or a separately qualified external
-input/anchor mechanism. Clici cannot supply the missing renderer facts by adding
-more confidence checks around the current hooks.
+Claude the frame transport and the external keyboard adapter supply them; only
+composer focus stays an inference, and the plugin withdraws rather than guesses
+when a dialog or panel may hold the keyboard.
 
 The [Codex renderer experiment](../tools/proof/prompt-navigation/codex-renderer/README.md)
 implements the identity-to-paint portion in a separate pinned source build.
@@ -135,6 +137,7 @@ Neither the saved metadata report nor its `composerOwnsInput` field is a lease.
 
 Maintaining the experimental Codex renderer build requires replay/steering
 identity tests, input-context tests, and a repeated classic Windows Terminal
-matrix on upgrades. It would still not solve Claude's missing API. No vendor
-binary has been replaced or fork installed; switching to fullscreen or adding
-launch wrappers has not been accepted as a substitute.
+matrix on upgrades. The Claude plugin is pinned to 2.1.296 and needs the same
+matrix on each engine upgrade. No vendor binary has been replaced or fork
+installed; switching to fullscreen or adding launch wrappers has not been
+accepted as a substitute.

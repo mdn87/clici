@@ -51,3 +51,4 @@ Desktop.ini
 ## Local code-signing certificates (never commit)
 tools/.certs/
 *.pfx
+__pycache__/

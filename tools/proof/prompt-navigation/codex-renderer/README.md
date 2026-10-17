@@ -7,7 +7,9 @@ private child of that process. A pre-Terminal keyboard adapter connects
 Alt+Shift+Comma / Alt+Shift+Period to the live renderer. Nothing is installed or
 enabled by building the project. The session activation script selects a bundled
 full `codex` executable for one shell; the installed CLI and shell profiles remain unchanged.
-Claude is not supported by this adapter.
+The same bundle carries the [Claude renderer plugin](../claude-renderer/README.md)
+under `claude-plugin/`, which gives Claude Code 2.1.296 sessions the same
+navigation through a frame file instead of pipes.
 
 ## Enable automatically in new terminals
 
@@ -23,14 +25,19 @@ to the current user's PowerShell 7 profile and Git Bash `.bashrc`. It sets
 `tui.alternate_screen = "never"` in the user's Codex config so plain `codex`
 uses classic scrollback. The previous settings are backed up in the installation
 directory. Existing profile content is preserved; a repeated install is harmless.
+The blocks also export `CLAUDE_CODE_PLUGIN_DIRS` (prepending the bundled
+`claude-plugin/`), `CLICI_CLAUDE_ANCHORS=1` and
+`CLAUDE_CODE_DISABLE_ALTERNATE_SCREEN=1`, so an unchanged `claude` command loads
+the plugin in the classic screen. The installed Claude CLI is not replaced.
 
-Open a new Windows Terminal tab, then run `codex` or the existing `cx` alias.
-No activation command or additional flags are needed. The automatic loader
-requires Windows Terminal, honors `NO_COLOR`, and skips shells started by a
-Codex agent. Unsupported and elevated panes still receive no navigation lease.
-The installed npm CLI remains on disk, but the terminal uses the pinned, patched
-**Codex 0.162.1** while this deployment is enabled. npm updates do not update this
-bundle. Claude and the Codex desktop app are not changed.
+Open a new Windows Terminal tab, then run `codex`, the existing `cx` alias, or
+`claude`. No activation command or additional flags are needed. The automatic
+loader requires Windows Terminal, honors `NO_COLOR`, and skips shells started by
+a Codex agent. Unsupported and elevated panes still receive no navigation lease.
+The installed npm Codex CLI remains on disk, but the terminal uses the pinned,
+patched **Codex 0.162.1** while this deployment is enabled. npm updates do not
+update this bundle. A Claude upgrade past 2.1.296 silently disables the plugin
+until it is requalified. The Codex desktop app is not changed.
 
 To stop automatic loading, run this and open a new terminal tab:
 
@@ -118,7 +125,10 @@ cargo +stable test --manifest-path tools/proof/prompt-navigation/codex-renderer/
 
 ## Connect a shell session
 
-Publish a new local bundle from the built full CLI and helper:
+Publish a new local bundle from the built full CLI and helper. The script also
+copies the Claude plugin's manifest, hook registry and two hook modules into
+`claude-plugin/`; the installer and the activation script refuse a bundle
+without them.
 
 ```powershell
 ./Publish-RendererBundle.ps1 -NativeExecutable <target/debug/codex.exe> `
@@ -130,14 +140,17 @@ codex --no-alt-screen
 
 Use a local, non-elevated PowerShell 7 session in Windows Terminal. The script
 verifies the bundle hashes, selects the full native CLI through that shell's PATH,
-and sets `CLICI_RENDERER_BRIDGE`, `CLICI_RENDERER_KEYS=1`, and
-`CLICI_RENDERER_TERMINALS=1`. No launch wrapper or alternate-screen renderer is
+and sets `CLICI_RENDERER_BRIDGE`, `CLICI_RENDERER_KEYS=1`,
+`CLICI_RENDERER_TERMINALS=1`, `CLAUDE_CODE_PLUGIN_DIRS`, `CLICI_CLAUDE_ANCHORS=1`
+and `CLAUDE_CODE_DISABLE_ALTERNATE_SCREEN=1`; `claude` started from that shell
+loads the bundled plugin. No launch wrapper or alternate-screen renderer is
 introduced. `NO_COLOR` must be absent because the anchors require RGB attributes.
 The tray application's navigation option remains unimplemented.
 
 Dot-source the same script with `-Disable` to restore the shell environment and
-stop only the bundled renderer helpers beneath that shell. Existing Codex
-sessions stay open; their drafts remain in the native process. Closing the shell
+stop only the renderer helpers launched beneath that shell by the bundled Codex
+CLI or by Claude Code. Existing Codex and Claude sessions stay open; their
+drafts remain in the native process. Closing the shell
 also removes its environment changes. Upstream Codex updates do not update this
 pinned experimental bundle.
 
@@ -184,7 +197,9 @@ exercise the real Windows hook; this is not physical-keyboard qualification.
 The full modal/IME, split-pane, exit, redraw, eviction and upgrade matrix remains open.
 Clipboard formats/selection-copy whitespace, physical keyboards, IME, and Windows
 silently removing a low-level hook still need broader manual qualification.
-Claude still requires a renderer/input API extension. See the
+Claude uses the same adapter through the bundled plugin; its physical keyboard
+qualification is still open, see the
+[Claude qualification report](../../../../docs/claude-renderer-qualification.md). See the
 [proof report](../../../../docs/prompt-navigation-proof-report.md) for measured
 results and the [contract](../../../../docs/prompt-navigation-native-contract.md)
 for the remaining feature gates.

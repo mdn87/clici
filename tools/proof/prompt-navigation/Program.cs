@@ -23,6 +23,11 @@ internal static class Program
                 RendererBridge.Run(int.Parse(args[1]));
                 return 0;
             }
+            if (args.Length == 2 && args[0] == "renderer-bridge-frames")
+            {
+                RendererBridge.RunFrames(args[1]);
+                return 0;
+            }
             if (args.Length == 2 && args[0] == "anchor-fixture")
             {
                 ColorAnchorProbe.Fixture(args[1]);
@@ -30,7 +35,7 @@ internal static class Program
             }
             if (args.Length == 0)
             {
-                Console.WriteLine("Commands: windows | snapshot <hwnd> [maxCharacters] | inspect|select|jump <hwnd> <syntheticMarker> | live|show <hwnd> | watch <hwnd> <seconds> | key <hwnd> enter|alt-shift-comma|alt-shift-period|ctrl-up|ctrl-down|stream|finish|cancel | place <hwnd> <x> <y> <width> <height> | fixture clean|osc <eventFile> | anchor-fixture <directory> | renderer-inspect <hwnd> <bindings-or-report.json> | renderer-bridge <parentPID>");
+                Console.WriteLine("Commands: windows | snapshot <hwnd> [maxCharacters] | inspect|select|jump <hwnd> <syntheticMarker> | live|show <hwnd> | watch <hwnd> <seconds> | key <hwnd> enter|alt-shift-comma|alt-shift-period|ctrl-up|ctrl-down|stream|finish|cancel | place <hwnd> <x> <y> <width> <height> | fixture clean|osc <eventFile> | anchor-fixture <directory> | renderer-inspect <hwnd> <bindings-or-report.json> | renderer-bridge <parentPID> | renderer-bridge-frames <frameFile>");
                 return 0;
             }
 

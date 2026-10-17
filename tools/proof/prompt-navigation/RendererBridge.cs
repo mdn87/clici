@@ -1,4 +1,5 @@
 using System.Diagnostics;
+using System.Runtime.InteropServices;
 using System.Text.Json;
 using System.Text.Json.Serialization;
 using Clici.Core.Navigation;
@@ -20,6 +21,7 @@ internal sealed class RendererBridge
     };
     private readonly CUIAutomation automation = new();
     private readonly Process parent;
+    private readonly AgentKind agent;
     private long lastSequence;
     private NavigationCursor? cursor;
     private string? scope;
@@ -35,10 +37,11 @@ internal sealed class RendererBridge
     private long qualifiedRevision = -1;
     private (int Width, int Height) qualifiedSize;
 
-    private RendererBridge(int parentId)
+    private RendererBridge(int parentId, AgentKind agent = AgentKind.Codex)
     {
         parent = Process.GetProcessById(parentId);
         _ = parent.SafeHandle; // Pin this process incarnation, not just its reusable PID.
+        this.agent = agent;
     }
 
     internal static object Inspect(nint hwnd, IReadOnlyList<RenderedPromptBinding> prompts)
@@ -72,47 +75,147 @@ internal sealed class RendererBridge
     internal static void Run(int parentId)
     {
         var bridge = new RendererBridge(parentId);
-        if (!bridge.proofOnly && new System.Security.Principal.WindowsPrincipal(
-                System.Security.Principal.WindowsIdentity.GetCurrent()).IsInRole(System.Security.Principal.WindowsBuiltInRole.Administrator))
-            throw new InvalidOperationException("Elevated renderer navigation is not supported.");
-        using var keyboard = Environment.GetEnvironmentVariable("CLICI_RENDERER_KEYS") == "1"
-            ? new RendererKeyboardHook(bridge.parent, bridge.proofOnly) : null;
-        bridge.keyboard = keyboard;
+        using var keyboard = bridge.Start();
         Console.WriteLine("""{"version":1,"ready":true}""");
         while (ReadLine() is { } line)
+            bridge.Dispatch(() => JsonSerializer.Deserialize<Request>(line, Json)
+                ?? throw new InvalidOperationException("Missing request."));
+    }
+
+    // Claude Code plugins cannot stream to a child's stdin, so the plugin
+    // publishes frames to a private file and the helper polls it. The parent is
+    // discovered, never trusted from the command line; the frame still has to
+    // name the same session and epoch the plugin bound.
+    internal static void RunFrames(string framePath)
+    {
+        var parentId = ParentProcessId();
+        var bridge = new RendererBridge(parentId, AgentKind.ClaudeCode);
+        using (var current = Process.GetCurrentProcess())
+            if (bridge.parent.StartTime > current.StartTime)
+                throw new InvalidOperationException("Parent process identity is not stable.");
+        using var keyboard = bridge.Start();
+        Console.WriteLine(JsonSerializer.Serialize(new { version = 1, ready = true, parentProcessId = parentId, agent = "claude-code" }, Json));
+        SweepStaleFrames(framePath);
+        long lastFrame = 0;
+        try
         {
-            Request? request = null;
-            try
+            while (!bridge.parent.HasExited)
             {
-                request = JsonSerializer.Deserialize<Request>(line, Json);
-                if (request is null) throw new InvalidOperationException("Missing request.");
-                var result = bridge.Navigate(request);
-                var resultJson = JsonSerializer.Serialize(result, Json);
-                if (resultJson.Contains("\"handled\":true", StringComparison.Ordinal) &&
-                    Environment.GetEnvironmentVariable("CLICI_RENDERER_RESULT") is { Length: > 0 } resultPath)
-                    File.WriteAllText(resultPath, resultJson);
-                Console.WriteLine(resultJson);
-            }
-            catch (Exception exception) when (exception is not OutOfMemoryException)
-            {
-                bridge.cursor = null;
-                keyboard?.Invalidate();
-                Console.WriteLine(JsonSerializer.Serialize(new
+                var frame = ReadFrame(framePath);
+                if (frame is null || frame.Sequence <= lastFrame) { Thread.Sleep(50); continue; }
+                lastFrame = frame.Sequence;
+                bridge.Dispatch(() =>
                 {
-                    sequence = request?.Sequence ?? 0,
-                    handled = false,
-                    action = "Refused",
-                    reason = exception.GetType().Name,
-                    detail = exception.Message
-                }, Json));
-            }
-            finally
-            {
-                if (bridge.inFlight is { } active)
-                    keyboard?.Session.Complete(active, Environment.TickCount64);
-                bridge.inFlight = null;
+                    if (frame.Agent != "claude-code") throw new InvalidOperationException("Unexpected frame agent.");
+                    var observed = RendererFrameClock.ObservedTick(frame.ObservedAt,
+                        DateTimeOffset.UtcNow.ToUnixTimeMilliseconds(), Environment.TickCount64)
+                        ?? throw new InvalidOperationException("Stale renderer frame.");
+                    return new Request(frame.Version, frame.Sequence, observed + RendererFrameClock.MaximumAgeMilliseconds,
+                        parentId, frame.SessionId, frame.Epoch, "observe", frame.HistoryComplete,
+                        frame.ComposerOwnsInput, frame.Prompts, observed);
+                });
             }
         }
+        finally
+        {
+            try { File.Delete(framePath); } catch (Exception exception) when (exception is IOException or UnauthorizedAccessException) { }
+        }
+    }
+
+    private RendererKeyboardHook? Start()
+    {
+        if (!proofOnly && new System.Security.Principal.WindowsPrincipal(
+                System.Security.Principal.WindowsIdentity.GetCurrent()).IsInRole(System.Security.Principal.WindowsBuiltInRole.Administrator))
+            throw new InvalidOperationException("Elevated renderer navigation is not supported.");
+        keyboard = Environment.GetEnvironmentVariable("CLICI_RENDERER_KEYS") == "1"
+            ? new RendererKeyboardHook(parent, proofOnly) : null;
+        return keyboard;
+    }
+
+    private void Dispatch(Func<Request> read)
+    {
+        Request? request = null;
+        try
+        {
+            request = read();
+            var result = Navigate(request);
+            var resultJson = JsonSerializer.Serialize(result, Json);
+            if (resultJson.Contains("\"handled\":true", StringComparison.Ordinal) &&
+                Environment.GetEnvironmentVariable("CLICI_RENDERER_RESULT") is { Length: > 0 } resultPath)
+                File.WriteAllText(resultPath, resultJson);
+            Console.WriteLine(resultJson);
+        }
+        catch (Exception exception) when (exception is not OutOfMemoryException)
+        {
+            cursor = null;
+            keyboard?.Invalidate();
+            Console.WriteLine(JsonSerializer.Serialize(new
+            {
+                sequence = request?.Sequence ?? 0,
+                handled = false,
+                action = "Refused",
+                reason = exception.GetType().Name,
+                detail = exception.Message
+            }, Json));
+        }
+        finally
+        {
+            if (inFlight is { } active)
+                keyboard?.Session.Complete(active, Environment.TickCount64);
+            inFlight = null;
+        }
+    }
+
+    // A frame outlives its helper when the console is destroyed (the tab is
+    // closed), so each helper removes siblings nobody has written for an hour;
+    // a live plugin rewrites its frame every heartbeat.
+    private static void SweepStaleFrames(string framePath)
+    {
+        if (Path.GetDirectoryName(framePath) is not { Length: > 0 } directory || !Directory.Exists(directory)) return;
+        foreach (var file in Directory.EnumerateFiles(directory, "*.json"))
+        {
+            try
+            {
+                if (!string.Equals(file, framePath, StringComparison.OrdinalIgnoreCase) &&
+                    DateTime.UtcNow - File.GetLastWriteTimeUtc(file) > TimeSpan.FromHours(1))
+                    File.Delete(file);
+            }
+            catch (Exception exception) when (exception is IOException or UnauthorizedAccessException) { }
+        }
+    }
+
+    private static RendererFrame? ReadFrame(string path)
+    {
+        try
+        {
+            using var stream = new FileStream(path, FileMode.Open, FileAccess.Read, FileShare.ReadWrite | FileShare.Delete);
+            if (stream.Length > MaximumCharacters) return null;
+            using var reader = new StreamReader(stream, System.Text.Encoding.UTF8);
+            return JsonSerializer.Deserialize<RendererFrame>(reader.ReadToEnd(), Json);
+        }
+        catch (Exception exception) when (exception is IOException or UnauthorizedAccessException or JsonException)
+        {
+            return null; // Absent, mid-write or malformed: wait for the next complete frame.
+        }
+    }
+
+    [StructLayout(LayoutKind.Sequential)]
+    private struct ProcessBasicInformation
+    {
+        public nint Reserved1, PebBaseAddress, Reserved2, Reserved3, UniqueProcessId, InheritedFromUniqueProcessId;
+    }
+
+    [DllImport("ntdll.dll")]
+    private static extern int NtQueryInformationProcess(nint process, int informationClass,
+        ref ProcessBasicInformation information, int length, out int returned);
+
+    private static int ParentProcessId()
+    {
+        var information = new ProcessBasicInformation();
+        using var current = Process.GetCurrentProcess();
+        if (NtQueryInformationProcess(current.Handle, 0, ref information, Marshal.SizeOf<ProcessBasicInformation>(), out _) != 0)
+            throw new InvalidOperationException("Parent process is unknown.");
+        return checked((int)information.InheritedFromUniqueProcessId);
     }
 
     private static string? ReadLine()
@@ -225,7 +328,7 @@ internal sealed class RendererBridge
 
         scope = currentScope;
         var identity = new NavigationIdentity(paneId, request.Epoch, layoutEpoch,
-            new(AgentKind.Codex, request.SessionId));
+            new(agent, request.SessionId));
         qualifiedIdentity = identity;
         qualifiedPrompts = request.Prompts;
         qualifiedPane = pane;

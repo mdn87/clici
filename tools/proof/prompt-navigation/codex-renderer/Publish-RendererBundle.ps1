@@ -26,6 +26,12 @@ foreach ($name in @('codex-0.162.1.patch','clici_bridge.rs','protocol.rs','READM
     Copy-Item -LiteralPath (Join-Path $PSScriptRoot $name) -Destination (Join-Path $bundleRoot "source/$name")
 }
 Copy-Item -LiteralPath (Join-Path $PSScriptRoot 'Enable-RendererNavigation.ps1') -Destination $bundleRoot
+$plugin = (Resolve-Path -LiteralPath (Join-Path $PSScriptRoot '../claude-renderer')).Path
+foreach ($name in @('.claude-plugin/plugin.json', 'hooks/hooks.json', 'hooks/register.ts', 'hooks/anchors.ts')) {
+    $target = Join-Path $bundleRoot "claude-plugin/$name"
+    New-Item -ItemType Directory -Path (Split-Path -Parent $target) -Force | Out-Null
+    Copy-Item -LiteralPath (Join-Path $plugin $name) -Destination $target
+}
 $files = @(Get-ChildItem -LiteralPath $bundleRoot -Recurse -File | ForEach-Object {
     @{ path=[IO.Path]::GetRelativePath($bundleRoot,$_.FullName).Replace('\','/'); sha256=(Get-FileHash -LiteralPath $_.FullName -Algorithm SHA256).Hash }
 })
