@@ -21,20 +21,35 @@ internal sealed class WinFormsClipboardService : IClipboardService
 
                 // Require native Unicode text (autoConvert: false). A synthesized
                 // conversion is not the same as the source having placed text.
-                if (dataObject is null ||
-                    !dataObject.GetDataPresent(DataFormats.UnicodeText, false))
+                var text = dataObject is not null &&
+                    dataObject.GetDataPresent(DataFormats.UnicodeText, false)
+                        ? dataObject.GetData(DataFormats.UnicodeText, false) as string
+                        : null;
+
+                switch (ClassifyTextRead(
+                    text,
+                    NativeMethods.IsClipboardFormatAvailable(NativeMethods.CfUnicodeText),
+                    attempt < MaximumAttempts))
                 {
-                    return new ClipboardReadResult(
-                        ClipboardAccessStatus.NoText,
-                        null,
-                        sequenceBefore,
-                        null);
+                    case TextReadOutcome.NoText:
+                        return new ClipboardReadResult(
+                            ClipboardAccessStatus.NoText,
+                            null,
+                            sequenceBefore,
+                            null);
+                    case TextReadOutcome.Retry:
+                        Thread.Sleep(RetryDelay);
+                        continue;
+                    case TextReadOutcome.Unreadable:
+                        return new ClipboardReadResult(
+                            ClipboardAccessStatus.Busy,
+                            null,
+                            NativeMethods.GetClipboardSequenceNumber(),
+                            "UnicodeTextUnreadable");
                 }
 
-                var text = dataObject.GetData(
-                    DataFormats.UnicodeText,
-                    false) as string;
-                if (text is null)
+                // Accept implies text was read from a present data object.
+                if (dataObject is null || text is null)
                 {
                     return new ClipboardReadResult(
                         ClipboardAccessStatus.NoText,
@@ -108,6 +123,36 @@ internal sealed class WinFormsClipboardService : IClipboardService
             null,
             NativeMethods.GetClipboardSequenceNumber(),
             null);
+    }
+
+    /// <summary>
+    /// WinForms' OLE read swallows a contended clipboard and reports it as
+    /// missing (null) or empty text, even while CF_UNICODETEXT is present. Such
+    /// a read is retried; one that never yields text is reported as busy rather
+    /// than as no text, so it is logged instead of silently dropped.
+    /// </summary>
+    internal static TextReadOutcome ClassifyTextRead(
+        string? text,
+        bool nativeTextAvailable,
+        bool canRetry)
+    {
+        if (!string.IsNullOrEmpty(text))
+        {
+            return TextReadOutcome.Accept;
+        }
+
+        if (text is null && !nativeTextAvailable)
+        {
+            return TextReadOutcome.NoText;
+        }
+
+        if (canRetry)
+        {
+            return TextReadOutcome.Retry;
+        }
+
+        // Persistently empty text is taken as a genuinely empty item.
+        return text is null ? TextReadOutcome.Unreadable : TextReadOutcome.Accept;
     }
 
     public ClipboardWriteResult TryWriteText(
@@ -238,4 +283,12 @@ internal sealed class WinFormsClipboardService : IClipboardService
     {
         public static ClipboardOwner Unknown { get; } = new(null, null, null);
     }
+}
+
+internal enum TextReadOutcome
+{
+    Accept,
+    Retry,
+    NoText,
+    Unreadable
 }
