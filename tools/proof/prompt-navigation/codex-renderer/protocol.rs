@@ -186,6 +186,8 @@ pub struct Reply {
 // A failed helper is replaced, never reused: its channels may still hold a late
 // reply. The delay doubles per consecutive failure so a broken helper cannot
 // stall every frame.
+pub const MAX_RESTARTS: u32 = 10;
+
 pub fn restart_delay(failures: u32) -> Duration {
     Duration::from_millis(1000u64 << failures.clamp(1, 6).saturating_sub(1)).min(Duration::from_secs(30))
 }

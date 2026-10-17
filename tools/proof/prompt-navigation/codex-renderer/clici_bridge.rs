@@ -22,6 +22,7 @@ struct State {
     keys: KeyGate,
     client: Option<Client>,
     failures: u32,
+    restarts: u32,
     retry_at: Option<std::time::Instant>,
     last_reason: Option<(String, String)>,
     epoch: u64,
@@ -64,7 +65,9 @@ pub(crate) fn poll_keyboard() -> bool {
 }
 
 // Starts the helper, or replaces one that failed after its restart delay. A
-// replacement starts unqualified, so no lease or press survives a failure.
+// replacement starts unqualified in a new epoch and receives a full frame, so
+// no lease or press survives a failure. A session gives up after
+// MAX_RESTARTS replacements rather than cycling a broken helper forever.
 fn ensure_client(state: &mut State) -> bool {
     if state.client.as_ref().is_some_and(Client::is_available) {
         return true;
@@ -74,9 +77,19 @@ fn ensure_client(state: &mut State) -> bool {
         state.failures += 1;
         state.retry_at = Some(now + protocol::restart_delay(state.failures));
         state.last_reason = None;
+        state.last_frame = None;
+        state.epoch += 1;
     }
     if state.retry_at.is_some_and(|at| now < at) {
         return false;
+    }
+    if state.retry_at.is_some() {
+        if state.restarts >= protocol::MAX_RESTARTS {
+            state.retry_at = None;
+            tracing::warn!(restarts = state.restarts, "Clici renderer bridge disabled after repeated failures");
+            return false;
+        }
+        state.restarts += 1;
     }
     let Some(path) = std::env::var_os("CLICI_RENDERER_BRIDGE") else {
         return false;
@@ -90,6 +103,7 @@ fn ensure_client(state: &mut State) -> bool {
         Err(error) => {
             state.failures += 1;
             state.retry_at = Some(now + protocol::restart_delay(state.failures));
+            state.last_frame = None;
             tracing::warn!(%error, failures = state.failures, "Clici renderer bridge unavailable");
             false
         }
@@ -330,6 +344,8 @@ pub(crate) fn publish(
     }
     state.last_frame = Some(frame);
     if !ensure_client(&mut state) {
+        // Unsent, so a replacement helper must still receive this frame.
+        state.last_frame = None;
         return;
     }
     state.sequence += 1;
