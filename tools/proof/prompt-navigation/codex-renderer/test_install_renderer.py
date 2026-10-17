@@ -52,7 +52,9 @@ class DeploymentTests(unittest.TestCase):
         self.assertEqual(self.bash.read_text().count(deployment.START), 1)
         self.assertIn("Enable-RendererNavigation.ps1", self.ps.read_text())
         self.assertIn("CLICI_RENDERER_KEYS=1", self.bash.read_text())
-        self.assertIn("export CLAUDE_CODE_PLUGIN_DIRS='" + (self.install / "releases").as_posix(), self.bash.read_text())
+        # The runner's temp path may be an 8.3 short name; the installer writes the resolved one.
+        self.assertIn("/releases/codex-0.162.1-", self.bash.read_text().split("export CLAUDE_CODE_PLUGIN_DIRS='", 1)[1].split("'", 1)[0])
+        self.assertIn("/claude-plugin'${CLAUDE_CODE_PLUGIN_DIRS:+;${CLAUDE_CODE_PLUGIN_DIRS}}", self.bash.read_text())
         self.assertIn("CLICI_CLAUDE_ANCHORS=1 CLAUDE_CODE_DISABLE_ALTERNATE_SCREEN=1", self.bash.read_text())
         self.assertEqual(tomllib.loads(self.config.read_text())["tui"]["alternate_screen"], "never")
         self.assertFalse(tomllib.loads(self.config.read_text())["tui"]["animations"])
