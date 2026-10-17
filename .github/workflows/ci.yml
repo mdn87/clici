@@ -29,6 +29,8 @@ jobs:
           node-version: '24'
       - name: Test native prompt metadata ledger
         run: node --test tools/proof/prompt-navigation/claude-identity/tests/ledger.node.mjs
+      - name: Test Claude renderer anchor registry
+        run: node --test tools/proof/prompt-navigation/claude-renderer/tests/anchors.node.mjs
       - uses: actions/setup-python@v6
         with:
           python-version: '3.14'
