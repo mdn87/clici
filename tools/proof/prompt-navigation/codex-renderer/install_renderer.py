@@ -55,7 +55,9 @@ def verify_bundle(directory):
             raise ValueError("Renderer bundle integrity check failed: " + name)
     required = {"bin/codex.exe", "helper/promptnavigation.probe.exe",
                 "helper/promptnavigation.probe.dll", "helper/clici.core.dll",
-                "helper/promptnavigation.probe.runtimeconfig.json", "enable-renderernavigation.ps1"}
+                "helper/promptnavigation.probe.runtimeconfig.json", "enable-renderernavigation.ps1",
+                "claude-plugin/.claude-plugin/plugin.json", "claude-plugin/hooks/hooks.json",
+                "claude-plugin/hooks/register.ts", "claude-plugin/hooks/anchors.ts"}
     if not required.issubset(names):
         raise ValueError("Renderer bundle is incomplete.")
     return manifest, raw
@@ -76,12 +78,15 @@ if ($PSVersionTable.PSVersion.Major -ge 7 -and $env:WT_SESSION -and
 """
     helper = shlex.quote((bundle / "helper/PromptNavigation.Probe.exe").as_posix())
     binary = shlex.quote((bundle / "bin").as_posix())
+    plugin = shlex.quote((bundle / "claude-plugin").as_posix())
     bash = f"""
 {START}
 if [[ $- == *i* && -n ${{WT_SESSION-}} && -z ${{NO_COLOR+x}} && -z ${{CODEX_THREAD_ID-}} ]]; then
     export CLICI_RENDERER_BRIDGE={helper}
     export CLICI_RENDERER_KEYS=1 CLICI_RENDERER_TERMINALS=1
     unset CLICI_NATIVE_KEY_PROBE
+    export CLAUDE_CODE_PLUGIN_DIRS={plugin}${{CLAUDE_CODE_PLUGIN_DIRS:+;${{CLAUDE_CODE_PLUGIN_DIRS}}}}
+    export CLICI_CLAUDE_ANCHORS=1 CLAUDE_CODE_DISABLE_ALTERNATE_SCREEN=1
     CLICI_RENDERER_BIN="$(cygpath -u {binary})"
     case ":${{PATH}}:" in
         *":${{CLICI_RENDERER_BIN}}:"*) ;;

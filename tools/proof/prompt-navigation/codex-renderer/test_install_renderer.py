@@ -22,9 +22,11 @@ class DeploymentTests(unittest.TestCase):
         files = []
         for name in ("bin/codex.exe", "helper/PromptNavigation.Probe.exe",
                      "helper/PromptNavigation.Probe.dll", "helper/clici.Core.dll",
-                     "helper/PromptNavigation.Probe.runtimeconfig.json", "Enable-RendererNavigation.ps1"):
+                     "helper/PromptNavigation.Probe.runtimeconfig.json", "Enable-RendererNavigation.ps1",
+                     "claude-plugin/.claude-plugin/plugin.json", "claude-plugin/hooks/hooks.json",
+                     "claude-plugin/hooks/register.ts", "claude-plugin/hooks/anchors.ts"):
             path = self.bundle / name
-            path.parent.mkdir(exist_ok=True)
+            path.parent.mkdir(parents=True, exist_ok=True)
             path.write_bytes(b"fixture")
             files.append(dict(path=name, sha256=hashlib.sha256(path.read_bytes()).hexdigest()))
         self.manifest = dict(version="0.162.1", upstreamCommit=deployment.UPSTREAM, files=files)
@@ -50,6 +52,10 @@ class DeploymentTests(unittest.TestCase):
         self.assertEqual(self.bash.read_text().count(deployment.START), 1)
         self.assertIn("Enable-RendererNavigation.ps1", self.ps.read_text())
         self.assertIn("CLICI_RENDERER_KEYS=1", self.bash.read_text())
+        # The runner's temp path may be an 8.3 short name; the installer writes the resolved one.
+        self.assertIn("/releases/codex-0.162.1-", self.bash.read_text().split("export CLAUDE_CODE_PLUGIN_DIRS='", 1)[1].split("'", 1)[0])
+        self.assertIn("/claude-plugin'${CLAUDE_CODE_PLUGIN_DIRS:+;${CLAUDE_CODE_PLUGIN_DIRS}}", self.bash.read_text())
+        self.assertIn("CLICI_CLAUDE_ANCHORS=1 CLAUDE_CODE_DISABLE_ALTERNATE_SCREEN=1", self.bash.read_text())
         self.assertEqual(tomllib.loads(self.config.read_text())["tui"]["alternate_screen"], "never")
         self.assertFalse(tomllib.loads(self.config.read_text())["tui"]["animations"])
         self.ps.write_bytes(self.ps.read_bytes() + b"# added after install\n")
@@ -65,6 +71,13 @@ class DeploymentTests(unittest.TestCase):
         with self.assertRaises(ValueError):
             self.deploy()
         self.assertEqual({p: p.read_bytes() for p in before}, before)
+
+    def test_bundle_without_the_claude_plugin_is_incomplete(self):
+        self.manifest["files"] = [f for f in self.manifest["files"] if not f["path"].startswith("claude-plugin/")]
+        self.manifest_path.write_text(json.dumps(self.manifest))
+        with self.assertRaisesRegex(ValueError, "incomplete"):
+            self.deploy()
+        self.assertNotIn(deployment.START, self.bash.read_text())
 
     def test_manifest_cannot_copy_outside_the_release(self):
         self.manifest["files"].append(dict(path="../outside", sha256="0" * 64))

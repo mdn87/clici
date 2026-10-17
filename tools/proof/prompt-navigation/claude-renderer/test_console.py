@@ -13,6 +13,9 @@ parser.add_argument('--run', required=True, type=Path)
 parser.add_argument('--deps', required=True, type=Path)
 parser.add_argument('--claude', required=True, type=Path)
 parser.add_argument('--version', default='2.1.296', help='Exact engine version to verify before launch')
+parser.add_argument('--reply-delay', type=float, default=0.5, help='Seconds the fake endpoint waits before answering; 0 reproduces the height-0 render of an instant reply')
+parser.add_argument('--plugin-env', type=Path, help='Load the plugin from this directory through CLAUDE_CODE_PLUGIN_DIRS, as a deployed shell does, instead of --plugin-dir')
+parser.add_argument('--bridge', type=Path, help='Built PromptNavigation.Probe.exe; the plugin spawns it and its observe report is checked against the anchors')
 mode = parser.add_mutually_exclusive_group()
 mode.add_argument('--control', action='store_true', help='Run stock Claude with no plugin to compare rendering')
 mode.add_argument('--passthrough', action='store_true', help='Load hooks with anchors disabled to isolate hook dispatch')
@@ -49,6 +52,7 @@ class Handler(BaseHTTPRequestHandler):
         self.wfile.write(b'{"data":[]}')
     def do_POST(self):
         request_id = next(request_ids)
+        time.sleep(args.reply_delay)
         body = json.loads(self.rfile.read(int(self.headers.get('Content-Length', '0'))))
         requests.append({'path': self.path, 'stream': body.get('stream'), 'responseId': request_id})
         text = '\n'.join(f'CLICI_FIXTURE_REPLY_{i:02}' for i in range(45))
@@ -80,9 +84,11 @@ env.update(CLAUDE_CONFIG_DIR=str(CONFIG),CLAUDE_CODE_DISABLE_NONESSENTIAL_TRAFFI
            CLICI_CLAUDE_ANCHORS='1',CLICI_CLAUDE_ANCHOR_REPORT=str(RUN/'anchors.json'),
            FORCE_COLOR='3',COLORTERM='truecolor',TERM='xterm-256color')
 if args.passthrough: env['CLICI_CLAUDE_ANCHORS']='0'
+if args.bridge: env.update(CLICI_RENDERER_BRIDGE=str(args.bridge.resolve()),CLICI_RENDERER_REPORT=str(RUN/'bridge-report.json'))
 argv=[str(EXE),'--plugin-dir',str(PLUGIN),'--tools','','--strict-mcp-config','--no-chrome',
       '--setting-sources','user','--disable-slash-commands','--permission-mode','plan',PROMPT]
 if args.control: del argv[1:3]
+if args.plugin_env: del argv[1:3]; env['CLAUDE_CODE_PLUGIN_DIRS']=str(args.plugin_env.resolve())
 proc = PtyProcess.spawn(argv,cwd=str(CWD),env=env,dimensions=(38,105))
 screen=pyte.HistoryScreen(105,38,history=5000)
 stream=pyte.Stream(screen)
@@ -178,11 +184,19 @@ try:
     ordered=all(a[1] < b[0] for a,b in zip(positions,positions[1:]))
     draft='CLICI_FIXTURE_UNSENT_DRAFT' in '\n'.join(screen.display)
     classic='\x1b[?1049h' not in ''.join(raw)
-    passed=complete and ordered and draft and classic
+    bridge=None
+    if args.bridge:
+        # The helper writes its last observe request after a fresh frame; the
+        # plugin must have named this engine process, session and bindings.
+        bridge=json.loads((RUN/'bridge-report.json').read_text(encoding='utf8'))
+        bridge['checks']={'parent':bridge['processId']==proc.pid,'observe':bridge['direction']=='observe',
+                          'session':bridge['sessionId']==report['sessionId'],'owned':bridge['composerOwnsInput'] is True,
+                          'prompts':bridge['prompts']==report['prompts'],'lease':0 < bridge['deadline']-bridge['inputObservedAt'] <= 750}
+    passed=complete and ordered and draft and classic and (bridge is None or all(bridge['checks'].values()))
     result={'requests':requests,'alive':proc.isalive(),'rawCharacters':sum(map(len,raw)),
             'version':args.version,'passed':passed,'prompts':3,'anchorEndpoints':endpoints,
             'renderRequests':report['renderRequests'],'classic':classic,'draftPreserved':draft,
-            'screen':'\n'.join(screen.display)}
+            'bridge':bridge,'screen':'\n'.join(screen.display)}
     (RUN/'console-result.json').write_text(json.dumps(result,indent=2),encoding='utf8')
     print(json.dumps({k:v for k,v in result.items() if k != 'screen'},ensure_ascii=True))
     assert passed, 'Native renderer did not retain three complete, ordered anchor pairs; see console-result.json'

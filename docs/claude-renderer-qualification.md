@@ -1,106 +1,97 @@
 # Claude renderer integration: 2026-10-17 qualification
 
-**Claude navigation is not live.** The native IDs and blank-row encoding work,
-but adding a `UserMessage` render hook changes retained prompt rows in the
-classic-mode acceptance test. A one-hook pass-through reproduction fails on both
-the installed 2.1.296 and a project-local 2.1.302. No Claude plugin, executable,
-shell profile, shortcut, or per-user setting was deployed or changed.
+**Claude navigation is bundled and installable; physical Windows Terminal
+keyboard qualification is still open.** The renderer failure reported earlier
+the same day was a fixture artifact, not a vendor defect. The plugin now
+publishes composer-ownership frames to the same helper, lease and keyboard
+adapter that Codex uses, and the renderer bundle installer loads it for new
+Windows Terminal shells. Nothing in this repository changes a user profile or
+setting by itself; the installer does so only when run.
+
+## Root cause of the earlier failure
+
+The acceptance fixture's fake endpoint answered in 0 ms. A hooked `UserMessage`
+draws at height 0 until the asynchronous `ui.render` answer settles, and an
+instant reply redrew the transcript before that happened, so the retained rows
+lost the prompt. Every real model answers later than that. With a 500 ms reply
+the stock, pass-through and full plugin cases all pass; `--reply-delay 0`
+still reproduces the old result. The 2026-10-17 morning evidence under
+`artifacts/prompt-navigation/20261017-claude/verified-*-296` was captured at 0 ms
+and stands as the reproduction, not as a renderer verdict.
+
+| Case (2.1.296, classic, three identical Unicode prompts) | Reply delay | Result |
+| --- | --- | --- |
+| one pass-through render hook | 0 ms | one of three prompt rows retained |
+| one pass-through render hook | 500 ms | three prompt rows retained |
+| anchor plugin | 500 ms | three native IDs, three complete ordered anchor pairs, draft preserved |
+| anchor plugin plus bundled helper (`--bridge`) | 500 ms | as above, and the helper's last observe request names the engine process, session, bindings, ownership and a 750 ms lease |
+| bundled plugin loaded through `CLAUDE_CODE_PLUGIN_DIRS` plus bundled helper | 500 ms | as above |
+
+The runs are under `artifacts/prompt-navigation/20261017-claude/` as
+`verified-noop-delay0/`, `verified-noop-delay500/`, `verified-anchors-delay500/`,
+`verified-bridge-delay500/` and `verified-bundle-env-delay500/`. Each preserves
+the original VT stream, decoded cells, `console-result.json` and, where it
+applies, the anchor and bridge reports.
 
 ## What was implemented
 
-The [development plugin](../tools/proof/prompt-navigation/claude-renderer/README.md)
-keeps native session and message IDs, associates each eligible main-loop composer
-prompt with a stable random nonce, and wraps the original drawing with two blank
-RGB rows. The encoding matches the existing Clici COM resolver. Prompt text stays
-out of the metadata, and all reports explicitly refuse navigation eligibility.
+The [plugin](../tools/proof/prompt-navigation/claude-renderer/README.md) keeps
+native session and message IDs, gives each eligible main-loop composer prompt a
+random nonce, and wraps the original drawing with two blank RGB rows in the
+encoding the Clici COM resolver already reads. Prompt text stays out of every
+report.
 
-Seven independent registry tests cover duplicate IDs, ordering, stale epochs,
-missing paint and capacity. Six native hook-runtime tests cover unchanged stored
-content and original drawing, non-main messages, version/enable guards,
-fullscreen exclusion and exit. These tests pass; they do not prove paint.
+Transport: Claude plugins cannot stream to a child's stdin, so the plugin
+spawns `PromptNavigation.Probe.exe renderer-bridge-frames <file>` and writes a
+JSON frame to a private file under `%TEMP%\clici-renderer\` every 100 ms and on
+every state change. The helper discovers its parent through
+`NtQueryInformationProcess`, requires the parent to predate itself, converts the
+frame's wall-clock `observedAt` to a tick lease (refusing frames older than
+750 ms or more than one second in the future), and dispatches an observe
+request with `AgentKind.ClaudeCode` through the existing `RendererBridge`.
+Prompt identity, painted-row verification, navigation state and key handling
+are unchanged from Codex.
 
-The native API still lacks a read-only main-composer ownership observation.
-`$.prompt.read()` returns text/cursor even when they do not establish keyboard
-ownership; `$.prompt.fill()` can report a dialog refusal but is a write operation.
-Plugin panel focus and `ClientSurface.onKey` do not cover the normal composer.
-The requested choice about allowing navigation throughout Claude's active pane,
-including dialogs, remains unanswered. That choice cannot resolve the renderer
-failure described below.
+Composer ownership is a conjunction of evidence: anchors active and not
+overflowed, a `UserMessage` drew in a non-fullscreen terminal viewport, no tool
+call is awaiting a permission or question dialog (a non-`ask` `tool.check`
+verdict releases it early, except for `AskUserQuestion` and `ExitPlanMode`),
+and no other slash command has opened a panel since the last accepted prompt.
+Session end, fullscreen draws and helper exit withdraw it. A withdrawn frame
+carries no prompts, so the helper passes every key through.
 
-## Real renderer evidence
+Tests: three `RendererFrameClock` facts, fourteen native hook tests (frame
+publication, withdrawal and release, helper exit, no spawn without a helper
+path), seven registry tests, five installer tests. Unit and fixture success is
+not keyboard acceptance.
 
-All cases use the real native executable in Windows ConPTY, classic mode, three
-identical Unicode prompts, 45-line synthetic replies, a nonempty unsent draft,
-and a local fake API. The output stream is decoded with pyte; no saved user
-conversations or credentials are read. Stock and hooked cases use the same
-fixture. Six local HTTP requests include Claude's auxiliary requests; no request
-goes to a real model endpoint.
+## Deployment
 
-| Case | Retained prompt rows or anchors | Result |
-| --- | --- | --- |
-| 2.1.296, stock | All three prompt rows | Pass |
-| 2.1.296, one pass-through render hook | One of three prompt rows | Fail |
-| 2.1.296, anchor plugin | Three native IDs and three render requests, but incomplete emitted marker pairs | Fail |
-| 2.1.302, stock | All three prompt rows | Pass |
-| 2.1.302, one pass-through render hook | One of three prompt rows | Fail |
+`Publish-RendererBundle.ps1` copies the plugin into `claude-plugin/` inside the
+bundle, `install_renderer.py` requires those files, and the managed profile
+blocks export `CLAUDE_CODE_PLUGIN_DIRS`, `CLICI_CLAUDE_ANCHORS=1` and
+`CLAUDE_CODE_DISABLE_ALTERNATE_SCREEN=1` next to the existing Codex variables.
+`Enable-RendererNavigation.ps1` sets and restores the same three, and its
+`-Disable` stops helpers launched by either CLI beneath that shell. A bundle
+built this way was installed against disposable profiles, dot-sourced in a
+throwaway shell, and exercised by the fixture through `CLAUDE_CODE_PLUGIN_DIRS`.
 
-A preliminary one-prompt run did emit both endpoints as six colored ASCII
-spaces, around the correct native prompt. The repeated-prompt run exposed the
-failure the shorter run missed. Removing diagnostic file writes and session-ID
-lookups from the render hot path did not resolve it.
+## Still open
 
-The minimal reproduction has no Clici state, message hooks, text changes, file
-writes or keyboard handlers:
-
-```typescript
-export const register = on => {
-    on('ui.render', { component: 'UserMessage' }, (_$, e, next) => next(e));
-};
-```
-
-This comparison isolates the observed regression to enabling the vendor render
-hook in this fixture. It does not establish the internal cause, nor prove that
-every ordinary session hits it. A timing or retained-row lifecycle defect is an
-inference, not a confirmed implementation diagnosis.
-
-The 2.1.302 executable came from the official npm platform package, unpacked
-only under ignored project artifacts. Its tarball matched the registry SHA-512:
-`XvgQZTaVb0uu5bN7ZImXuy0iqolox0Or5yAemsgfKJ87183l2FBosSi7wUhIX5dEsGjN41z0vQ1pvrZ39rV/ZA==`.
-The regular `claude` command still uses 2.1.296.
-
-Canonical evidence is under `artifacts/prompt-navigation/20261017-claude/`:
-`verified-stock-296/`, `verified-noop-296/`, `verified-anchors-296/`,
-`verified-stock-302/` and `verified-noop-302/`. Each case preserves the original
-VT stream, full-width decoded cells and `console-result.json`. The adapter run
-has three render requests but only the first complete pair, `passed: false`, and
-the unsent draft preserved.
-
-These final runs use unique assistant response IDs and preserve blank columns
-and original line endings. They replace preliminary evidence captured before
-those test-harness corrections; the outcome is unchanged. The initial
-single-prompt encoding check uses `anchors.json`, `console-output.txt` and
-`console-cells.json` at the run root.
-
-A read-only replay attempt in the portable Windows Terminal could not obtain a
-`TermControl` TextPattern from the hidden fixture (`textControls: 0`). It is not
-counted as Windows Terminal validation. No focus switching was requested from
-the operator, and the disposable replay processes were released automatically.
-
-## Requirement before deployment
-
-The stock/no-op control must retain all three prompts, and the actual plugin
-must retain complete ordered anchor pairs across repeated prompts and redraws.
-Then qualify the existing COM/input bridge against Claude's live pane, with a
-concrete decision about composer-only versus whole-pane keys. Missing pairs
-must continue to refuse navigation; weakening that check would hide the defect.
-
-The reproducible test and reduced plugin are ready for upstream investigation;
-no external issue or message has been posted. A vendor fix or a separately
-qualified renderer interface is needed before automatic Claude activation.
+- Physical Windows Terminal qualification: Alt+Shift+Comma and
+  Alt+Shift+Period pressed in a real pane running `claude`, with scrollback,
+  a draft and a selection, have not been observed. ConPTY evidence proves
+  emitted cells and helper protocol, not COM scrolling or keyboard scope. The
+  earlier hidden-Terminal replay (`textControls: 0`) is not repeated.
+- Composer ownership stays an inference from hook events. The mods API offers
+  no read-only composer-focus observation, and whole-pane capture (including
+  dialogs) was never approved, so the plugin withdraws on any evidence of a
+  dialog or panel rather than capturing through it.
+- Esc-Esc rewind, transcript overlays and engine dialogs that open without a
+  `tool.check` verdict are not observable; the first two are undetected, the
+  last keeps navigation withdrawn until the call settles.
+- `historyComplete` remains false; resumed history is not captured.
 
 Reference: Claude's [mods reference](https://code.claude.com/docs/en/plugins/mods/reference)
-and [rendering guide](https://code.claude.com/docs/en/plugins/mods/interface)
-document `UserMessage` render hooks and the original drawing returned by `next`.
-The installed declaration and live executable are the authority for each tested
-version. The [release log](https://github.com/anthropics/claude-code/blob/main/CHANGELOG.md)
-was checked before testing the newer build.
+and [rendering guide](https://code.claude.com/docs/en/plugins/mods/interface).
+The installed 2.1.296 declaration and live executable are the authority.
