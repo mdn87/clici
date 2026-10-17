@@ -1,13 +1,14 @@
 # Prompt navigation proof report
 
-**2026-10-16 — development prototype, not a supported navigation feature.**
+**2026-10-17 — development prototype, not a supported navigation feature.**
 
 COM UI Automation can read and scroll the tested Windows Terminal panes. Native
-mark bindings fail the requested navigation/isolation behavior. A follow-up batch
-adds native identity validation, bounded key admission and a tested Claude ID
-collector. Current-pane ownership and the classic-mode renderer/input bridge
-remain unproved, so no navigation service, shortcut registration, or keyboard
-hook has been added to Clici.
+mark bindings fail the requested navigation/isolation behavior. The opt-in Codex
+renderer and pre-Terminal keyboard bridge passed the original single-pane fixture.
+The replacement Alt+Shift punctuation shortcuts have automated coverage and one
+verified live jump; the complete live sequence remains unqualified. The dated
+sections below distinguish earlier findings from later implementation evidence.
+Claude navigation and tray integration remain unfinished.
 
 The operator chose to **keep existing `claude` and `codex` launch commands and
 investigate agent-native integration**, rather than introduce a Clici launcher.
@@ -298,3 +299,37 @@ The bridge remains experimental and opt-in, limited to local, non-elevated,
 single-pane Codex sessions. Physical keyboards, IME, the full modal/exit/eviction
 matrix and recovery after silent hook removal need broader qualification.
 Claude navigation and tray integration remain unfinished.
+
+## Alt+Shift punctuation shortcuts — 2026-10-17
+
+The operator selected Alt+Shift+Comma for previous and Alt+Shift+Period for next
+(Alt+< and Alt+> on a US keyboard). The pre-Terminal adapter now uses those keys;
+Ctrl+Up/Down pass through. The older, separately enabled after-Terminal diagnostic
+retains its original keys. This change does not alter native prompt IDs, painted
+anchors, pipe messages, deadlines, or the pinned Codex binary.
+
+Both Alt and Shift can be pressed without withdrawing an otherwise valid lease.
+An admitted punctuation press remains consumed until release within its original
+context, including repeats after releasing a modifier first. It cannot create
+another jump or leak punctuation merely because the modifier was released.
+Focus changes and lease expiry still cancel ownership.
+
+All **215 .NET tests** pass, including punctuation parsing, missing/extra modifiers,
+early modifier release, old Ctrl+arrow pass-through, and existing scope/deadline
+checks. The helper builds with no warnings or errors and formatting checks pass.
+The live harness now waits for fixture startup and records synthetic fixture key
+receipt to check both consumption and pass-through; the agent bridge does not
+record typed characters.
+
+A marked Alt+Shift+Comma press reached the newest prompt through the real hook
+and COM scroll/readback in approximately **144 ms**. The next request was refused
+by the existing deadline check. Later attempts could not retain foreground focus,
+and their guards withheld input. These are partial results, not a passing full
+sequence or physical-keyboard qualification. The cause of the deadline refusal
+is unresolved; no deadline was relaxed. Evidence is retained at
+`artifacts/prompt-navigation/20261017-shortcuts/fixture/evidence/input-live-first-attempt.json`.
+
+Windows may reserve Alt+Shift for switching keyboard layouts. No system keyboard
+settings were changed. Multiple layouts, IME, physical input, and the complete
+previous/next/live and selection sequence with these replacement keys still need
+qualification. The earlier Ctrl+arrow results do not establish those checks.

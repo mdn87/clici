@@ -30,7 +30,7 @@ internal static class Program
             }
             if (args.Length == 0)
             {
-                Console.WriteLine("Commands: windows | snapshot <hwnd> [maxCharacters] | inspect|select|jump <hwnd> <syntheticMarker> | live|show <hwnd> | watch <hwnd> <seconds> | key <hwnd> enter|ctrl-up|ctrl-down|stream|finish|cancel | place <hwnd> <x> <y> <width> <height> | fixture clean|osc <eventFile> | anchor-fixture <directory> | renderer-inspect <hwnd> <bindings-or-report.json> | renderer-bridge <parentPID>");
+                Console.WriteLine("Commands: windows | snapshot <hwnd> [maxCharacters] | inspect|select|jump <hwnd> <syntheticMarker> | live|show <hwnd> | watch <hwnd> <seconds> | key <hwnd> enter|alt-shift-comma|alt-shift-period|ctrl-up|ctrl-down|stream|finish|cancel | place <hwnd> <x> <y> <width> <height> | fixture clean|osc <eventFile> | anchor-fixture <directory> | renderer-inspect <hwnd> <bindings-or-report.json> | renderer-bridge <parentPID>");
                 return 0;
             }
 
@@ -481,14 +481,16 @@ internal static class NativeWindows
 
     internal static void SendProofKey(nint hwnd, string key)
     {
-        var (virtualKey, control) = key switch
+        var (virtualKey, modifiers) = key switch
         {
-            "enter" => ((ushort)0x0D, false),
-            "ctrl-up" => ((ushort)0x26, true),
-            "ctrl-down" => ((ushort)0x28, true),
-            "stream" => ((ushort)0x53, false),
-            "finish" => ((ushort)0x51, false),
-            "cancel" => ((ushort)0x43, true),
+            "enter" => ((ushort)0x0D, Array.Empty<ushort>()),
+            "alt-shift-comma" => ((ushort)0xBC, new ushort[] { 0x12, 0x10 }),
+            "alt-shift-period" => ((ushort)0xBE, new ushort[] { 0x12, 0x10 }),
+            "ctrl-up" => ((ushort)0x26, new ushort[] { 0x11 }),
+            "ctrl-down" => ((ushort)0x28, new ushort[] { 0x11 }),
+            "stream" => ((ushort)0x53, Array.Empty<ushort>()),
+            "finish" => ((ushort)0x51, Array.Empty<ushort>()),
+            "cancel" => ((ushort)0x43, new ushort[] { 0x11 }),
             _ => throw new ArgumentException("Only the documented synthetic-fixture test keys are allowed.")
         };
         SetForegroundWindow(hwnd);
@@ -498,16 +500,16 @@ internal static class NativeWindows
         }
 
         var inputs = new List<Input>();
-        if (control)
+        foreach (var modifier in modifiers)
         {
-            inputs.Add(Input.Key(0x11, false));
+            inputs.Add(Input.Key(modifier, false));
         }
 
         inputs.Add(Input.Key(virtualKey, false));
         inputs.Add(Input.Key(virtualKey, true));
-        if (control)
+        foreach (var modifier in modifiers.Reverse())
         {
-            inputs.Add(Input.Key(0x11, true));
+            inputs.Add(Input.Key(modifier, true));
         }
 
         if (SendInput((uint)inputs.Count, inputs.ToArray(), Marshal.SizeOf<Input>()) != inputs.Count)

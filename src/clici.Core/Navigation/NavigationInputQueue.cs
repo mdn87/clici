@@ -6,7 +6,10 @@ public enum NavigationKeyResult { PassThrough, Queued, Consumed, QueueFull }
 public sealed record NavigationChord(int VirtualKey, NavigationModifiers Modifiers);
 public sealed record NavigationBindings(NavigationChord Previous, NavigationChord Next)
 {
-    public static NavigationBindings Default { get; } = new(new(0x26, NavigationModifiers.Control), new(0x28, NavigationModifiers.Control));
+    // VK_OEM_COMMA / VK_OEM_PERIOD: Alt+< and Alt+> on a US keyboard.
+    public static NavigationBindings Default { get; } = new(
+        new(0xBC, NavigationModifiers.Alt | NavigationModifiers.Shift),
+        new(0xBE, NavigationModifiers.Alt | NavigationModifiers.Shift));
 }
 
 // Only a positively eligible, foreground, focused pane may publish a context.
@@ -50,7 +53,7 @@ public sealed class NavigationInputQueue
     private readonly Queue<NavigationInputRequest> _pending = new();
     // At most the two configured virtual keys; never a history of typed keys.
     private readonly Dictionary<int, HeldKey> _held = new();
-    private readonly record struct HeldKey(long Generation, NavigationModifiers Modifiers);
+    private readonly record struct HeldKey(long Generation);
     private NavigationInputContext? _context;
     private NavigationInputRequest? _active;
     private bool _enabled;
@@ -128,20 +131,22 @@ public sealed class NavigationInputQueue
             var direction = Match(input);
             if (_held.TryGetValue(input.VirtualKey, out var heldKey))
             {
-                if (eligible && heldKey.Generation == _generation && input.Modifiers == heldKey.Modifiers && direction is not null)
+                // Keep an admitted press until release, even if a modifier is
+                // released first. Otherwise punctuation repeats leak into the draft.
+                if (eligible && heldKey.Generation == _generation)
                 {
                     return NavigationKeyResult.Consumed;
                 }
-                _held[input.VirtualKey] = new(0, input.Modifiers);
+                _held[input.VirtualKey] = new(0);
                 return NavigationKeyResult.PassThrough;
             }
 
-            _held[input.VirtualKey] = new(0, input.Modifiers);
+            _held[input.VirtualKey] = new(0);
             if (!eligible || direction is null || input.IsRepeat)
             {
                 return NavigationKeyResult.PassThrough;
             }
-            _held[input.VirtualKey] = new(_generation, input.Modifiers);
+            _held[input.VirtualKey] = new(_generation);
             if (_pending.Count + (_active is null ? 0 : 1) >= _capacity)
             {
                 return NavigationKeyResult.QueueFull;

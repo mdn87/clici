@@ -72,7 +72,7 @@ Commands after the DLL path:
 | `select HWND CLICI_FIXTURE_marker` | Deliberately select a synthetic marker to test selection preservation across subsequent scrolls. |
 | `live HWND` | Scroll a fresh document range collapsed to its end into view. |
 | `watch HWND seconds` | Record up to 100 UIA focus events from the test Terminal process for 1–30 seconds. Set the worker deadline above the observation duration. |
-| `key HWND enter\|ctrl-up\|ctrl-down\|stream\|finish\|cancel` | Send only these test keys; cancel means Ctrl+C for exiting a disposable CLI. |
+| `key HWND enter\|alt-shift-comma\|alt-shift-period\|ctrl-up\|ctrl-down\|stream\|finish\|cancel` | Send only these test keys; cancel means Ctrl+C for exiting a disposable CLI. |
 | `place HWND x y width height` | Position the test window for a cropped screenshot. |
 | `activate HWND` | Request UIA focus; Windows may reject foreground activation. |
 

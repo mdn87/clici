@@ -6,7 +6,7 @@ public class RendererNavigationSessionTests
 {
     private static NavigationInputContext Context(long until = 1000, string pane = "pane") =>
         new(new(pane, 1, 1, new(AgentKind.Codex, "session")), 1, until);
-    private static NavigationKeyInput Up(bool down = true) => new(0x26, NavigationModifiers.Control, down);
+    private static NavigationKeyInput Up(bool down = true) => new(0xBC, NavigationModifiers.Alt | NavigationModifiers.Shift, down);
 
     [Fact]
     public void PressWaitsForNativeConfirmationAfterThePress()

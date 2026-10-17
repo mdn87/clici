@@ -15,8 +15,14 @@ def call(*args):
     process = subprocess.run([str(probe), *map(str,args)], capture_output=True, text=True, timeout=4)
     if process.returncode: raise RuntimeError(process.stderr or process.stdout)
     return json.loads(process.stdout)
-windows = call('windows')
-window = next(w for w in windows if w['Title'] == 'CLICI-PROOF-input')
+window = None
+until = time.monotonic()+15
+while time.monotonic()<until:
+    window = next((w for w in call('windows') if w['Title'] == 'CLICI-PROOF-input'), None)
+    if window and (run/'anchors.json').exists(): break
+    time.sleep(.1)
+else:
+    raise SystemExit('Input fixture did not start; no input sent.')
 hwnd = window['Handle']
 call('show', hwnd)
 ctypes.windll.user32.GetForegroundWindow.restype = ctypes.c_void_p
@@ -59,17 +65,21 @@ class Data(ctypes.Union):
     _fields_=[('keyboard',Keyboard),('padding',ctypes.c_byte*32)]
 class Input(ctypes.Structure):
     _fields_=[('kind',ctypes.c_ulong),('data',Data)]
-def key_input(key):
+def key_input(key, modifier_order=(0x12, 0x10), release_modifiers_first=False):
     # Only the previously attested disposable fixture, with the test-only marker.
     assert ctypes.windll.user32.GetForegroundWindow()==hwnd
-    vk = 0x26 if key=='ctrl-up' else 0x28
-    events=(Input*4)(*[Input(1,Data(keyboard=Keyboard(k,0,f,0,0xC11C1)))
-        for k,f in [(0x11,0),(vk,1),(vk,3),(0x11,2)]])
-    assert ctypes.windll.user32.SendInput(4,events,ctypes.sizeof(Input))==4
+    vk = {'previous': 0xBC, 'next': 0xBE}[key]
+    keys = [(m, 0) for m in modifier_order] + [(vk, 0)]
+    if release_modifiers_first:
+        keys += [(m, 2) for m in reversed(modifier_order)] + [(vk, 0), (vk, 2)]
+    else:
+        keys += [(vk, 2)] + [(m, 2) for m in reversed(modifier_order)]
+    events=(Input*len(keys))(*[Input(1,Data(keyboard=Keyboard(k,0,f,0,0xC11C1))) for k,f in keys])
+    assert ctypes.windll.user32.SendInput(len(events),events,ctypes.sizeof(Input))==len(events)
 
-def press(key):
+def press(key, **options):
     offset = len(results)
-    key_input(key)
+    key_input(key, **options)
     until = time.monotonic()+3
     while time.monotonic()<until:
         replies = [r for r in results[offset:] if r.get('handled')]
@@ -83,9 +93,9 @@ try:
     worker = threading.Thread(target=pump)
     worker.start()
     time.sleep(1)
-    for key,action,identity in [('ctrl-up','Jump',anchors[2]['messageId']),
-        ('ctrl-up','Jump',anchors[1]['messageId']),('ctrl-down','Jump',anchors[2]['messageId']),
-        ('ctrl-down','ReturnToLive',None)]:
+    for key,action,identity in [('previous','Jump',anchors[2]['messageId']),
+        ('previous','Jump',anchors[1]['messageId']),('next','Jump',anchors[2]['messageId']),
+        ('next','ReturnToLive',None)]:
         reply = press(key)
         assert (reply['action'],reply['messageId'])==(action,identity), reply
         print(key, json.dumps(reply), flush=True)
@@ -93,18 +103,22 @@ try:
     call('select',hwnd,'CLICI_FIXTURE_REPLY_3_10')
     time.sleep(.5)
     before = call('snapshot',hwnd,15000)
-    reply = press('ctrl-up')
+    reply = press('previous', modifier_order=(0x10, 0x12), release_modifiers_first=True)
     after = call('snapshot',hwnd,15000)
     assert before['selected'] == after['selected'] and any(before['selected']), 'Selection changed or was empty'
     assert before['tail'] == after['tail'], 'Terminal text changed'
+    assert not (run/'keys.jsonl').exists(), 'An admitted shortcut leaked keys into the fixture'
     results.append(dict(step='selection',reply=reply,before=before,after=after))
     print('selection',json.dumps(reply),flush=True)
     eligible = False
     time.sleep(.5)
     offset = len(results)
-    key_input('ctrl-up')
+    key_input('previous')
     time.sleep(.5)
     assert results[offset:] and all(not r.get('handled') and r.get('action') == 'PassThrough' for r in results[offset:])
+    received = [json.loads(line) for line in (run/'keys.jsonl').read_text().splitlines()]
+    assert any(key['key'] == 'OemComma' for key in received), 'Ineligible shortcut did not reach the fixture'
+    results.append(dict(step='ineligible-key-received', keys=received))
     print('ineligible',json.dumps(results[-1]),flush=True)
 finally:
     stop.set()

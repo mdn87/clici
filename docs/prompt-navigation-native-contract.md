@@ -18,7 +18,9 @@ positions make the observation ambiguous and are refused. A cursor needs both
 the same native identity and freshly verified position/context evidence; a UUID
 alone never authorizes scrolling.
 
-`NavigationInputQueue` defaults to Ctrl+Up/Down and disabled. Its adapter
+`NavigationInputQueue` defaults to Alt+Shift+Comma (previous) and
+Alt+Shift+Period (next), and starts disabled. On a US keyboard these are Alt+<
+and Alt+>. Ctrl+Up/Down pass through. Its adapter
 must publish a **positively eligible, foreground, focused pane** with an
 eligibility revision and a monotonic expiry. Unknown contexts pass through.
 The queue itself does not establish eligibility or register Windows input handlers.
@@ -27,8 +29,10 @@ the intercepted press. `RendererKeyboardHook` supplies input events; the private
 renderer bridge supplies short leases and checks the actual pane and anchors.
 
 Each physical press admits at most one request; held repeats are consumed only
-while the same chord and context remain owned. A press that began outside the
-scope stays outside until release. Focus loss, lifecycle/layout changes, manual
+while the same press and context remain owned. Releasing Alt or Shift before
+the punctuation key does not leak repeats into the draft or create another jump.
+A press that began outside the scope stays outside until release. Focus loss,
+lifecycle/layout changes, manual
 scroll, disable and expired eligibility cancel pending and in-flight admissions.
 The remainder of an old held press passes through after a scope change. Input is
 never replayed. Initial presses with extra modifiers, injected events and unrelated
