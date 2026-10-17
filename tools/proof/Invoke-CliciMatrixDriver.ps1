@@ -11,7 +11,8 @@ param(
 
     [string[]]$FixtureId = @('FX-01', 'FX-02', 'FX-03', 'FX-04'),
 
-    [ValidateSet('Normal', 'Paused', 'Disabled')]
+    # Every mode other than Normal expects clici to leave the item unchanged.
+    [ValidateSet('Normal', 'Paused', 'Disabled', 'Disallowed', 'Excluded')]
     [string]$Mode = 'Normal',
 
     # Do not display the fixture; for sources that render it themselves
