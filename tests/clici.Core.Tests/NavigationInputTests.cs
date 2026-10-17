@@ -6,8 +6,8 @@ public sealed class NavigationInputTests
 {
     private static readonly NavigationIdentity Identity = new("pane-a", 1, 1, new(AgentKind.ClaudeCode, "session-a"));
     private static readonly NavigationInputContext Context = new(Identity, 1, 10_000);
-    private static readonly NavigationKeyInput Up = new(0x26, NavigationModifiers.Control, true);
-    private static readonly NavigationKeyInput Down = new(0x28, NavigationModifiers.Control, true);
+    private static readonly NavigationKeyInput Up = new(0xBC, NavigationModifiers.Alt | NavigationModifiers.Shift, true);
+    private static readonly NavigationKeyInput Down = new(0xBE, NavigationModifiers.Alt | NavigationModifiers.Shift, true);
 
     private static NavigationInputQueue Enabled(int capacity = 8)
     {
@@ -31,9 +31,10 @@ public sealed class NavigationInputTests
 
     [Theory]
     [InlineData(NavigationModifiers.None)]
-    [InlineData(NavigationModifiers.Control | NavigationModifiers.Shift)]
-    [InlineData(NavigationModifiers.Control | NavigationModifiers.Alt)]
-    [InlineData(NavigationModifiers.Control | NavigationModifiers.Windows)]
+    [InlineData(NavigationModifiers.Shift)]
+    [InlineData(NavigationModifiers.Alt)]
+    [InlineData(NavigationModifiers.Alt | NavigationModifiers.Shift | NavigationModifiers.Control)]
+    [InlineData(NavigationModifiers.Alt | NavigationModifiers.Shift | NavigationModifiers.Windows)]
     public void ExtraOrMissingModifiersPassThrough(NavigationModifiers modifiers)
     {
         var queue = Enabled();
@@ -101,18 +102,46 @@ public sealed class NavigationInputTests
     }
 
     [Fact]
-    public void ModifierChangeBetweenTwoBindingsOnOneKeyReleasesOwnership()
+    public void ModifierChangeBetweenTwoBindingsOnOneKeyDoesNotLeakOrNavigateAgain()
     {
         var queue = new NavigationInputQueue(new(new(0x26, NavigationModifiers.Control), new(0x26, NavigationModifiers.Alt)));
         queue.SetEnabled(true);
         queue.UpdateContext(Context);
-        queue.Handle(Up, 10);
-        Assert.Equal(NavigationKeyResult.PassThrough, queue.Handle(Up with { Modifiers = NavigationModifiers.Alt }, 11));
-        Assert.Equal(NavigationKeyResult.PassThrough, queue.Handle(Up with { IsDown = false }, 12));
+        var firstPress = new NavigationKeyInput(0x26, NavigationModifiers.Control, true);
+        queue.Handle(firstPress, 10);
+        Assert.Equal(NavigationKeyResult.Consumed, queue.Handle(firstPress with { Modifiers = NavigationModifiers.Alt }, 11));
+        Assert.Equal(NavigationKeyResult.Consumed, queue.Handle(firstPress with { IsDown = false, Modifiers = NavigationModifiers.None }, 12));
         var first = Assert.IsType<NavigationInputRequest>(queue.Take(13));
         Assert.Equal(NavigationDirection.Previous, first.Direction);
         queue.Complete(first, 14);
         Assert.Null(queue.Take(15));
+    }
+
+    [Theory]
+    [InlineData(NavigationModifiers.Alt)]
+    [InlineData(NavigationModifiers.Shift)]
+    [InlineData(NavigationModifiers.None)]
+    public void ReleasingModifiersBeforePunctuationDoesNotLeakRepeats(NavigationModifiers remaining)
+    {
+        var queue = Enabled();
+        Assert.Equal(NavigationKeyResult.Queued, queue.Handle(Up, 10));
+        Assert.Equal(NavigationKeyResult.Consumed, queue.Handle(Up with { Modifiers = remaining, IsRepeat = true }, 11));
+        Assert.Equal(NavigationKeyResult.Consumed, queue.Handle(Up with { Modifiers = remaining, IsDown = false }, 12));
+        var request = Assert.IsType<NavigationInputRequest>(queue.Take(13));
+        Assert.Equal(NavigationDirection.Previous, request.Direction);
+        Assert.True(queue.Complete(request, 14));
+        Assert.Null(queue.Take(15));
+        Assert.Equal(NavigationKeyResult.PassThrough, queue.Handle(Up with { Modifiers = remaining }, 16));
+    }
+
+    [Theory]
+    [InlineData(0x26)]
+    [InlineData(0x28)]
+    public void FormerControlArrowDefaultsPassThrough(int key)
+    {
+        var queue = Enabled();
+        Assert.Equal(NavigationKeyResult.PassThrough, queue.Handle(new(key, NavigationModifiers.Control, true), 10));
+        Assert.Null(queue.Take(11));
     }
 
     [Fact]

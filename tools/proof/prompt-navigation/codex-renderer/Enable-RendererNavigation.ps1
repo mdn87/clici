@@ -85,4 +85,4 @@ $env:CLICI_RENDERER_BRIDGE = $helper
 $env:CLICI_RENDERER_KEYS = '1'
 $env:CLICI_RENDERER_TERMINALS = '1'
 $env:CLICI_NATIVE_KEY_PROBE = $null
-Write-Output 'Enabled for new Codex sessions in this shell: run codex --no-alt-screen. Ctrl+Up/Down navigate verified user turns; split panes and unknown contexts pass through.'
+Write-Output 'Enabled for new Codex sessions in this shell: run codex --no-alt-screen. Alt+Shift+Comma / Alt+Shift+Period navigate verified user turns; split panes and unknown contexts pass through.'

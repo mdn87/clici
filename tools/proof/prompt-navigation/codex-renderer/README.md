@@ -4,9 +4,9 @@ This is an experimental, opt-in source patch for Codex **0.162.1**, commit
 `092d3acd6bec3e3a14bdc7e7a2810ab628ab759d` (`rust-v0.162.1`). It carries native
 user-message IDs into the classic scrollback renderer and sends metadata to a
 private child of that process. A pre-Terminal keyboard adapter connects
-Ctrl+Up/Down to the live renderer. Nothing is installed or enabled by building
-the project. The session activation script selects a bundled full `codex`
-executable for one shell; the installed CLI and shell profiles remain unchanged.
+Alt+Shift+Comma / Alt+Shift+Period to the live renderer. Nothing is installed or
+enabled by building the project. The session activation script selects a bundled
+full `codex` executable for one shell; the installed CLI and shell profiles remain unchanged.
 Claude is not supported by this adapter.
 
 ## What the bridge establishes
@@ -110,10 +110,19 @@ pinned experimental bundle.
 Passive publication remains the default. With `CLICI_RENDERER_KEYS=1`, the
 native UI sends input-context heartbeats every 100 ms. Each carries a monotonic
 observation time and a 750 ms expiry. A cached, focused pane qualification admits
-exact Ctrl+Up/Down presses before Windows Terminal clears selection or snaps to
-live output. Every admitted press must then receive a native confirmation made
-**after** the press, resolve fresh painted anchors, and pass scroll/readback checks.
+exact Alt+Shift+Comma (previous) and Alt+Shift+Period (next) presses before Windows
+Terminal clears selection or snaps to live output. Every admitted press must
+then receive a native confirmation made **after** the press, resolve fresh painted
+anchors, and pass scroll/readback checks.
 Renewal never extends an already admitted request's deadline.
+
+On a US keyboard these are Alt+< and Alt+>; hold Alt and Shift, then press the
+comma or period key. Both modifier orders work. Releasing either modifier first
+keeps an accepted punctuation press consumed until key-up, while its pane context
+is still valid. Ctrl+Up/Down now pass through. Configuration key names are
+`Alt+Shift+Comma` and `Alt+Shift+Period`, not literal shifted glyphs.
+Windows may also use [Alt+Shift to switch keyboard layouts](https://support.microsoft.com/en-us/office/languages/switch-between-languages-using-the-language-bar).
+That system setting is unchanged; multiple-layout and IME use still need qualification.
 
 The hook thread performs no COM calls, pipe I/O, scrolling, clipboard access, or
 key replay. It uses the existing bounded queue and observes key release/repeat,
@@ -124,13 +133,17 @@ through; a canceled press is never replayed. A stalled helper loses its lease an
 the native client stops it after its one-second pipe timeout. Polling stops when
 the helper becomes unavailable. No automatic hook reinstallation is attempted.
 
-`CLICI_NATIVE_KEY_PROBE=1` is the earlier diagnostic after-Terminal path; leave it
-off when using the pre-Terminal adapter. `CLICI_PROOF_INJECTED_KEYS=1` accepts only
+`CLICI_NATIVE_KEY_PROBE=1` is the earlier diagnostic after-Terminal Ctrl+Up/Down
+path; its keys are unchanged. Leave it off when using the pre-Terminal adapter.
+`CLICI_PROOF_INJECTED_KEYS=1` accepts only
 the probe's marked synthetic keys and only in proof-window mode; live mode always
 rejects injected keys.
 
-The native single-pane fixture verifies duplicate prompt identities, previous/next,
-return-to-live, an unsent draft and a nonempty selection. Marked injected keys
+The original Ctrl+Up/Down native single-pane fixture verified duplicate prompt
+identities, previous/next, return-to-live, an unsent draft and a nonempty selection.
+The replacement Alt+Shift punctuation defaults pass the automated tests, but their
+complete live sequence remains unqualified; see the dated proof report.
+Marked injected keys
 exercise the real Windows hook; this is not physical-keyboard qualification.
 The full modal/IME, split-pane, exit, redraw, eviction and upgrade matrix remains open.
 Clipboard formats/selection-copy whitespace, physical keyboards, IME, and Windows
@@ -144,5 +157,8 @@ For the repeatable hook regression, start `PromptNavigation.Probe.exe
 anchor-fixture <directory>` in a portable Terminal titled `CLICI-PROOF-input`,
 then run `python test_live_input.py --probe <probe.exe> --fixture-directory
 <directory>`. Keep that disposable window foreground. It includes a soft-wrapped
-prefix, checks prompt IDs and selection, and asserts ineligible input passes
-through. Results are saved under `<directory>/evidence/input-live.json`.
+prefix, checks prompt IDs, selection, both modifier orders and early modifier
+release, and verifies that eligible punctuation is consumed while ineligible
+punctuation reaches the synthetic fixture. Only that fixture records received
+test keys in `<directory>/keys.jsonl`. Use a fresh fixture directory for each run.
+Results are saved under `<directory>/evidence/input-live.json`.

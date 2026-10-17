@@ -1,9 +1,11 @@
 # Clici prompt navigation implementation plan
 
-- **Status:** The opt-in Codex renderer bridge now includes pre-Terminal shortcut interception and fresh native confirmation. Single-pane live checks pass; broader qualification, Claude integration and tray controls remain unfinished. Navigation is not globally enabled.
-- **Date:** 2026-10-16
+- **Status:** The opt-in Codex renderer bridge includes pre-Terminal shortcut interception and fresh native confirmation. The original Ctrl+Up/Down single-pane checks passed. The replacement Alt+Shift punctuation shortcuts pass automated checks; their complete live sequence remains unqualified. Broader qualification, Claude integration and tray controls remain unfinished. Navigation is not globally enabled.
+- **Date:** 2026-10-17
 - **Outcome:** Jump between user messages in the active Claude Code or Codex
-  terminal session with configurable shortcuts, initially Ctrl+Up and Ctrl+Down.
+  terminal session with configurable shortcuts. The 2026-10-17 operator-selected
+  defaults are Alt+Shift+Comma (previous) and Alt+Shift+Period (next), or Alt+<
+  and Alt+> on a US keyboard. These replace the original Ctrl+Up/Down defaults.
 - **Initial target:** Windows Terminal on Windows 11, using the normal scrollback
   buffer with locally running Claude Code or Codex.
 
@@ -87,8 +89,8 @@ Neither parser establishes the pane scope required for navigation.
 
 | Requirement | Expected behavior |
 | --- | --- |
-| NAV-001 Previous prompt | Ctrl+Up brings the owning user prompt to the top if its beginning is above the viewport. If the last jump targeted that prompt, another press goes to the preceding user prompt. From live output, the first press reaches the latest user prompt. |
-| NAV-002 Next prompt | Ctrl+Down advances to the next user prompt. Advancing past the proven newest prompt returns to live output, which follows subsequently appended output. At live output it does nothing. Phase 1 must demonstrate that mechanism. |
+| NAV-001 Previous prompt | Alt+Shift+Comma brings the owning user prompt to the top if its beginning is above the viewport. If the last jump targeted that prompt, another press goes to the preceding user prompt. From live output, the first press reaches the latest user prompt. |
+| NAV-002 Next prompt | Alt+Shift+Period advances to the next user prompt. Advancing past the proven newest prompt returns to live output, which follows subsequently appended output. At live output it does nothing. Phase 1 must demonstrate that mechanism. |
 | NAV-003 Reading only | Navigation preserves the input draft, selection, clipboard, and conversation. It never submits text, recalls input history, rewinds, forks, or interrupts a running agent. |
 | NAV-004 Correct pane | Only the active eligible terminal pane moves. Unsupported apps, ordinary shells, and other panes keep their normal keyboard behavior. |
 | NAV-005 Stable targets | Repeated prompts remain separate waypoints. Resizing, reflow, buffer eviction, session changes, and redraws invalidate stale targets before scrolling. |
@@ -103,7 +105,7 @@ the cursor across append-only output only when its occurrence can be revalidated
 by position and contextual evidence; identical text alone is not identity.
 Reflow, eviction, session changes, or ambiguous redraw invalidate stale ranges.
 
-| State before the key | Ctrl+Up | Ctrl+Down |
+| State before the key | Alt+Shift+Comma | Alt+Shift+Period |
 | --- | --- | --- |
 | Live, proven by viewport/follow state | Latest user prompt | No-op |
 | Browsing a revalidated last jump target | Previous occurrence | Next occurrence, or live only when no later prompt is proven |
@@ -207,7 +209,7 @@ system timeout, then verify recovery and normal input. Do not select the hook
 without that evidence. This revises Clici's no-global-keyboard-hook claim and
 must be documented explicitly.
 The prototype must resolve this choice before integration. Do not silently
-substitute different keys or ship unconditional Ctrl+Up/Down registration.
+substitute different keys or ship unconditional navigation-shortcut registration.
 
 Save environment details, synthetic fixtures, timings, and viewport captures
 under the Git-ignored `artifacts/prompt-navigation/<run>/`. Include Terminal
@@ -280,9 +282,9 @@ the slice, long responses without a captured prompt, and true history ends.
 | Area | Proposed responsibility |
 | --- | --- |
 | `src/clici.App/Navigation/` | Interfaces and Windows Terminal adapter for pane discovery, snapshots, range resolution, and scrolling. |
-| `src/clici.App/Input/` | Arrow-key parsing and the shortcut mechanism qualified in Phase 1. Keep it independent of clipboard notifications. |
+| `src/clici.App/Input/` | Navigation-key parsing and the shortcut mechanism qualified in Phase 1. Keep it independent of clipboard notifications. |
 | `src/clici.App/TrayApplicationContext.cs` | Own service lifecycle, immediate runtime enable/disable, and concise status. Disable removes interception and invalidates pending work. Manual JSON shortcut edits take effect after restart. Persist the toggle only when persistence is allowed, matching existing tray behavior. |
-| `src/clici.Core/Configuration/CliciConfiguration.cs` | Add `promptNavigationEnabled` defaulting to `false`, `previousPromptHotkey` defaulting to `Ctrl+Up`, and `nextPromptHotkey` defaulting to `Ctrl+Down`. |
+| `src/clici.Core/Configuration/CliciConfiguration.cs` | Add `promptNavigationEnabled` defaulting to `false`, `previousPromptHotkey` defaulting to `Alt+Shift+Comma`, and `nextPromptHotkey` defaulting to `Alt+Shift+Period`. |
 | Configuration store and tests | Increment the schema version when fields ship; preserve old-file defaults and malformed-file behavior. Reject conflicting navigation chords without disabling clipboard cleanup. |
 
 Run UI Automation on an MTA worker that owns no windows; add/remove event
@@ -310,7 +312,7 @@ Run the following matrix for every qualified agent configuration:
 
 | Case | Evidence required |
 | --- | --- |
-| Long conversation | Repeated Up/Down presses land on the expected prompts in order and return to live output. |
+| Long conversation | Repeated previous/next shortcuts land on the expected prompts in order and return to live output. |
 | Ambiguous text | Assistant code, shell syntax, echoed prompts, repeated prompts, and dialog text are not mistaken for a user-message boundary. |
 | Layout changes | Wrapped text, Unicode, window resizing, and font/zoom changes preserve correct targeting or produce a safe refusal. |
 | Active generation | Draft and selection survive streaming, including a full buffer evicting rows. Repeated presses preserve cursor continuity; returning live follows subsequent output. |
@@ -371,4 +373,4 @@ pane identity without a focus event, and observed text attributes do not identif
 roles. The independent core now has 24 navigation tests; recognizers and service
 integration remain unimplemented. Continue with the agent-native qualification
 in the proof report, preserving existing launch commands. Do not treat this
-partial Phase 1/2 batch as permission to register Ctrl+Up/Down globally.
+partial Phase 1/2 batch as permission to register navigation shortcuts globally.

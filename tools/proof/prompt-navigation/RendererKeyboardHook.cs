@@ -5,11 +5,12 @@ using Clici.Core.Navigation;
 namespace Clici.PromptNavigation.Probe;
 
 // The hook thread does no pipe I/O, UI Automation, scrolling, logging, or input
-// replay. It owns only two arrow states and a bounded queue. A stalled renderer
+// replay. It owns only two navigation-key states and a bounded queue. A stalled renderer
 // loses its monotonic lease; the parent also kills a stalled helper after 1s.
 internal sealed class RendererKeyboardHook : IDisposable
 {
     internal readonly RendererNavigationSession Session = new();
+    private static readonly NavigationBindings Bindings = NavigationBindings.Default;
     private readonly Process parent;
     private readonly Thread thread;
     private readonly ManualResetEventSlim ready = new();
@@ -49,7 +50,7 @@ internal sealed class RendererKeyboardHook : IDisposable
     internal bool Publish(nint window, NavigationInputContext context, long observedAt, long expectedRevision)
     {
         if (Revision != expectedRevision || GetForegroundWindow() != window ||
-            Down(1) || Down(2) || Down(4) || Down(0x12) || Down(0x5B) || Down(0x5C))
+            Down(1) || Down(2) || Down(4) || Down(0x11) || Down(0x5B) || Down(0x5C))
         {
             Invalidate(5);
             return false;
@@ -75,9 +76,11 @@ internal sealed class RendererKeyboardHook : IDisposable
             var down = message is 0x100 or 0x104;
             if (GetForegroundWindow() != boundWindow || WaitForSingleObject(parent.Handle, 0) != 0x102)
                 Invalidate(2);
-            if (key.VirtualKey is not (0x26 or 0x28))
+            if (key.VirtualKey != Bindings.Previous.VirtualKey && key.VirtualKey != Bindings.Next.VirtualKey)
             {
-                if (down && key.VirtualKey is not (0x11 or 0xA2 or 0xA3)) Invalidate(4);
+                // Both modifier orders and either side are valid. Modifiers
+                // pass through; only an eligible punctuation press is consumed.
+                if (down && key.VirtualKey is not (0x10 or 0x12 or 0xA0 or 0xA1 or 0xA4 or 0xA5)) Invalidate(4);
                 return CallNextHookEx(0, code, message, data);
             }
             var modifiers = (Down(0x11) ? NavigationModifiers.Control : 0) |
@@ -105,7 +108,7 @@ internal sealed class RendererKeyboardHook : IDisposable
         {
             threadId = GetCurrentThreadId();
             PeekMessage(out _, 0, 0, 0, 0); // Create the thread's queue before publishing readiness.
-            foreach (var key in new[] { 0x26, 0x28 })
+            foreach (var key in new[] { Bindings.Previous.VirtualKey, Bindings.Next.VirtualKey })
                 if (Down(key)) Session.Handle(new(key, NavigationModifiers.None, true), Environment.TickCount64);
             keyboard = SetWindowsHookEx(13, keyboardCallback, GetModuleHandle(null), 0);
             mouse = SetWindowsHookEx(14, mouseCallback, GetModuleHandle(null), 0);

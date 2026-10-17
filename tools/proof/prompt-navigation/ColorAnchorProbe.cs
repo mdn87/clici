@@ -55,7 +55,14 @@ internal static class ColorAnchorProbe
         }
 
         Console.WriteLine("› CLICI_FIXTURE_DRAFT (Q closes this fixture)");
-        while (Console.ReadKey(true).Key != ConsoleKey.Q) { }
+        while (true)
+        {
+            var key = Console.ReadKey(true);
+            // Only this disposable synthetic fixture records received test keys.
+            File.AppendAllText(Path.Combine(directory, "keys.jsonl"),
+                JsonSerializer.Serialize(new { key = key.Key.ToString(), character = (int)key.KeyChar, modifiers = key.Modifiers.ToString() }) + "\n");
+            if (key.Key == ConsoleKey.Q) break;
+        }
     }
 
 }

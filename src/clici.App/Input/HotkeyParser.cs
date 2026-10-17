@@ -9,14 +9,14 @@ namespace Clici.App.Input;
 internal static class HotkeyParser
 {
     public static bool TryParse(string? chord, out uint modifiers, out uint virtualKey)
-        => TryParseCore(chord, out modifiers, out virtualKey, allowArrows: false);
+        => TryParseCore(chord, out modifiers, out virtualKey, allowNavigationKeys: false);
 
     // Parsing alone registers nothing. Navigation must use its qualified input
     // adapter; the existing global join hotkey deliberately retains its grammar.
     public static bool TryParseNavigation(string? chord, out uint modifiers, out uint virtualKey)
-        => TryParseCore(chord, out modifiers, out virtualKey, allowArrows: true);
+        => TryParseCore(chord, out modifiers, out virtualKey, allowNavigationKeys: true);
 
-    private static bool TryParseCore(string? chord, out uint modifiers, out uint virtualKey, bool allowArrows)
+    private static bool TryParseCore(string? chord, out uint modifiers, out uint virtualKey, bool allowNavigationKeys)
     {
         modifiers = 0;
         virtualKey = 0;
@@ -56,9 +56,19 @@ internal static class HotkeyParser
         }
 
         var key = tokens[^1];
-        if (allowArrows)
+        if (allowNavigationKeys)
         {
-            virtualKey = key.ToLowerInvariant() switch { "left" => 0x25, "up" => 0x26, "right" => 0x27, "down" => 0x28, _ => 0 };
+            // Use base key names, not layout-dependent shifted glyphs.
+            virtualKey = key.ToLowerInvariant() switch
+            {
+                "left" => 0x25,
+                "up" => 0x26,
+                "right" => 0x27,
+                "down" => 0x28,
+                "comma" or "," => 0xBC,
+                "period" or "." => 0xBE,
+                _ => 0
+            };
             if (virtualKey != 0) { return modifiers != 0; }
         }
         if (key.Length == 1 && char.IsAsciiLetterOrDigit(key[0]))
