@@ -9,6 +9,42 @@ enabled by building the project. The session activation script selects a bundled
 full `codex` executable for one shell; the installed CLI and shell profiles remain unchanged.
 Claude is not supported by this adapter.
 
+## Enable automatically in new terminals
+
+On Windows with Python 3.11 or newer, deploy a published bundle once:
+
+```powershell
+python ./install_renderer.py --bundle <bundle-directory>
+```
+
+The installer verifies every bundled file, copies it into a versioned directory
+under `%LOCALAPPDATA%/Clici/renderer-navigation`, and adds managed startup blocks
+to the current user's PowerShell 7 profile and Git Bash `.bashrc`. It sets
+`tui.alternate_screen = "never"` in the user's Codex config so plain `codex`
+uses classic scrollback. The previous settings are backed up in the installation
+directory. Existing profile content is preserved; a repeated install is harmless.
+
+Open a new Windows Terminal tab, then run `codex` or the existing `cx` alias.
+No activation command or additional flags are needed. The automatic loader
+requires Windows Terminal, honors `NO_COLOR`, and skips shells started by a
+Codex agent. Unsupported and elevated panes still receive no navigation lease.
+The installed npm CLI remains on disk, but the terminal uses the pinned, patched
+**Codex 0.162.1** while this deployment is enabled. npm updates do not update this
+bundle. Claude and the Codex desktop app are not changed.
+
+To stop automatic loading, run this and open a new terminal tab:
+
+```powershell
+python "$env:LOCALAPPDATA/Clici/renderer-navigation/install_renderer.py" --disable
+```
+
+Disable removes only the managed profile blocks and restores the prior screen
+setting if the user has not replaced it. Later unrelated profile/config edits
+are preserved. Existing sessions continue until closed; bundles and backups are
+retained. To update the pinned deployment, disable it, then install the new
+bundle with the repository's installer. Use `--powershell-profile`,
+`--bash-profile`, or `--config` for nonstandard locations.
+
 ## What the bridge establishes
 
 - Committed and replayed prompts retain `UserMessageItem.id`. Optimistic paint
