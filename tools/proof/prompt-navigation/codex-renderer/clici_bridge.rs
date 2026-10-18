@@ -59,9 +59,9 @@ pub(crate) fn observation_time() -> u64 {
 
 pub(crate) fn poll_keyboard() -> bool {
     keyboard_enabled()
-        && state().lock().is_ok_and(|state| {
-            state.client.as_ref().is_some_and(Client::is_available) || state.retry_at.is_some()
-        })
+        // A failed client still asks for frames: an idle session draws nothing
+        // else, and only the next publish replaces the helper.
+        && state().lock().is_ok_and(|state| state.client.is_some() || state.retry_at.is_some())
 }
 
 // Starts the helper, or replaces one that failed after its restart delay. A
