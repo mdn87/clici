@@ -238,6 +238,25 @@ test('another slash command withdraws ownership until the composer accepts a pro
     expect(world.last().prompts.map(binding => binding.messageId)).toEqual(['one', 'two']);
 });
 
+// The painted prompts stay in the classic scrollback after compaction, and the
+// helper resolves whichever newest anchors are still painted.
+test('a completed compaction keeps the bindings and composer ownership', async ($, on) => {
+    const world = bridge(on);
+    on('session.compact', () => ({ messages: [{ role: 'user' as const, text: 'summary', toolUses: [] }] }));
+    await start($, on, true, '2.1.296', BRIDGE_ENV);
+    await $.session.append(prompt('one')); await $.ui.render(render('one'));
+    await world.clock.settle();
+    const before = world.last();
+    await $.session.compact({ trigger: 'auto', messages: [{ role: 'user', text: 'transcript', toolUses: [] }] });
+    await world.clock.settle();
+    expect(world.last().composerOwnsInput).toBe(true);
+    expect(world.last().epoch).toBe(before.epoch);
+    expect(world.last().prompts).toEqual(before.prompts);
+    await $.session.append(prompt('two')); await $.ui.render(render('two'));
+    await world.clock.settle();
+    expect(world.last().prompts.map(binding => binding.messageId)).toEqual(['one', 'two']);
+});
+
 test('session end publishes a withdrawal and stops the heartbeat', async ($, on) => {
     const world = bridge(on);
     await start($, on, true, '2.1.296', BRIDGE_ENV);

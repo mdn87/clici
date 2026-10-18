@@ -50,7 +50,9 @@ reproduces the old failure on purpose.
   viewport, no tool call is awaiting a permission or question dialog, and no
   other slash command has opened a panel since the last accepted prompt. A
   withdrawn frame carries no prompts, so the helper passes keys through.
-- Clear, resume, exit and completed main-loop compaction invalidate the epoch.
+- Clear, resume and exit invalidate the epoch. Compaction keeps the bindings:
+  the painted prompts stay in the scrollback, and the helper resolves the newest
+  anchors still painted.
   Resumed history is not captured; `historyComplete` stays false.
 
 `CLICI_CLAUDE_ANCHORS=1` enables it on any engine version; it was built and
@@ -84,7 +86,7 @@ node --test ./tools/proof/prompt-navigation/claude-renderer/tests/anchors.node.m
 
 Type checking uses the installed 2.1.296 declaration under
 `.claude-plugin/types/claude-code/index.d.ts`. Vendor declarations are ignored
-and not redistributed. The eight Node tests run in CI. The twenty native hook
+and not redistributed. The eight Node tests run in CI. The twenty-one native hook
 tests require Claude Code locally (`claude plugin test`); they cover event handling, returned trees,
 frame publication, ownership withdrawal and release, and helper exit and
 replacement, not retained terminal rows.
