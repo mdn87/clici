@@ -112,8 +112,9 @@ export const register: Register = on => {
 
     on('session.start', async ($, e, next) => {
         reportTimer?.cancel();
-        enabled = await $.env.get('CLICI_CLAUDE_ANCHORS') === '1' &&
-            (await $.session.version()).version === '2.1.296';
+        // Not pinned to an engine version: a release that changes the drawing
+        // fails Resolve in the helper, which passes keys through.
+        enabled = await $.env.get('CLICI_CLAUDE_ANCHORS') === '1';
         reportPath = enabled ? await $.env.get('CLICI_CLAUDE_ANCHOR_REPORT') : undefined;
         anchors.reset(enabled && e.surface === 'terminal' && e.isInteractive);
         state.dialogs.clear();

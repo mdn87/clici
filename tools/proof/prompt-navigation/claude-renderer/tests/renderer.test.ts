@@ -95,10 +95,9 @@ test('disabled adapter returns the original render tree', async ($, on) => {
     expect((await report($)).active).toBe(false);
 });
 
-test('unqualified engine version returns the original render tree', async ($, on) => {
+test('a newer engine version still anchors prompts', async ($, on) => {
     await start($, on, true, '2.1.999');
-    expect((await $.ui.render(render('one'))).type).toBe('Text');
-    expect((await report($)).active).toBe(false);
+    expect((await report($)).active).toBe(true);
 });
 
 test('session exit withdraws all bindings', async ($, on) => {

@@ -1,7 +1,7 @@
 # Claude renderer plugin
 
 This plugin gives Clici native prompt identity and composer-ownership evidence
-for Claude Code **2.1.296** sessions drawn in the classic (non-alternate)
+for Claude Code sessions drawn in the classic (non-alternate)
 terminal screen. It ships inside the renderer bundle that the
 [Codex runbook](../codex-renderer/README.md) installs; the installer adds the
 bundled copy to `CLAUDE_CODE_PLUGIN_DIRS` for new Windows Terminal shells, so an
@@ -49,7 +49,10 @@ reproduces the old failure on purpose.
 - Clear, resume, exit and completed main-loop compaction invalidate the epoch.
   Resumed history is not captured; `historyComplete` stays false.
 
-`CLICI_CLAUDE_ANCHORS=1` enables it on 2.1.296 only. `CLICI_CLAUDE_ANCHOR_REPORT`
+`CLICI_CLAUDE_ANCHORS=1` enables it on any engine version; it was built and
+tested on 2.1.296. It is deliberately not pinned: if an update changes the
+drawing, the helper cannot resolve the painted rows and passes the keys through,
+and the plugin gets fixed then. `CLICI_CLAUDE_ANCHOR_REPORT`
 optionally names a development JSON file with IDs and nonces, never prompt text.
 `/clici-renderer` prints the same metadata plus `composerOwnsInput` and whether a
 bridge child is alive. Every report has `navigationEligible: false`: the helper
