@@ -13,6 +13,13 @@ between minor versions where a classification proves to be wrong.
 
 ### Added
 
+- Claude Code renderer navigation, bundled with the Codex deployment (#33).
+  Prompt anchors use case-insensitive nonces (#35, #38), and the plugin no
+  longer pins Claude 2.1.296 (#39). Still an opt-in developer bundle; physical
+  Terminal qualification remains open (`docs/claude-renderer-qualification.md`).
+- Prompt navigation shortcuts moved to Alt+Shift+Comma (previous) and
+  Alt+Shift+Period (next) (#30), with PowerShell and bash profile autostart for
+  the renderer bundle (#31).
 - Experimental Codex pre-Terminal keyboard adapter for Ctrl+Up/Down (NAV-003).
   A native confirmation after each press is required before scrolling; focus,
   pointer, modal, layout and expiry checks cancel stale work. Session-only full
@@ -32,6 +39,18 @@ between minor versions where a classification proves to be wrong.
   runbook, plus pure previous/next prompt decisions with 24 tests (NAV-001,
   NAV-002, NAV-005). Navigation is not integrated into the tray app. The proof
   report records native-mark failures and remaining agent-native integration work.
+
+### Fixed
+
+- Clipboard copies with no owner window are skipped instead of being
+  attributed to the foreground app, so an app re-posting its clipboard on exit
+  is no longer normalized (TG-01, #34).
+- Contended clipboard reads that WinForms surfaced as missing or empty text are
+  retried, and a persistent failure is reported as `UnicodeTextUnreadable`
+  (M17, `d691793`).
+- A failed Codex or Claude navigation helper is replaced with capped backoff
+  instead of disabling navigation, and frames keep drawing until the
+  replacement is up (#36, #37, #40).
 
 ## 0.1.0 — 2026-08-29
 
