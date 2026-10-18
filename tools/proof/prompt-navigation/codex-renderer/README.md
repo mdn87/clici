@@ -8,7 +8,7 @@ Alt+Shift+Comma / Alt+Shift+Period to the live renderer. Nothing is installed or
 enabled by building the project. The session activation script selects a bundled
 full `codex` executable for one shell; the installed CLI and shell profiles remain unchanged.
 The same bundle carries the [Claude renderer plugin](../claude-renderer/README.md)
-under `claude-plugin/`, which gives Claude Code 2.1.296 sessions the same
+under `claude-plugin/`, which gives Claude Code sessions the same
 navigation through a frame file instead of pipes.
 
 ## Enable automatically in new terminals
@@ -36,8 +36,8 @@ loader requires Windows Terminal, honors `NO_COLOR`, and skips shells started by
 a Codex agent. Unsupported and elevated panes still receive no navigation lease.
 The installed npm Codex CLI remains on disk, but the terminal uses the pinned,
 patched **Codex 0.162.1** while this deployment is enabled. npm updates do not
-update this bundle. A Claude upgrade past 2.1.296 silently disables the plugin
-until it is requalified. The Codex desktop app is not changed.
+update this bundle. The Claude plugin is not pinned to a Claude version;
+if an upgrade breaks it, the keys pass through until it is fixed. The Codex desktop app is not changed.
 
 To stop automatic loading, run this and open a new terminal tab:
 

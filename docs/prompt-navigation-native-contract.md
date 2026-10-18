@@ -137,7 +137,7 @@ Neither the saved metadata report nor its `composerOwnsInput` field is a lease.
 
 Maintaining the experimental Codex renderer build requires replay/steering
 identity tests, input-context tests, and a repeated classic Windows Terminal
-matrix on upgrades. The Claude plugin is pinned to 2.1.296 and needs the same
-matrix on each engine upgrade. No vendor binary has been replaced or fork
+matrix on upgrades. The Claude plugin is not version-pinned (tested on 2.1.296);
+a Claude upgrade that breaks it fails closed and gets fixed then. No vendor binary has been replaced or fork
 installed; switching to fullscreen or adding launch wrappers has not been
 accepted as a substitute.
