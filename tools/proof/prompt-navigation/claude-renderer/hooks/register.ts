@@ -7,12 +7,19 @@ const HEARTBEAT_MS = 100;
 // Tools whose own dialog holds the keyboard until the call settles; a hook's
 // `allow` verdict never dismisses them.
 const INTERACTIVE_TOOLS = new Set(['AskUserQuestion', 'ExitPlanMode']);
+// A helper that dies is replaced the way Codex replaces its own: after 1 s,
+// doubling to 30 s, at most 10 times a session. Even the first wait outlasts
+// the old helper's lease (750 ms from its last frame, observed before the
+// failure), so a helper that outlives its stream can no longer take a key.
+const MAX_RESTARTS = 10;
 
 type Bridge = {
     path: string;
     sequence: number;
     dirty: boolean;
     ended: boolean;
+    retired: boolean; // Torn down on purpose: its end is not a failure.
+    failed: boolean; // Its failure was counted; a second signal is ignored.
     pending?: Promise<void>;
     heartbeat?: Timer;
     stream?: HookStream<ProcessSpawnChunk, ProcessSpawnResult>;
@@ -27,6 +34,9 @@ type Ownership = {
     classicViewport: boolean; // A UserMessage drew in a non-fullscreen terminal viewport.
     dialogs: Set<string>; // Tool calls that may hold a permission or question dialog.
     panel: boolean; // A slash command may have opened a panel; released by the next prompt.
+    launch?: { helper: string; temp: string };
+    restarts: number; // Replacements this session.
+    restart?: Timer;
 };
 
 function ownsComposer(state: Ownership) {
@@ -55,6 +65,27 @@ function stop(state: Ownership, child: Bridge) {
     if (state.bridge === child) state.bridge = undefined;
 }
 
+// One failed helper schedules one replacement, whichever of its stream end or
+// a failed frame write reports it first. A fresh helper starts with no lease
+// and keeps the painted anchors, which are still in the scrollback.
+function fail($: EngineInterface, state: Ownership, child: Bridge, reason: string) {
+    stop(state, child);
+    if (child.retired || child.failed) return;
+    child.failed = true;
+    if (state.restarts >= MAX_RESTARTS) {
+        $.ui.log(`clici-renderer: helper ${reason}; not replaced after ${MAX_RESTARTS} replacements`, { to: 'debug' });
+        return;
+    }
+    const delay = Math.min(1000 * 2 ** state.restarts, 30_000);
+    state.restarts++;
+    $.ui.log(`clici-renderer: helper ${reason}; replacing it in ${delay} ms`, { to: 'debug' });
+    state.restart = $.clock.after(delay, () => {
+        state.restart = undefined;
+        const launch = state.launch;
+        if (state.anchors.active && state.bridge === undefined && launch) start($, state, launch.helper, launch.temp);
+    });
+}
+
 // Publishes the current ownership frame; coalesces concurrent requests so
 // writes never overlap and the newest state always lands last.
 function publish($: EngineInterface, state: Ownership): Promise<void> {
@@ -66,12 +97,12 @@ function publish($: EngineInterface, state: Ownership): Promise<void> {
             while (child.dirty && !child.ended) {
                 child.dirty = false;
                 const observedAt = await $.clock.now(); // Before the state is examined.
+                if (child.ended) break; // Never renew a stopped helper's lease.
                 const next = frame(state, observedAt, child);
                 if (next) await $.fs.write(child.path, JSON.stringify(next));
             }
         } catch (error) {
-            $.ui.log(`clici-renderer: frame publication stopped: ${String(error)}`, { to: 'debug' });
-            stop(state, child);
+            fail($, state, child, `frame publication stopped: ${String(error)}`);
         } finally {
             child.pending = undefined;
         }
@@ -82,10 +113,16 @@ function publish($: EngineInterface, state: Ownership): Promise<void> {
 function start($: EngineInterface, state: Ownership, helper: string, temp: string) {
     const child: Bridge = {
         path: `${temp.replaceAll('\\', '/')}/clici-renderer/${crypto.randomUUID()}.json`,
-        sequence: 0, dirty: false, ended: false,
+        sequence: 0, dirty: false, ended: false, retired: false, failed: false,
     };
+    let stream: HookStream<ProcessSpawnChunk, ProcessSpawnResult>;
+    try {
+        stream = $.process.spawn({ argv: [helper, 'renderer-bridge-frames', child.path] });
+    } catch (error) {
+        fail($, state, child, `did not start: ${String(error)}`);
+        return;
+    }
     state.bridge = child;
-    const stream = $.process.spawn({ argv: [helper, 'renderer-bridge-frames', child.path] });
     child.stream = stream;
     // The loop is the helper's life: it ends with the helper or with this module.
     void (async () => {
@@ -96,7 +133,7 @@ function start($: EngineInterface, state: Ownership, helper: string, temp: strin
         } catch (error) {
             $.ui.log(`clici-renderer bridge unavailable: ${String(error)}`, { to: 'debug' });
         } finally {
-            stop(state, child);
+            fail($, state, child, 'exited');
         }
     })();
     child.heartbeat = $.clock.every(HEARTBEAT_MS, () => { void publish($, state); });
@@ -104,7 +141,7 @@ function start($: EngineInterface, state: Ownership, helper: string, temp: strin
 
 export const register: Register = on => {
     const anchors = new PromptAnchors(() => crypto.randomUUID().replaceAll('-', ''));
-    const state: Ownership = { anchors, lastSessionId: null, classicViewport: false, dialogs: new Set(), panel: false };
+    const state: Ownership = { anchors, lastSessionId: null, classicViewport: false, dialogs: new Set(), panel: false, restarts: 0 };
     let reportPath: string | undefined;
     let reportTimer: Timer | undefined;
     let reporting = false;
@@ -119,6 +156,9 @@ export const register: Register = on => {
         anchors.reset(enabled && e.surface === 'terminal' && e.isInteractive);
         state.dialogs.clear();
         state.panel = false;
+        state.restarts = 0;
+        state.restart?.cancel(); // This start spawns a helper if none runs.
+        state.restart = undefined;
         const epoch = anchors.epoch;
         if (anchors.active) anchors.bind(await $.session.id(), epoch);
         if (reportPath) reportTimer = $.clock.every(250, () => {
@@ -131,7 +171,10 @@ export const register: Register = on => {
         if (anchors.active && state.bridge === undefined) {
             const helper = await $.env.get('CLICI_RENDERER_BRIDGE');
             const temp = await $.env.get('TEMP') ?? await $.env.get('TMP');
-            if (helper && temp) start($, state, helper, temp);
+            if (helper && temp) {
+                state.launch = { helper, temp };
+                start($, state, helper, temp);
+            }
         }
         await $.command.register({ name: 'clici-renderer', description: 'Inspect Clici renderer metadata' });
         void publish($, state);
@@ -196,6 +239,12 @@ export const register: Register = on => {
         if (!anchors.active) { reportTimer?.cancel(); state.bridge?.heartbeat?.cancel(); }
         if (reportPath) await $.fs.write(reportPath, JSON.stringify(anchors.report()));
         await publish($, state); // Withdraw before the process or the transcript goes away.
+        if (!anchors.active) {
+            state.restart?.cancel();
+            state.restart = undefined;
+            const child = state.bridge;
+            if (child) { child.retired = true; stop(state, child); }
+        }
         return next(e);
     }).catch((_$, e, next) => { anchors.reset(false); return next(e); });
     on('session.compact', async ($, e, next) => {

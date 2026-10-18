@@ -38,9 +38,13 @@ reproduces the old failure on purpose.
   only while the lease from a recent frame is valid, and the next frame
   collects the accepted press through `TakeConfirmed`. `CLICI_NATIVE_KEY_PROBE` is a separate Ctrl+Up/Down
   diagnostic and plays no part here.
-- If the helper exits, the plugin stops publishing and keys pass through until
-  the next `session.start` spawns a new one. Unlike the Codex bridge, the plugin
-  does not replace a failed helper mid-session.
+- If the helper exits, fails to start, or a frame write fails, keys pass
+  through and the plugin replaces the helper the way the Codex bridge does:
+  after 1 s, doubling to a 30 s cap, at most ten times a session (the count
+  resets at `session.start`). Each replacement gets a new frame file, so the
+  old helper's lease (750 ms from its last frame) has expired before the new
+  one starts; prompts already painted in the scrollback stay navigable. Session
+  end tears the helper down without replacing it.
 - `composerOwnsInput` is true only while every item of evidence agrees: anchors
   active and not overflowed, a `UserMessage` drew in a non-fullscreen terminal
   viewport, no tool call is awaiting a permission or question dialog, and no
@@ -80,10 +84,10 @@ node --test ./tools/proof/prompt-navigation/claude-renderer/tests/anchors.node.m
 
 Type checking uses the installed 2.1.296 declaration under
 `.claude-plugin/types/claude-code/index.d.ts`. Vendor declarations are ignored
-and not redistributed. The eight Node tests run in CI. The fourteen native hook
-tests require Claude 2.1.296 locally; they cover event handling, returned trees,
-frame publication, ownership withdrawal and release, and helper exit, not
-retained terminal rows.
+and not redistributed. The eight Node tests run in CI. The twenty native hook
+tests require Claude Code locally (`claude plugin test`); they cover event handling, returned trees,
+frame publication, ownership withdrawal and release, and helper exit and
+replacement, not retained terminal rows.
 
 ## Real renderer acceptance test
 
