@@ -247,15 +247,8 @@ export const register: Register = on => {
         }
         return next(e);
     }).catch((_$, e, next) => { anchors.reset(false); return next(e); });
-    on('session.compact', async ($, e, next) => {
-        const epoch = anchors.epoch;
-        const result = await next(e);
-        if (e.agentId === undefined && e.trigger !== 'precompute' && !result.skip && anchors.epoch === epoch) {
-            anchors.reset(anchors.active);
-            void publish($, state);
-        }
-        return result;
-    }).catch((_$, e, next) => { anchors.reset(false); return next(e); });
+    // Compaction keeps the bindings: the painted prompts stay in the classic
+    // scrollback, and the helper resolves only the newest anchors still painted.
     on('command.run', async ($, e, next) => {
         if (e.command === 'clici-renderer') return { text: JSON.stringify({ ...anchors.report(), composerOwnsInput: ownsComposer(state), bridge: state.bridge !== undefined }) };
         // Another command may open a panel the engine does not report; hold
