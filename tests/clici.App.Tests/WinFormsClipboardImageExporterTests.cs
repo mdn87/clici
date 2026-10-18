@@ -209,10 +209,7 @@ public sealed class WinFormsClipboardImageExporterTests
 
         var resolved = WinFormsClipboardImageExporter.ResolveDestinationPath(path);
 
-        Assert.True(string.Equals(
-            path,
-            resolved,
-            StringComparison.OrdinalIgnoreCase));
+        Assert.Equal(path, resolved, ignoreCase: true);
     }
 
     [Fact]

@@ -43,7 +43,8 @@ public sealed class ClipboardImageExportCoordinatorTests
                 ClipboardAccessStatus.Success,
                 "  first\r\n  second\r\n  third",
                 1,
-                null));
+                null,
+                OwnerProcessName: "pwsh"));
         var exporter = new RecordingImageExporter(
             new ClipboardImageExportResult(ClipboardImageExportStatus.NoImage));
         var coordinator = CreateCoordinator(
@@ -60,6 +61,52 @@ public sealed class ClipboardImageExportCoordinatorTests
         Assert.Equal(1, clipboard.ReadCount);
         var write = Assert.Single(clipboard.Writes);
         Assert.Equal("first\r\nsecond\r\nthird", write.Text);
+    }
+
+    [Fact]
+    public void NoImageStillSkipsOwnerlessText()
+    {
+        // The export hook runs ahead of text handling; when there is no image,
+        // the ownerless-source rule must still apply to the text that follows.
+        var clipboard = new RecordingClipboardService(
+            new ClipboardReadResult(
+                ClipboardAccessStatus.Success,
+                "  first\r\n  second\r\n  third",
+                1,
+                null));
+        var exporter = new RecordingImageExporter(
+            new ClipboardImageExportResult(ClipboardImageExportStatus.NoImage));
+        var logger = new RecordingLogger();
+        var coordinator = CreateCoordinator(
+            clipboard,
+            exporter,
+            logger,
+            new CliciConfiguration
+            {
+                ClipboardImageExportPath = ExportPath
+            });
+
+        coordinator.HandleClipboardChanged();
+
+        Assert.Single(exporter.DestinationPaths);
+        Assert.Empty(clipboard.Writes);
+        Assert.Contains("skipped-ownerless-source", logger.Events);
+    }
+
+    [Fact]
+    public void EmptyExportPathNeverCallsTheExporter()
+    {
+        var exporter = new RecordingImageExporter(
+            new ClipboardImageExportResult(ClipboardImageExportStatus.Exported));
+        var coordinator = CreateCoordinator(
+            new RecordingClipboardService(),
+            exporter,
+            new RecordingLogger(),
+            new CliciConfiguration());
+
+        coordinator.HandleClipboardChanged();
+
+        Assert.Empty(exporter.DestinationPaths);
     }
 
     [Fact]
