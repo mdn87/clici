@@ -19,9 +19,11 @@ reproduces the old failure on purpose.
 
 - `session.append` pins the engine-stamped UUID of each eligible main-loop
   composer prompt and gives it a random 128-bit nonce, written as uppercase
-  hex. The helper's `RenderedPromptMap.Resolve` accepts only uppercase nonces
-  (the case Codex emits); lowercase nonces made every frame fail as
-  "Incomplete or ambiguous rendered anchors" until PR #35.
+  hex. Nonce case carries no identity: `RenderedPromptMap.Resolve` matches
+  nonces case-insensitively and treats two nonces equal apart from case as
+  duplicates. Before PR #35 the plugin sent lowercase and Resolve accepted only
+  uppercase, so every frame failed as "Incomplete or ambiguous rendered
+  anchors".
 - `ui.render` for `UserMessage` wraps the original drawing in two blank six-cell
   RGB rows that encode the nonce, using the same encoding as the Codex bridge and
   Clici's COM resolver. IDs and nonces never enter the visible text; the stored
@@ -31,6 +33,14 @@ reproduces the old failure on purpose.
   The plugin writes a JSON frame there every 100 ms and on every state change;
   the helper discovers its parent process itself, refuses frames older than
   750 ms, and feeds them to the same lease and keyboard adapter Codex uses.
+- Every frame is an `observe` request; the plugin never sends a direction. The
+  helper's own low-level keyboard hook accepts Alt+Shift+, and Alt+Shift+.
+  only while the lease from a recent frame is valid, and the next frame
+  collects the accepted press through `TakeConfirmed`. `CLICI_NATIVE_KEY_PROBE` is a separate Ctrl+Up/Down
+  diagnostic and plays no part here.
+- If the helper exits, the plugin stops publishing and keys pass through until
+  the next `session.start` spawns a new one. Unlike the Codex bridge, the plugin
+  does not replace a failed helper mid-session.
 - `composerOwnsInput` is true only while every item of evidence agrees: anchors
   active and not overflowed, a `UserMessage` drew in a non-fullscreen terminal
   viewport, no tool call is awaiting a permission or question dialog, and no
@@ -106,7 +116,11 @@ result. This is renderer-output and helper-protocol evidence, not Windows
 Terminal COM, physical keyboard, selection or resize qualification. The
 `--bridge` case starts the helper without `CLICI_RENDERER_KEYS`, so it never
 reaches `RenderedPromptMap.Resolve` or the keyboard hook; that gap is why the
-lowercase-nonce defect passed it. Matt checked the physical keys in a real
+lowercase-nonce defect passed it. The helper's frame-file path is covered by
+`codex-renderer/test_live_input.py --frames`, which publishes lowercase nonces
+through `renderer-bridge-frames` in a portable proof Terminal and drives marked
+injected keys through the hook, observe and TakeConfirmed (it fails on the
+pre-fix Resolve with "Incomplete or ambiguous rendered anchors"). Matt checked the physical keys in a real
 Windows Terminal pane on 2026-10-17 after PR #35: navigation works, and a draft,
 the scrollback, a selection and the clipboard survive it. The cases
 stay outside ordinary CI because they need a locally installed vendor executable.

@@ -19,6 +19,27 @@ public sealed class RenderedPromptMapTests
         Assert.Equal(6, result.Prompts[0].End);
     }
 
+    [Theory]
+    [InlineData("0123456789ABCDEF0123456789ABCDEF")]
+    [InlineData("0123456789abcdef0123456789abcdef")] // Claude's plugin painted lowercase before PR #35.
+    [InlineData("0123456789aBcDeF0123456789AbCdEf")]
+    public void NonceCaseCarriesNoIdentity(string nonce)
+    {
+        RenderedPromptBinding[] bindings = [new("message-1", nonce)];
+        var result = RenderedPromptMap.Resolve(bindings, [new(nonce, 3, 6)], 100);
+        Assert.True(result.Success);
+        Assert.Equal("message-1", result.Prompts.Single().MessageId);
+        Assert.True(RenderedPromptMap.Resolve(bindings, [new(nonce.ToUpperInvariant(), 3, 6)], 100).Success);
+    }
+
+    [Fact]
+    public void NoncesEqualApartFromCaseAreDuplicates()
+    {
+        var nonce = "0123456789abcdef0123456789abcdef";
+        Assert.False(RenderedPromptMap.Resolve([new("message-1", nonce), new("message-2", nonce.ToUpperInvariant())],
+            [new(nonce, 3, 6), new(nonce.ToUpperInvariant(), 10, 14)], 100).Success);
+    }
+
     [Fact]
     public void EvictedPrefixIsACaptureBoundaryAndNeverBecomesAnOldestPromptClaim()
     {
