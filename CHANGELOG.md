@@ -13,6 +13,12 @@ between minor versions where a classification proves to be wrong.
 
 ### Added
 
+- Optional clipboard image export (`clipboardImageExportPath`, off when empty).
+  A clipboard image is written as a PNG to a local or `\wsl.localhost` path,
+  with `clipboardImageExportHistory` timestamped copies (default 20, oldest
+  pruned). The clipboard itself is unchanged; monitor-processing exclusions and
+  unreadable privacy metadata skip the export, and remote UNC paths are refused
+  (#6).
 - Claude Code renderer navigation, bundled with the Codex deployment (#33).
   Prompt anchors use case-insensitive nonces (#35, #38), and the plugin no
   longer pins Claude 2.1.296 (#39). Still an opt-in developer bundle; physical
