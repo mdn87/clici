@@ -99,6 +99,7 @@ Push-Location artifacts/codex-renderer/codex-rs
 cargo +stable test -p codex-tui --lib clici_ --locked
 cargo +stable build -p codex-tui --bin codex-tui --locked
 cargo +stable build -p codex-cli --bin codex --locked
+cargo +stable build -p codex-code-mode-host --bin codex-code-mode-host --locked
 Pop-Location
 ```
 

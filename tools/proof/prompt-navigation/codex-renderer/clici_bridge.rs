@@ -21,7 +21,10 @@ struct State {
     receipts: Receipts,
     keys: KeyGate,
     client: Option<Client>,
-    attempted: bool,
+    failures: u32,
+    restarts: u32,
+    retry_at: Option<std::time::Instant>,
+    last_reason: Option<(String, String)>,
     epoch: u64,
     sequence: u64,
     session: Option<String>,
@@ -56,7 +59,55 @@ pub(crate) fn observation_time() -> u64 {
 
 pub(crate) fn poll_keyboard() -> bool {
     keyboard_enabled()
-        && state().lock().is_ok_and(|state| state.client.as_ref().is_some_and(Client::is_available))
+        && state().lock().is_ok_and(|state| {
+            state.client.as_ref().is_some_and(Client::is_available) || state.retry_at.is_some()
+        })
+}
+
+// Starts the helper, or replaces one that failed after its restart delay. A
+// replacement starts unqualified in a new epoch and receives a full frame, so
+// no lease or press survives a failure. A session gives up after
+// MAX_RESTARTS replacements rather than cycling a broken helper forever.
+fn ensure_client(state: &mut State) -> bool {
+    if state.client.as_ref().is_some_and(Client::is_available) {
+        return true;
+    }
+    let now = std::time::Instant::now();
+    if state.client.take().is_some() {
+        state.failures += 1;
+        state.retry_at = Some(now + protocol::restart_delay(state.failures));
+        state.last_reason = None;
+        state.last_frame = None;
+        state.epoch += 1;
+    }
+    if state.retry_at.is_some_and(|at| now < at) {
+        return false;
+    }
+    if state.retry_at.is_some() {
+        if state.restarts >= protocol::MAX_RESTARTS {
+            state.retry_at = None;
+            tracing::warn!(restarts = state.restarts, "Clici renderer bridge disabled after repeated failures");
+            return false;
+        }
+        state.restarts += 1;
+    }
+    let Some(path) = std::env::var_os("CLICI_RENDERER_BRIDGE") else {
+        return false;
+    };
+    match Client::start(std::path::Path::new(&path)) {
+        Ok(client) => {
+            state.client = Some(client);
+            state.retry_at = None;
+            true
+        }
+        Err(error) => {
+            state.failures += 1;
+            state.retry_at = Some(now + protocol::restart_delay(state.failures));
+            state.last_frame = None;
+            tracing::warn!(%error, failures = state.failures, "Clici renderer bridge unavailable");
+            false
+        }
+    }
 }
 
 pub(crate) fn anchor(item_id: Option<&str>, client_id: Option<&str>) -> Option<Anchor> {
@@ -217,18 +268,8 @@ pub(crate) fn event(
     let Some(bindings) = state.receipts.resolve(&session, &anchors) else {
         return false;
     };
-    if !state.attempted {
-        state.attempted = true;
-        let Some(path) = std::env::var_os("CLICI_RENDERER_BRIDGE") else {
-            return false;
-        };
-        match Client::start(std::path::Path::new(&path)) {
-            Ok(client) => state.client = Some(client),
-            Err(error) => {
-                tracing::warn!(%error, "Clici renderer bridge unavailable");
-                return false;
-            }
-        }
+    if !ensure_client(&mut state) {
+        return false;
     }
     state.sequence += 1;
     let request = Request {
@@ -254,7 +295,7 @@ pub(crate) fn event(
             reply.handled
         }
         Some(Err(error)) => {
-            tracing::warn!(%error, "Clici navigation result unverified; bridge disabled");
+            tracing::warn!(%error, "Clici navigation result unverified; helper will be replaced");
             true
         }
         None => false,
@@ -302,18 +343,10 @@ pub(crate) fn publish(
         return;
     }
     state.last_frame = Some(frame);
-    if !state.attempted {
-        state.attempted = true;
-        let Some(path) = std::env::var_os("CLICI_RENDERER_BRIDGE") else {
-            return;
-        };
-        match Client::start(std::path::Path::new(&path)) {
-            Ok(client) => state.client = Some(client),
-            Err(error) => {
-                tracing::warn!(%error, "Clici renderer bridge unavailable");
-                return;
-            }
-        }
+    if !ensure_client(&mut state) {
+        // Unsent, so a replacement helper must still receive this frame.
+        state.last_frame = None;
+        return;
     }
     state.sequence += 1;
     let request = Request {
@@ -329,12 +362,25 @@ pub(crate) fn publish(
         composer_owns_input: eligible,
         prompts: &bindings,
     };
-    if let Some(Err(error)) = state
+    match state
         .client
         .as_mut()
         .and_then(|client| client.navigate(&request))
     {
-        tracing::warn!(%error, "Clici renderer publication stopped");
+        Some(Ok(reply)) => {
+            state.failures = 0;
+            // One line per state change keeps a refusal diagnosable from the
+            // Codex log without logging every frame.
+            let reason = (reply.action, reply.reason);
+            if state.last_reason.as_ref() != Some(&reason) {
+                tracing::info!(action = %reason.0, reason = %reason.1, "Clici renderer state");
+                state.last_reason = Some(reason);
+            }
+        }
+        Some(Err(error)) => {
+            tracing::warn!(%error, "Clici renderer publication failed; helper will be replaced");
+        }
+        None => {}
     }
 }
 

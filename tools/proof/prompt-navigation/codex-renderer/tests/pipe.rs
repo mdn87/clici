@@ -44,6 +44,17 @@ fn hung_worker_is_stopped_within_the_deadline() {
 }
 
 #[test]
+fn replacement_worker_starts_clean_after_a_hang() {
+    let fixture = Path::new(env!("CARGO_BIN_EXE_bridge-pipe-fixture"));
+    let mut client = Client::start(fixture).unwrap();
+    assert!(client.navigate(&request("hang")).unwrap().is_err());
+    assert!(!client.is_available());
+    let mut replacement = Client::start(fixture).unwrap();
+    let reply = replacement.navigate(&request("valid")).unwrap().unwrap();
+    assert_eq!(reply.sequence, 7);
+}
+
+#[test]
 fn oversized_reply_refuses_and_disables_the_worker() {
     let mut client = Client::start(Path::new(env!("CARGO_BIN_EXE_bridge-pipe-fixture"))).unwrap();
     assert!(client.navigate(&request("oversized")).unwrap().is_err());

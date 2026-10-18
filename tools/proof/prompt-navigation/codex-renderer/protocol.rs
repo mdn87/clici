@@ -179,6 +179,17 @@ pub struct Reply {
     pub sequence: u64,
     pub handled: bool,
     pub action: String,
+    #[serde(default)]
+    pub reason: String,
+}
+
+// A failed helper is replaced, never reused: its channels may still hold a late
+// reply. The delay doubles per consecutive failure so a broken helper cannot
+// stall every frame.
+pub const MAX_RESTARTS: u32 = 10;
+
+pub fn restart_delay(failures: u32) -> Duration {
+    Duration::from_millis(1000u64 << failures.clamp(1, 6).saturating_sub(1)).min(Duration::from_secs(30))
 }
 
 // One worker owns all pipe I/O. If a provider or pipe stalls, the native input
@@ -419,6 +430,15 @@ mod tests {
         gate.accept(0);
         gate.invalidate();
         assert_eq!(gate.key(0, false, false, true, true), Admission::Pass);
+    }
+
+    #[test]
+    fn restart_delay_doubles_and_is_capped() {
+        assert_eq!(restart_delay(1), Duration::from_secs(1));
+        assert_eq!(restart_delay(2), Duration::from_secs(2));
+        assert_eq!(restart_delay(5), Duration::from_secs(16));
+        assert_eq!(restart_delay(6), Duration::from_secs(30));
+        assert_eq!(restart_delay(40), Duration::from_secs(30));
     }
 
     #[test]
