@@ -1,0 +1,14 @@
+{
+  "compilerOptions": {
+    "target": "ESNext",
+    "module": "ESNext",
+    "moduleResolution": "Bundler",
+    "lib": ["ESNext"],
+    "strict": true,
+    "noEmit": true,
+    "allowImportingTsExtensions": true,
+    "types": [],
+    "skipLibCheck": true
+  },
+  "include": ["hooks/**/*.ts", "tests/**/*.test.ts", ".claude-plugin/types/**/*.d.ts"]
+}

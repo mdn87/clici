@@ -1,9 +1,31 @@
 # clici
 
-clici is a tiny Windows tray utility that corrects the unwanted common
-left margin sometimes added when copying multiline output from CLI agents such
-as Codex and Claude Code. Copy and paste normally: there is no cleanup window
-and no extra paste step.
+[![CI](https://github.com/mdn87/clici/actions/workflows/ci.yml/badge.svg)](https://github.com/mdn87/clici/actions/workflows/ci.yml)
+[![License: MIT](https://img.shields.io/badge/License-MIT-blue.svg)](LICENSE)
+
+clici is a tiny Windows tray utility that removes the unwanted left margin from
+text copied out of an agentic CLI session, so it pastes correctly anywhere.
+
+## Why this exists
+
+Agentic CLI sessions indent what they print. Claude Code and Codex render their
+output inside the session's own layout, so when you select a block — a command
+to run, a config to write, a snippet to drop into a file — that layout's
+indentation comes along with it. What reaches the clipboard is not the content
+you saw: every line carries two or four spaces that were never part of it.
+
+Those spaces are harmless in prose and destructive almost everywhere else.
+Pasted into a shell they break heredocs and continuation lines. Pasted into
+Python or YAML, where indentation *is* syntax, they corrupt the block outright.
+Pasted into a commit message, an issue, or a pull request, a four-space margin
+silently becomes a Markdown code block. The usual fix is a detour — paste into
+an editor, select all, shift-tab, copy again — repeated every single time you
+move something out of a session.
+
+clici removes the margin at the moment you copy, so the paste is simply correct
+wherever it lands: a terminal, an editor, a browser field, another agent's
+prompt. Copy and paste exactly as you already do. There is no cleanup window,
+no extra keystroke, and nothing to remember.
 
 This behavior is **margin normalization**, not whitespace trimming. clici
 removes one confidently detected common margin while preserving meaningful
@@ -78,11 +100,27 @@ trimmed and joined with single spaces. Ordinary multiline content — code,
 lists, paragraphs, tables — does not match and falls through to margin
 normalization. Set `joinWrappedLines: false` to disable.
 
-When the signature refuses a copy you know is one command, the global hotkey
-(default `Ctrl+Alt+J`, configurable via `joinLinesHotkey`, empty to disable)
-joins every nonblank line of the current clipboard unconditionally. The hotkey
-skips the source allowlist — pressing it is the authorization — but still
-honors the privacy, size, and rich-format gates.
+The signature alone is not enough, because a terminal that fills the row and
+continues the same token on the next line drops no space, so joining with one
+would corrupt the token. A wrapped URL, path, hash, or base64 blob is the
+everyday case. clici therefore also requires evidence that the seams are word
+boundaries, and refuses a copy that carries no whitespace at all (one unbroken
+token split by column) or whose non-final lines are all exactly the same width
+(an edge flush to one column, the shape mid-token wrapping produces, rather
+than the ragged edge word wrapping leaves). A refused copy is left untouched
+for margin normalization, and the hotkey below still rebuilds it on request.
+
+When the signature refuses a copy you know is one logical line, the global
+hotkey (default `Ctrl+Alt+J`, configurable via `joinLinesHotkey`, empty to
+disable) joins every nonblank line of the current clipboard unconditionally.
+It picks the separator from the same evidence rather than assuming one:
+fragments carrying the ragged edge and internal whitespace of word wrapping
+are joined with single spaces, and a token the terminal split by column is
+concatenated with nothing, so a wrapped URL comes back exactly as it was
+rather than with spaces driven into it. A seam that kept its own whitespace is
+a word boundary either way, and keeps its space. The hotkey skips the source
+allowlist — pressing it is the authorization — but still honors the privacy,
+size, and rich-format gates.
 
 clici does not use `TrimStart` and does not interpret tabs as spaces. CRLF, LF,
 mixed line endings, and trailing newlines are retained exactly. Unicode text is
@@ -99,11 +137,12 @@ clici targets Windows and uses WinForms, `NotifyIcon`, and
 `AddClipboardFormatListener`. It has no main window, web UI, local server, or
 network access.
 
-clici attributes a copy to its source primarily by the clipboard **owner
-process** (`GetClipboardOwner`), falling back to the foreground process only
-when the owner is unknown. This means a disallowed background process that
-writes the clipboard while a terminal is in the foreground is not misattributed,
-and a terminal copy survives a focus change. It does **not** install a global
+clici attributes a copy to its source by the clipboard **owner process**
+(`GetClipboardOwner`). A copy with no owner is skipped rather than attributed to
+the foreground process (Win11 Notepad, for example, re-posts its clipboard with
+no owner when it exits). This means a disallowed background process that writes
+the clipboard while a terminal is in the foreground is not misattributed, and a
+terminal copy survives a focus change. It does **not** install a global
 keyboard hook. Both signals are behind interfaces so another targeting strategy
 can be evaluated later without changing the normalization core.
 
@@ -247,7 +286,24 @@ Find the clici icon in the Windows notification area. Right-click it and choose
 
 ## Install for the current Windows user
 
-Build and run the installer from the repository root:
+Download `clici-<version>-win-x64-setup.exe` from the
+[latest release](https://github.com/mdn87/clici/releases/latest) and run it. No
+administrator rights are required.
+
+The installer is **unsigned**, so Windows SmartScreen will warn the first time
+you run it: choose **More info** then **Run anyway**. Each release publishes a
+`.sha256` file beside the installer if you want to verify the download first:
+
+```powershell
+Get-FileHash .\clici-0.1.0-win-x64-setup.exe -Algorithm SHA256
+```
+
+Release installers are built by GitHub Actions on `windows-latest` from the
+tagged commit, not from a maintainer's machine.
+
+### Build the installer yourself
+
+From the repository root:
 
 ```powershell
 .\tools\Build-Installer.ps1
@@ -304,9 +360,13 @@ you are testing, reinstall before investigating further.
 - Automatic mode is plain-text only. Items carrying HTML, RTF, CSV, files,
   images, or unknown application formats are skipped rather than rewritten;
   consistent rich-format normalization is future work.
-- Source attribution combines the clipboard owner process and the foreground
-  process, but the owner signal is not perfectly reliable (clipboard brokers and
-  ownerless states exist). Integrated-terminal hosts such as VS Code and Cursor
+- A two-line copy carries no right-edge evidence — its single non-final line is
+  uniform whichever way the terminal broke it — so a seam that falls mid-token
+  inside otherwise-spaced text is still joined with a space. Copies with no
+  whitespace at all are refused at any line count.
+- Source attribution uses the clipboard owner process only, and that signal is
+  not perfectly reliable: copies relayed by a clipboard broker or written with
+  no owner are skipped, even when they came from an approved terminal. Integrated-terminal hosts such as VS Code and Cursor
   share one process across editor and terminal, so owner-process matching alone
   cannot yet distinguish a terminal copy from an editor copy in those hosts.
 - Clipboard operations are attempted up to four times with short bounded
@@ -323,6 +383,15 @@ you are testing, reinstall before investigating further.
 
 ## Planned next steps
 
+- evaluate optional previous/next user-prompt navigation in Windows Terminal;
+  the [development probe and proof report](docs/prompt-navigation-proof-report.md)
+  establish COM scrolling, native identity validation and bounded key admission.
+  A Claude metadata probe and an opt-in Codex renderer bridge are implemented.
+  The Codex bridge includes pre-Terminal shortcut interception and fresh native
+  confirmation; broader classic-mode qualification and Claude navigation remain open.
+  See the [native bridge contract](docs/prompt-navigation-native-contract.md) and
+  [implementation plan](docs/prompt-navigation-plan.md). Navigation is not yet
+  available in the tray app;
 - exercise clipboard behavior across Windows Terminal, PowerShell, cmd, WSL,
   Codex, and Claude Code, and build a real source-fingerprint matrix;
 - add focused-control detection (UI Automation) so VS Code and Cursor
@@ -332,6 +401,14 @@ you are testing, reinstall before investigating further.
   sequence-safe undo;
 - evaluate consistent rich-format (HTML/RTF) normalization;
 - evaluate signed/MSI packaging and RDP clipboard behavior.
+
+## Contributing
+
+clici rewrites the clipboard silently, so the project is biased toward refusing
+anything it cannot classify with confidence. [CONTRIBUTING.md](CONTRIBUTING.md)
+explains that bar, the `Core`/`App` split, and what a change needs before it
+can be merged. Security issues go through [SECURITY.md](SECURITY.md) rather
+than a public issue.
 
 ## License
 

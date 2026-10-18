@@ -184,6 +184,50 @@ public sealed class WinFormsClipboardServiceTests
         Assert.True(classification.HasDisallowedFormat);
     }
 
+    [Fact]
+    public void TextReadAcceptsNonEmptyText()
+    {
+        Assert.Equal(
+            TextReadOutcome.Accept,
+            WinFormsClipboardService.ClassifyTextRead("hello", true, true));
+    }
+
+    [Fact]
+    public void TextReadReportsNoTextWhenNativeTextIsAbsent()
+    {
+        Assert.Equal(
+            TextReadOutcome.NoText,
+            WinFormsClipboardService.ClassifyTextRead(null, false, true));
+    }
+
+    [Theory]
+    [InlineData(null)]
+    [InlineData("")]
+    public void TextReadRetriesMissingOrEmptyTextWhileNativeTextIsPresent(string? text)
+    {
+        // A contended OLE read surfaces as null or empty text even though
+        // CF_UNICODETEXT is on the clipboard.
+        Assert.Equal(
+            TextReadOutcome.Retry,
+            WinFormsClipboardService.ClassifyTextRead(text, true, true));
+    }
+
+    [Fact]
+    public void TextReadReportsUnreadableWhenNativeTextNeverReads()
+    {
+        Assert.Equal(
+            TextReadOutcome.Unreadable,
+            WinFormsClipboardService.ClassifyTextRead(null, true, false));
+    }
+
+    [Fact]
+    public void TextReadAcceptsPersistentlyEmptyText()
+    {
+        Assert.Equal(
+            TextReadOutcome.Accept,
+            WinFormsClipboardService.ClassifyTextRead("", true, false));
+    }
+
     private static void SetDword(DataObject dataObject, string format, uint value) =>
         dataObject.SetData(
             format,

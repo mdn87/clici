@@ -172,9 +172,17 @@ internal sealed class ClipboardNormalizationCoordinator
                 return;
             }
 
-            // 4. Source confidence. The clipboard owner is the primary signal;
-            // the foreground process is only a fallback when the owner is unknown.
-            sourceName = snapshot.OwnerProcessName ?? foregroundName;
+            // 4. Source confidence. The clipboard owner is the only source
+            // signal. An ownerless write is skipped rather than attributed to the
+            // foreground: Win11 Notepad re-posts its clipboard with no owner on
+            // exit, after focus may already be on a terminal.
+            sourceName = snapshot.OwnerProcessName;
+            if (sourceName is null)
+            {
+                _logger.Event("skipped-ownerless-source");
+                return;
+            }
+
             if (!_processNameMatcher.IsAllowed(
                     sourceName,
                     _configuration.AllowedProcessNames,

@@ -43,6 +43,7 @@ Desktop.ini
 ## Local agent/session state
 .Codex/
 .codex/
+.dias/
 .claude/handoff.md
 .claude/handoff-history/
 .lugos-wip/
@@ -50,3 +51,13 @@ Desktop.ini
 ## Local code-signing certificates (never commit)
 tools/.certs/
 *.pfx
+__pycache__/
+
+# Local credentials and agent scratch; sanitized templates remain versioned.
+.env*
+!.env.example
+!.env.*.example
+!.env.template
+!.env.*.template
+*.sync-conflict-*
+.lugos-audit/

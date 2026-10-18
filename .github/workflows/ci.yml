@@ -1,0 +1,53 @@
+name: CI
+
+on:
+  push:
+    branches: [main]
+    tags: ['v*']
+  pull_request:
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  build-test:
+    runs-on: windows-latest
+    steps:
+      - uses: actions/checkout@v7
+      - uses: actions/setup-dotnet@v6
+        with:
+          dotnet-version: 10.0.x
+      - name: Restore
+        run: dotnet restore clici.sln
+      - name: Build
+        run: dotnet build clici.sln --configuration Release --no-restore
+      - name: Test
+        run: dotnet test clici.sln --configuration Release --no-build --logger "console;verbosity=normal"
+      - uses: actions/setup-node@v6
+        with:
+          node-version: '24'
+      - name: Test native prompt metadata ledger
+        run: node --test tools/proof/prompt-navigation/claude-identity/tests/ledger.node.mjs
+      - name: Test Claude renderer anchor registry
+        run: node --test tools/proof/prompt-navigation/claude-renderer/tests/anchors.node.mjs
+      - uses: actions/setup-python@v6
+        with:
+          python-version: '3.14'
+      - name: Test renderer deployment
+        run: python tools/proof/prompt-navigation/codex-renderer/test_install_renderer.py
+      - name: Test renderer bridge protocol
+        run: cargo +stable test --manifest-path tools/proof/prompt-navigation/codex-renderer/Cargo.toml --locked
+
+  format:
+    runs-on: windows-latest
+    steps:
+      - uses: actions/checkout@v7
+      - uses: actions/setup-dotnet@v6
+        with:
+          dotnet-version: 10.0.x
+      # Whitespace only: indentation, final newlines, and line endings as
+      # declared in .editorconfig. The style rules there are :suggestion
+      # severity and are deliberately not gated in CI.
+      - name: Verify formatting
+        run: dotnet format whitespace clici.sln --verify-no-changes --verbosity diagnostic

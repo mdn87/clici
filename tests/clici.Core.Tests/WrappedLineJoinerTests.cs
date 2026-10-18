@@ -40,11 +40,15 @@ public sealed class WrappedLineJoinerTests
     }
 
     [Fact]
-    public void ThreeLineWrapWithUniformWidthIsRejoined()
+    public void ThreeLineWordWrapWithRaggedEdgeIsRejoined()
     {
-        var first = new string('a', 90);
-        var second = new string('b', 85);
-        const string third = "tail";
+        // Word wrapping pushes a whole word down when it does not fit, so the
+        // right edge is ragged and every seam sits on a dropped space.
+        const string first =
+            "dotnet publish src/clici.App/clici.App.csproj --configuration Release";
+        const string second =
+            "--runtime win-x64 --self-contained true -p:PublishSingleFile=true";
+        const string third = "--output artifacts/publish";
 
         var result = _joiner.JoinIfWrapSignature($"{first}\n{second}\n{third}");
 
@@ -54,9 +58,43 @@ public sealed class WrappedLineJoinerTests
     }
 
     [Fact]
+    public void WrappedUrlWithNoWordBoundaryRefusesJoin()
+    {
+        // A URL too long for the row is split by column, not at a space. There
+        // is no word boundary anywhere in the copy, so the single space a join
+        // would insert lands inside the URL and breaks it.
+        const string input =
+            "https://github.com/mdn87/clici/releases/download/v0.1.0/clici-0.1.0-wi\n" +
+            "n-x64-setup.exe";
+
+        var result = _joiner.JoinIfWrapSignature(input);
+
+        Assert.Equal(LineJoinStatus.NotEligible, result.Status);
+        Assert.Equal(input, result.Text);
+    }
+
+    [Fact]
+    public void FlushRightEdgeInsideSpacedTextRefusesJoin()
+    {
+        // The copy has word boundaries, but its non-final lines are flush to
+        // one column — the shape mid-token wrapping produces. The seam falls
+        // inside the artifact name, so the copy is left untouched.
+        const string input =
+            "curl -fsSL https://example.com/downloads/very-long-artifact-name-here-\n" +
+            "0123456789abcdef0123456789abcdef0123456789abcdef0123456789abcdef.tar.g\n" +
+            "z";
+
+        var result = _joiner.JoinIfWrapSignature(input);
+
+        Assert.Equal(LineJoinStatus.NotEligible, result.Status);
+        Assert.Equal(input, result.Text);
+    }
+
+    [Fact]
     public void TrailingNewlineDoesNotBlockTheSignature()
     {
-        var first = new string('a', 80);
+        const string first =
+            "git log --oneline --graph --decorate --all --max-count=40 --date=short";
 
         var result = _joiner.JoinIfWrapSignature($"{first}\nremainder\n");
 
@@ -135,7 +173,8 @@ public sealed class WrappedLineJoinerTests
     [Fact]
     public void JoinedOutputIsANoOpOnASecondPass()
     {
-        var first = new string('a', 80);
+        const string first =
+            "git log --oneline --graph --decorate --all --max-count=40 --date=short";
         var firstPass = _joiner.JoinIfWrapSignature($"{first}\nremainder");
 
         var secondPass = _joiner.JoinIfWrapSignature(firstPass.Text);
@@ -163,4 +202,74 @@ public sealed class WrappedLineJoinerTests
 
         Assert.Equal(LineJoinStatus.NotEligible, result.Status);
     }
+
+    [Fact]
+    public void JoinAllLinesRebuildsAColumnWrappedTokenWithoutInsertingSpaces()
+    {
+        // The hotkey exists to recover the copy JOIN-001a refuses. Joining
+        // that copy with spaces would rebuild the very corruption it refuses,
+        // so the seams of a column-split token are closed with nothing.
+        var fragments = new[]
+        {
+            WrappedUrl[..70], WrappedUrl[70..140], WrappedUrl[140..]
+        };
+
+        var result = _joiner.JoinAllLines(string.Join("\r\n", fragments));
+
+        Assert.Equal(LineJoinStatus.Joined, result.Status);
+        Assert.Equal(WrappedUrl, result.Text);
+        Assert.DoesNotContain(" ", result.Text);
+    }
+
+    [Fact]
+    public void JoinAllLinesRebuildsATwoLineColumnWrappedToken()
+    {
+        // Two lines carry no right-edge evidence, so the absence of internal
+        // whitespace has to carry the decision on its own.
+        var fragments = new[] { WrappedUrl[..120], WrappedUrl[120..] };
+
+        var result = _joiner.JoinAllLines(string.Join("\r\n", fragments));
+
+        Assert.Equal(LineJoinStatus.Joined, result.Status);
+        Assert.Equal(WrappedUrl, result.Text);
+    }
+
+    [Fact]
+    public void JoinAllLinesStillSpaceJoinsWordWrappedProse()
+    {
+        // Word wrapping drops the space it broke on, so a ragged edge with
+        // internal whitespace must still be rejoined with single spaces.
+        const string input =
+            "the quick brown fox jumps over the lazy dog and then keeps running east\r\n" +
+            "past the old mill until it reaches the river bank where it finally\r\n" +
+            "stops to rest.";
+
+        var result = _joiner.JoinAllLines(input);
+
+        Assert.Equal(LineJoinStatus.Joined, result.Status);
+        Assert.Equal(
+            "the quick brown fox jumps over the lazy dog and then keeps running " +
+            "east past the old mill until it reaches the river bank where it " +
+            "finally stops to rest.",
+            result.Text);
+    }
+
+    [Fact]
+    public void JoinAllLinesKeepsASeamThatStillCarriesItsWhitespace()
+    {
+        // A terminal that happened to break on a space left the evidence
+        // behind. That seam is a word boundary whatever the copy as a whole
+        // looks like, so it outranks the concatenating default.
+        const string input = "abcdefgh \r\nijklmnop";
+
+        var result = _joiner.JoinAllLines(input);
+
+        Assert.Equal(LineJoinStatus.Joined, result.Status);
+        Assert.Equal("abcdefgh ijklmnop", result.Text);
+    }
+
+    private const string WrappedUrl =
+        "https://github.com/mdn87/clici/blob/main/src/clici.Core/LineJoining/" +
+        "WrappedLineJoiner.cs?plain=1#L120-L140&ref=abcdef0123456789abcdef01" +
+        "23456789abcdef0123456789";
 }

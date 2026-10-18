@@ -431,8 +431,10 @@ if ($Action -eq "Rapid") {
 }
 
 if ($Action -eq "MultiFormat") {
+    # Automatic mode skips items carrying HTML/RTF, so the pass condition is
+    # that nothing changes: plain text, rich formats, and no self-write marker.
     $input = "  [clici-rich] first`r`n  second`r`n    nested"
-    $expected = "[clici-rich] first`r`nsecond`r`n  nested"
+    $normalized = "[clici-rich] first`r`nsecond`r`n  nested"
     $data = [Windows.Forms.DataObject]::new()
     $data.SetData([Windows.Forms.DataFormats]::UnicodeText, $true, $input)
     $data.SetData(
@@ -446,17 +448,36 @@ if ($Action -eq "MultiFormat") {
 
     $beforeFormats = @($data.GetFormats($false) | Sort-Object -Unique)
     [Windows.Forms.Clipboard]::SetDataObject($data, $true, 4, 20)
-    $normalizeMilliseconds = Wait-ForClipboardText -Expected $expected
+    # A skip produces no event to wait for; a rewrite would land well inside
+    # this window, so its absence after the full wait is the observation.
+    $normalizeMilliseconds = Wait-ForClipboardText `
+        -Expected $normalized `
+        -Timeout 2000
     $afterData = [Windows.Forms.Clipboard]::GetDataObject()
     $afterFormats = @($afterData.GetFormats($false) | Sort-Object -Unique)
+    $afterText = [Windows.Forms.Clipboard]::GetText(
+        [Windows.Forms.TextDataFormat]::UnicodeText)
+    $textUnchanged = [string]::Equals(
+        $afterText,
+        $input,
+        [StringComparison]::Ordinal)
+    $htmlPreserved = $afterFormats -contains [Windows.Forms.DataFormats]::Html
+    $rtfPreserved = $afterFormats -contains [Windows.Forms.DataFormats]::Rtf
+    $markerAbsent = $afterFormats -notcontains "application/x-clici-normalized-v1"
 
     [pscustomobject]@{
         Case = "MultiFormat"
-        Normalized = $null -ne $normalizeMilliseconds
+        Rewritten = $null -ne $normalizeMilliseconds
+        TextUnchanged = $textUnchanged
+        HtmlPreserved = $htmlPreserved
+        RtfPreserved = $rtfPreserved
+        SelfWriteMarkerAbsent = $markerAbsent
+        SkippedUnchanged = (
+            $null -eq $normalizeMilliseconds -and
+            $textUnchanged -and $htmlPreserved -and $rtfPreserved -and
+            $markerAbsent)
         BeforeFormats = $beforeFormats -join ", "
         AfterFormats = $afterFormats -join ", "
-        HtmlPreserved = $afterFormats -contains [Windows.Forms.DataFormats]::Html
-        RtfPreserved = $afterFormats -contains [Windows.Forms.DataFormats]::Rtf
     }
     return
 }
@@ -493,17 +514,33 @@ if ($Action -eq "History") {
     }
     $after = $afterJson | ConvertFrom-Json
 
-    $data = [Windows.Forms.Clipboard]::GetDataObject()
-    $historyFlag = $data.GetData("CanIncludeInClipboardHistory", $false)
-    $cloudFlag = $data.GetData("CanUploadToCloudClipboard", $false)
-    $historyBytes = if ($historyFlag -is [IO.MemoryStream]) {
-        $historyFlag.ToArray()
-    }
-    else {
-        @()
-    }
-    $cloudBytes = if ($cloudFlag -is [IO.MemoryStream]) {
-        $cloudFlag.ToArray()
+    # clici preserves source privacy policy and never forces it. This source
+    # set none, so the rewrite must carry neither flag.
+    $formats = @([Windows.Forms.Clipboard]::GetDataObject().GetFormats($false))
+    $historyFlagAbsent = $formats -notcontains "CanIncludeInClipboardHistory"
+    $cloudFlagAbsent = $formats -notcontains "CanUploadToCloudClipboard"
+
+    # Preservation: a source that opts out of history keeps that value after
+    # the rewrite. Opted-out items never enter history, so the counts above
+    # are unaffected.
+    $optOutSource = "  $marker opt-out`r`n  second"
+    $optOutExpected = "$marker opt-out`r`nsecond"
+    $optOut = [Windows.Forms.DataObject]::new()
+    $optOut.SetData(
+        [Windows.Forms.DataFormats]::UnicodeText,
+        $true,
+        $optOutSource)
+    $optOut.SetData(
+        "CanIncludeInClipboardHistory",
+        $false,
+        [IO.MemoryStream]::new([BitConverter]::GetBytes([uint32] 0)))
+    [Windows.Forms.Clipboard]::SetDataObject($optOut, $true, 4, 20)
+    $optOutMilliseconds = Wait-ForClipboardText -Expected $optOutExpected
+    $preservedFlag = [Windows.Forms.Clipboard]::GetDataObject().GetData(
+        "CanIncludeInClipboardHistory",
+        $false)
+    $preservedBytes = if ($preservedFlag -is [IO.MemoryStream]) {
+        $preservedFlag.ToArray()
     }
     else {
         @()
@@ -515,12 +552,12 @@ if ($Action -eq "History") {
         Normalized = $null -ne $normalizeMilliseconds
         SourceHistoryDelta = $after.SourceMatches - $before.SourceMatches
         NormalizedHistoryDelta = $after.ExpectedMatches - $before.ExpectedMatches
-        HistoryRequestIsOne = (
-            $historyBytes.Count -eq 4 -and
-            [BitConverter]::ToUInt32($historyBytes, 0) -eq 1)
-        CloudRequestIsOne = (
-            $cloudBytes.Count -eq 4 -and
-            [BitConverter]::ToUInt32($cloudBytes, 0) -eq 1)
+        HistoryFlagAbsent = $historyFlagAbsent
+        CloudFlagAbsent = $cloudFlagAbsent
+        OptOutNormalized = $null -ne $optOutMilliseconds
+        OptOutPreservedAsZero = (
+            $preservedBytes.Count -eq 4 -and
+            [BitConverter]::ToUInt32($preservedBytes, 0) -eq 0)
         TotalHistoryItems = $after.TotalItems
     }
     return

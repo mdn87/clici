@@ -47,6 +47,14 @@ internal static class NativeMethods
     [DllImport("user32.dll")]
     internal static extern IntPtr GetClipboardOwner();
 
+    internal const uint CfUnicodeText = 13;
+
+    // Does not open the clipboard, so it answers even while another process
+    // holds it.
+    [DllImport("user32.dll")]
+    [return: MarshalAs(UnmanagedType.Bool)]
+    internal static extern bool IsClipboardFormatAvailable(uint format);
+
     [DllImport("user32.dll", SetLastError = true, CharSet = CharSet.Unicode)]
     internal static extern int GetClassName(
         IntPtr windowHandle,

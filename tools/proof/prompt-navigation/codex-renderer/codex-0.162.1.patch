@@ -1,0 +1,2094 @@
+diff --git a/codex-rs/Cargo.lock b/codex-rs/Cargo.lock
+index 1cee117..b30500b 100644
+--- a/codex-rs/Cargo.lock
++++ b/codex-rs/Cargo.lock
+@@ -276,7 +276,7 @@ checksum = "2a4385e2e34eb35d6b3efe798b9eb88096925d87726c0798709bf56d9ed84af3"
+ 
+ [[package]]
+ name = "app_test_support"
+-version = "0.0.0"
++version = "0.162.1"
+ dependencies = [
+  "anyhow",
+  "base64 0.22.1",
+@@ -1895,7 +1895,7 @@ dependencies = [
+ 
+ [[package]]
+ name = "codex-agent-extension"
+-version = "0.0.0"
++version = "0.162.1"
+ dependencies = [
+  "anyhow",
+  "codex-core",
+@@ -1907,7 +1907,7 @@ dependencies = [
+ 
+ [[package]]
+ name = "codex-agent-graph-store"
+-version = "0.0.0"
++version = "0.162.1"
+ dependencies = [
+  "codex-protocol",
+  "codex-state",
+@@ -1922,7 +1922,7 @@ dependencies = [
+ 
+ [[package]]
+ name = "codex-agent-identity"
+-version = "0.0.0"
++version = "0.162.1"
+ dependencies = [
+  "anyhow",
+  "base64 0.22.1",
+@@ -1942,7 +1942,7 @@ dependencies = [
+ 
+ [[package]]
+ name = "codex-agent-message-board-client"
+-version = "0.0.0"
++version = "0.162.1"
+ dependencies = [
+  "anyhow",
+  "chrono",
+@@ -1965,7 +1965,7 @@ dependencies = [
+ 
+ [[package]]
+ name = "codex-agent-message-board-extension"
+-version = "0.0.0"
++version = "0.162.1"
+ dependencies = [
+  "base64 0.22.1",
+  "caseless",
+@@ -1988,7 +1988,7 @@ dependencies = [
+ 
+ [[package]]
+ name = "codex-agent-roles"
+-version = "0.0.0"
++version = "0.162.1"
+ dependencies = [
+  "codex-config",
+  "codex-file-system",
+@@ -2001,7 +2001,7 @@ dependencies = [
+ 
+ [[package]]
+ name = "codex-analytics"
+-version = "0.0.0"
++version = "0.162.1"
+ dependencies = [
+  "codex-app-server-protocol",
+  "codex-git-utils",
+@@ -2024,7 +2024,7 @@ dependencies = [
+ 
+ [[package]]
+ name = "codex-ansi-escape"
+-version = "0.0.0"
++version = "0.162.1"
+ dependencies = [
+  "ansi-to-tui",
+  "pretty_assertions",
+@@ -2035,7 +2035,7 @@ dependencies = [
+ 
+ [[package]]
+ name = "codex-api"
+-version = "0.0.0"
++version = "0.162.1"
+ dependencies = [
+  "anyhow",
+  "assert_matches",
+@@ -2073,7 +2073,7 @@ dependencies = [
+ 
+ [[package]]
+ name = "codex-app-server"
+-version = "0.0.0"
++version = "0.162.1"
+ dependencies = [
+  "anyhow",
+  "app_test_support",
+@@ -2187,7 +2187,7 @@ dependencies = [
+ 
+ [[package]]
+ name = "codex-app-server-client"
+-version = "0.0.0"
++version = "0.162.1"
+ dependencies = [
+  "codex-app-server",
+  "codex-app-server-protocol",
+@@ -2214,7 +2214,7 @@ dependencies = [
+ 
+ [[package]]
+ name = "codex-app-server-daemon"
+-version = "0.0.0"
++version = "0.162.1"
+ dependencies = [
+  "anyhow",
+  "blake3",
+@@ -2240,7 +2240,7 @@ dependencies = [
+ 
+ [[package]]
+ name = "codex-app-server-protocol"
+-version = "0.0.0"
++version = "0.162.1"
+ dependencies = [
+  "anyhow",
+  "codex-app-server-protocol-noop-macros",
+@@ -2274,11 +2274,11 @@ dependencies = [
+ 
+ [[package]]
+ name = "codex-app-server-protocol-noop-macros"
+-version = "0.0.0"
++version = "0.162.1"
+ 
+ [[package]]
+ name = "codex-app-server-test-client"
+-version = "0.0.0"
++version = "0.162.1"
+ dependencies = [
+  "anyhow",
+  "clap",
+@@ -2300,7 +2300,7 @@ dependencies = [
+ 
+ [[package]]
+ name = "codex-app-server-transport"
+-version = "0.0.0"
++version = "0.162.1"
+ dependencies = [
+  "axum",
+  "base64 0.22.1",
+@@ -2342,7 +2342,7 @@ dependencies = [
+ 
+ [[package]]
+ name = "codex-apply-patch"
+-version = "0.0.0"
++version = "0.162.1"
+ dependencies = [
+  "anyhow",
+  "assert_cmd",
+@@ -2362,7 +2362,7 @@ dependencies = [
+ 
+ [[package]]
+ name = "codex-arg0"
+-version = "0.0.0"
++version = "0.162.1"
+ dependencies = [
+  "anyhow",
+  "codex-apply-patch",
+@@ -2386,7 +2386,7 @@ dependencies = [
+ 
+ [[package]]
+ name = "codex-async-utils"
+-version = "0.0.0"
++version = "0.162.1"
+ dependencies = [
+  "pretty_assertions",
+  "rand 0.9.3",
+@@ -2396,7 +2396,7 @@ dependencies = [
+ 
+ [[package]]
+ name = "codex-attachment-store"
+-version = "0.0.0"
++version = "0.162.1"
+ dependencies = [
+  "pretty_assertions",
+  "serde",
+@@ -2406,7 +2406,7 @@ dependencies = [
+ 
+ [[package]]
+ name = "codex-aws-auth"
+-version = "0.0.0"
++version = "0.162.1"
+ dependencies = [
+  "aws-config",
+  "aws-credential-types",
+@@ -2432,7 +2432,7 @@ dependencies = [
+ 
+ [[package]]
+ name = "codex-backend-client"
+-version = "0.0.0"
++version = "0.162.1"
+ dependencies = [
+  "anyhow",
+  "codex-api",
+@@ -2452,7 +2452,7 @@ dependencies = [
+ 
+ [[package]]
+ name = "codex-backend-openapi-models"
+-version = "0.0.0"
++version = "0.162.1"
+ dependencies = [
+  "serde",
+  "serde_json",
+@@ -2461,7 +2461,7 @@ dependencies = [
+ 
+ [[package]]
+ name = "codex-build-info"
+-version = "0.0.0"
++version = "0.162.1"
+ dependencies = [
+  "codex-install-context",
+  "pretty_assertions",
+@@ -2474,7 +2474,7 @@ dependencies = [
+ 
+ [[package]]
+ name = "codex-bwrap"
+-version = "0.0.0"
++version = "0.162.1"
+ dependencies = [
+  "cc",
+  "libc",
+@@ -2483,7 +2483,7 @@ dependencies = [
+ 
+ [[package]]
+ name = "codex-chatgpt"
+-version = "0.0.0"
++version = "0.162.1"
+ dependencies = [
+  "anyhow",
+  "clap",
+@@ -2505,7 +2505,7 @@ dependencies = [
+ 
+ [[package]]
+ name = "codex-cli"
+-version = "0.0.0"
++version = "0.162.1"
+ dependencies = [
+  "anyhow",
+  "app_test_support",
+@@ -2607,7 +2607,7 @@ dependencies = [
+ 
+ [[package]]
+ name = "codex-client"
+-version = "0.0.0"
++version = "0.162.1"
+ dependencies = [
+  "codex-http-client",
+  "eventsource-stream",
+@@ -2621,7 +2621,7 @@ dependencies = [
+ 
+ [[package]]
+ name = "codex-cloud-client"
+-version = "0.0.0"
++version = "0.162.1"
+ dependencies = [
+  "anyhow",
+  "async-stream",
+@@ -2645,7 +2645,7 @@ dependencies = [
+ 
+ [[package]]
+ name = "codex-cloud-config"
+-version = "0.0.0"
++version = "0.162.1"
+ dependencies = [
+  "base64 0.22.1",
+  "chrono",
+@@ -2671,7 +2671,7 @@ dependencies = [
+ 
+ [[package]]
+ name = "codex-cloud-tasks"
+-version = "0.0.0"
++version = "0.162.1"
+ dependencies = [
+  "anyhow",
+  "chrono",
+@@ -2704,7 +2704,7 @@ dependencies = [
+ 
+ [[package]]
+ name = "codex-cloud-tasks-client"
+-version = "0.0.0"
++version = "0.162.1"
+ dependencies = [
+  "anyhow",
+  "chrono",
+@@ -2719,7 +2719,7 @@ dependencies = [
+ 
+ [[package]]
+ name = "codex-cloud-tasks-mock-client"
+-version = "0.0.0"
++version = "0.162.1"
+ dependencies = [
+  "chrono",
+  "codex-cloud-tasks-client",
+@@ -2728,7 +2728,7 @@ dependencies = [
+ 
+ [[package]]
+ name = "codex-code-mode"
+-version = "0.0.0"
++version = "0.162.1"
+ dependencies = [
+  "codex-code-mode-protocol",
+  "codex-http-client",
+@@ -2751,7 +2751,7 @@ dependencies = [
+ 
+ [[package]]
+ name = "codex-code-mode-host"
+-version = "0.0.0"
++version = "0.162.1"
+ dependencies = [
+  "anyhow",
+  "axum",
+@@ -2780,7 +2780,7 @@ dependencies = [
+ 
+ [[package]]
+ name = "codex-code-mode-protocol"
+-version = "0.0.0"
++version = "0.162.1"
+ dependencies = [
+  "codex-protocol",
+  "glob",
+@@ -2798,7 +2798,7 @@ dependencies = [
+ 
+ [[package]]
+ name = "codex-code-mode-runtime"
+-version = "0.0.0"
++version = "0.162.1"
+ dependencies = [
+  "base64 0.22.1",
+  "codex-code-mode-protocol",
+@@ -2816,11 +2816,11 @@ dependencies = [
+ 
+ [[package]]
+ name = "codex-collaboration-mode-templates"
+-version = "0.0.0"
++version = "0.162.1"
+ 
+ [[package]]
+ name = "codex-config"
+-version = "0.0.0"
++version = "0.162.1"
+ dependencies = [
+  "anyhow",
+  "base64 0.22.1",
+@@ -2870,7 +2870,7 @@ dependencies = [
+ 
+ [[package]]
+ name = "codex-config-schema"
+-version = "0.0.0"
++version = "0.162.1"
+ dependencies = [
+  "anyhow",
+  "clap",
+@@ -2879,7 +2879,7 @@ dependencies = [
+ 
+ [[package]]
+ name = "codex-connectors"
+-version = "0.0.0"
++version = "0.162.1"
+ dependencies = [
+  "anyhow",
+  "arc-swap",
+@@ -2901,7 +2901,7 @@ dependencies = [
+ 
+ [[package]]
+ name = "codex-connectors-extension"
+-version = "0.0.0"
++version = "0.162.1"
+ dependencies = [
+  "codex-connectors",
+  "codex-core-plugins",
+@@ -2915,7 +2915,7 @@ dependencies = [
+ 
+ [[package]]
+ name = "codex-context-fragments"
+-version = "0.0.0"
++version = "0.162.1"
+ dependencies = [
+  "codex-protocol",
+  "codex-utils-string",
+@@ -2925,7 +2925,7 @@ dependencies = [
+ 
+ [[package]]
+ name = "codex-core"
+-version = "0.0.0"
++version = "0.162.1"
+ dependencies = [
+  "anyhow",
+  "arc-swap",
+@@ -3067,7 +3067,7 @@ dependencies = [
+ 
+ [[package]]
+ name = "codex-core-api"
+-version = "0.0.0"
++version = "0.162.1"
+ dependencies = [
+  "codex-analytics",
+  "codex-app-server-protocol",
+@@ -3090,7 +3090,7 @@ dependencies = [
+ 
+ [[package]]
+ name = "codex-core-plugin-common"
+-version = "0.0.0"
++version = "0.162.1"
+ dependencies = [
+  "codex-utils-absolute-path",
+  "semver",
+@@ -3101,7 +3101,7 @@ dependencies = [
+ 
+ [[package]]
+ name = "codex-core-plugins"
+-version = "0.0.0"
++version = "0.162.1"
+ dependencies = [
+  "anyhow",
+  "chrono",
+@@ -3158,7 +3158,7 @@ dependencies = [
+ 
+ [[package]]
+ name = "codex-diagnostics"
+-version = "0.0.0"
++version = "0.162.1"
+ dependencies = [
+  "libc",
+  "pretty_assertions",
+@@ -3166,7 +3166,7 @@ dependencies = [
+ 
+ [[package]]
+ name = "codex-exec"
+-version = "0.0.0"
++version = "0.162.1"
+ dependencies = [
+  "anyhow",
+  "assert_cmd",
+@@ -3218,7 +3218,7 @@ dependencies = [
+ 
+ [[package]]
+ name = "codex-exec-server"
+-version = "0.0.0"
++version = "0.162.1"
+ dependencies = [
+  "anyhow",
+  "arc-swap",
+@@ -3287,7 +3287,7 @@ dependencies = [
+ 
+ [[package]]
+ name = "codex-exec-server-protocol"
+-version = "0.0.0"
++version = "0.162.1"
+ dependencies = [
+  "base64 0.22.1",
+  "codex-file-system",
+@@ -3304,7 +3304,7 @@ dependencies = [
+ 
+ [[package]]
+ name = "codex-exec-server-test-support"
+-version = "0.0.0"
++version = "0.162.1"
+ dependencies = [
+  "anyhow",
+  "codex-exec-server",
+@@ -3319,7 +3319,7 @@ dependencies = [
+ 
+ [[package]]
+ name = "codex-execpolicy"
+-version = "0.0.0"
++version = "0.162.1"
+ dependencies = [
+  "anyhow",
+  "clap",
+@@ -3337,7 +3337,7 @@ dependencies = [
+ 
+ [[package]]
+ name = "codex-experimental-api-macros"
+-version = "0.0.0"
++version = "0.162.1"
+ dependencies = [
+  "proc-macro2",
+  "quote",
+@@ -3346,7 +3346,7 @@ dependencies = [
+ 
+ [[package]]
+ name = "codex-extension-api"
+-version = "0.0.0"
++version = "0.162.1"
+ dependencies = [
+  "codex-api",
+  "codex-config",
+@@ -3368,7 +3368,7 @@ dependencies = [
+ 
+ [[package]]
+ name = "codex-extension-items"
+-version = "0.0.0"
++version = "0.162.1"
+ dependencies = [
+  "codex-utils-absolute-path",
+  "pretty_assertions",
+@@ -3380,7 +3380,7 @@ dependencies = [
+ 
+ [[package]]
+ name = "codex-external-agent-migration"
+-version = "0.0.0"
++version = "0.162.1"
+ dependencies = [
+  "chrono",
+  "codex-analytics",
+@@ -3410,7 +3410,7 @@ dependencies = [
+ 
+ [[package]]
+ name = "codex-features"
+-version = "0.0.0"
++version = "0.162.1"
+ dependencies = [
+  "codex-network-proxy",
+  "codex-protocol",
+@@ -3424,7 +3424,7 @@ dependencies = [
+ 
+ [[package]]
+ name = "codex-feedback"
+-version = "0.0.0"
++version = "0.162.1"
+ dependencies = [
+  "anyhow",
+  "bytes",
+@@ -3451,7 +3451,7 @@ dependencies = [
+ 
+ [[package]]
+ name = "codex-file-search"
+-version = "0.0.0"
++version = "0.162.1"
+ dependencies = [
+  "anyhow",
+  "clap",
+@@ -3467,7 +3467,7 @@ dependencies = [
+ 
+ [[package]]
+ name = "codex-file-system"
+-version = "0.0.0"
++version = "0.162.1"
+ dependencies = [
+  "bytes",
+  "codex-protocol",
+@@ -3479,7 +3479,7 @@ dependencies = [
+ 
+ [[package]]
+ name = "codex-file-watcher"
+-version = "0.0.0"
++version = "0.162.1"
+ dependencies = [
+  "notify",
+  "pretty_assertions",
+@@ -3490,7 +3490,7 @@ dependencies = [
+ 
+ [[package]]
+ name = "codex-git-attribution"
+-version = "0.0.0"
++version = "0.162.1"
+ dependencies = [
+  "codex-backend-client",
+  "codex-extension-api",
+@@ -3503,7 +3503,7 @@ dependencies = [
+ 
+ [[package]]
+ name = "codex-git-utils"
+-version = "0.0.0"
++version = "0.162.1"
+ dependencies = [
+  "anyhow",
+  "chrono",
+@@ -3531,7 +3531,7 @@ dependencies = [
+ 
+ [[package]]
+ name = "codex-goal-extension"
+-version = "0.0.0"
++version = "0.162.1"
+ dependencies = [
+  "anyhow",
+  "chrono",
+@@ -3556,7 +3556,7 @@ dependencies = [
+ 
+ [[package]]
+ name = "codex-guardian-context"
+-version = "0.0.0"
++version = "0.162.1"
+ dependencies = [
+  "codex-context-fragments",
+  "codex-history",
+@@ -3568,7 +3568,7 @@ dependencies = [
+ 
+ [[package]]
+ name = "codex-guardian-reviewer"
+-version = "0.0.0"
++version = "0.162.1"
+ dependencies = [
+  "anyhow",
+  "codex-analytics",
+@@ -3593,7 +3593,7 @@ dependencies = [
+ 
+ [[package]]
+ name = "codex-guardian-v2"
+-version = "0.0.0"
++version = "0.162.1"
+ dependencies = [
+  "anyhow",
+  "codex-analytics",
+@@ -3630,7 +3630,7 @@ dependencies = [
+ 
+ [[package]]
+ name = "codex-history"
+-version = "0.0.0"
++version = "0.162.1"
+ dependencies = [
+  "anyhow",
+  "codex-protocol",
+@@ -3642,7 +3642,7 @@ dependencies = [
+ 
+ [[package]]
+ name = "codex-history-notes-extension"
+-version = "0.0.0"
++version = "0.162.1"
+ dependencies = [
+  "codex-analytics",
+  "codex-client",
+@@ -3667,7 +3667,7 @@ dependencies = [
+ 
+ [[package]]
+ name = "codex-home"
+-version = "0.0.0"
++version = "0.162.1"
+ dependencies = [
+  "codex-extension-api",
+  "codex-utils-absolute-path",
+@@ -3679,7 +3679,7 @@ dependencies = [
+ 
+ [[package]]
+ name = "codex-hooks"
+-version = "0.0.0"
++version = "0.162.1"
+ dependencies = [
+  "anyhow",
+  "async-channel",
+@@ -3707,7 +3707,7 @@ dependencies = [
+ 
+ [[package]]
+ name = "codex-http-client"
+-version = "0.0.0"
++version = "0.162.1"
+ dependencies = [
+  "bytes",
+  "codex-utils-cargo-bin",
+@@ -3743,7 +3743,7 @@ dependencies = [
+ 
+ [[package]]
+ name = "codex-image-generation-extension"
+-version = "0.0.0"
++version = "0.162.1"
+ dependencies = [
+  "base64 0.22.1",
+  "codex-api",
+@@ -3771,7 +3771,7 @@ dependencies = [
+ 
+ [[package]]
+ name = "codex-install-context"
+-version = "0.0.0"
++version = "0.162.1"
+ dependencies = [
+  "codex-utils-absolute-path",
+  "codex-utils-home-dir",
+@@ -3784,7 +3784,7 @@ dependencies = [
+ 
+ [[package]]
+ name = "codex-keyring-store"
+-version = "0.0.0"
++version = "0.162.1"
+ dependencies = [
+  "keyring",
+  "pretty_assertions",
+@@ -3795,7 +3795,7 @@ dependencies = [
+ 
+ [[package]]
+ name = "codex-linux-sandbox"
+-version = "0.0.0"
++version = "0.162.1"
+ dependencies = [
+  "clap",
+  "codex-core",
+@@ -3824,7 +3824,7 @@ dependencies = [
+ 
+ [[package]]
+ name = "codex-lmstudio"
+-version = "0.0.0"
++version = "0.162.1"
+ dependencies = [
+  "codex-core",
+  "codex-http-client",
+@@ -3838,7 +3838,7 @@ dependencies = [
+ 
+ [[package]]
+ name = "codex-login"
+-version = "0.0.0"
++version = "0.162.1"
+ dependencies = [
+  "anyhow",
+  "base64 0.22.1",
+@@ -3884,7 +3884,7 @@ dependencies = [
+ 
+ [[package]]
+ name = "codex-mcp"
+-version = "0.0.0"
++version = "0.162.1"
+ dependencies = [
+  "anyhow",
+  "arc-swap",
+@@ -3924,7 +3924,7 @@ dependencies = [
+ 
+ [[package]]
+ name = "codex-mcp-extension"
+-version = "0.0.0"
++version = "0.162.1"
+ dependencies = [
+  "anyhow",
+  "axum",
+@@ -3957,7 +3957,7 @@ dependencies = [
+ 
+ [[package]]
+ name = "codex-memories-extension"
+-version = "0.0.0"
++version = "0.162.1"
+ dependencies = [
+  "codex-core",
+  "codex-extension-api",
+@@ -3979,7 +3979,7 @@ dependencies = [
+ 
+ [[package]]
+ name = "codex-memories-read"
+-version = "0.0.0"
++version = "0.162.1"
+ dependencies = [
+  "codex-protocol",
+  "codex-shell-command",
+@@ -3989,7 +3989,7 @@ dependencies = [
+ 
+ [[package]]
+ name = "codex-memories-write"
+-version = "0.0.0"
++version = "0.162.1"
+ dependencies = [
+  "anyhow",
+  "chrono",
+@@ -4026,7 +4026,7 @@ dependencies = [
+ 
+ [[package]]
+ name = "codex-mermaid"
+-version = "0.0.0"
++version = "0.162.1"
+ dependencies = [
+  "insta",
+  "pretty_assertions",
+@@ -4035,7 +4035,7 @@ dependencies = [
+ 
+ [[package]]
+ name = "codex-message-history"
+-version = "0.0.0"
++version = "0.162.1"
+ dependencies = [
+  "codex-config",
+  "memchr",
+@@ -4049,7 +4049,7 @@ dependencies = [
+ 
+ [[package]]
+ name = "codex-model-provider"
+-version = "0.0.0"
++version = "0.162.1"
+ dependencies = [
+  "base64 0.22.1",
+  "chrono",
+@@ -4083,7 +4083,7 @@ dependencies = [
+ 
+ [[package]]
+ name = "codex-model-provider-info"
+-version = "0.0.0"
++version = "0.162.1"
+ dependencies = [
+  "codex-client",
+  "codex-protocol",
+@@ -4101,7 +4101,7 @@ dependencies = [
+ 
+ [[package]]
+ name = "codex-models-manager"
+-version = "0.0.0"
++version = "0.162.1"
+ dependencies = [
+  "chrono",
+  "codex-http-client",
+@@ -4120,7 +4120,7 @@ dependencies = [
+ 
+ [[package]]
+ name = "codex-mxc-sandbox"
+-version = "0.0.0"
++version = "0.162.1"
+ dependencies = [
+  "anyhow",
+  "appcontainer_common",
+@@ -4142,7 +4142,7 @@ dependencies = [
+ 
+ [[package]]
+ name = "codex-network-proxy"
+-version = "0.0.0"
++version = "0.162.1"
+ dependencies = [
+  "anyhow",
+  "base64 0.22.1",
+@@ -4191,7 +4191,7 @@ dependencies = [
+ 
+ [[package]]
+ name = "codex-ollama"
+-version = "0.0.0"
++version = "0.162.1"
+ dependencies = [
+  "assert_matches",
+  "async-stream",
+@@ -4211,7 +4211,7 @@ dependencies = [
+ 
+ [[package]]
+ name = "codex-otel"
+-version = "0.0.0"
++version = "0.162.1"
+ dependencies = [
+  "bytes",
+  "chrono",
+@@ -4248,7 +4248,7 @@ dependencies = [
+ 
+ [[package]]
+ name = "codex-otel-trace-websocket"
+-version = "0.0.0"
++version = "0.162.1"
+ dependencies = [
+  "anyhow",
+  "axum",
+@@ -4259,7 +4259,7 @@ dependencies = [
+ 
+ [[package]]
+ name = "codex-plugin"
+-version = "0.0.0"
++version = "0.162.1"
+ dependencies = [
+  "codex-config",
+  "codex-core-plugin-common",
+@@ -4274,7 +4274,7 @@ dependencies = [
+ 
+ [[package]]
+ name = "codex-process-hardening"
+-version = "0.0.0"
++version = "0.162.1"
+ dependencies = [
+  "libc",
+  "pretty_assertions",
+@@ -4282,7 +4282,7 @@ dependencies = [
+ 
+ [[package]]
+ name = "codex-prompts"
+-version = "0.0.0"
++version = "0.162.1"
+ dependencies = [
+  "anyhow",
+  "codex-collaboration-mode-templates",
+@@ -4299,7 +4299,7 @@ dependencies = [
+ 
+ [[package]]
+ name = "codex-protocol"
+-version = "0.0.0"
++version = "0.162.1"
+ dependencies = [
+  "anyhow",
+  "chardetng",
+@@ -4344,7 +4344,7 @@ dependencies = [
+ 
+ [[package]]
+ name = "codex-queue-extension"
+-version = "0.0.0"
++version = "0.162.1"
+ dependencies = [
+  "anyhow",
+  "codex-core",
+@@ -4365,7 +4365,7 @@ dependencies = [
+ 
+ [[package]]
+ name = "codex-realtime-webrtc"
+-version = "0.0.0"
++version = "0.162.1"
+ dependencies = [
+  "anyhow",
+  "codex-build-info",
+@@ -4384,7 +4384,7 @@ dependencies = [
+ 
+ [[package]]
+ name = "codex-response-debug-context"
+-version = "0.0.0"
++version = "0.162.1"
+ dependencies = [
+  "base64 0.22.1",
+  "codex-api",
+@@ -4395,7 +4395,7 @@ dependencies = [
+ 
+ [[package]]
+ name = "codex-responses-api-proxy"
+-version = "0.0.0"
++version = "0.162.1"
+ dependencies = [
+  "anyhow",
+  "clap",
+@@ -4412,7 +4412,7 @@ dependencies = [
+ 
+ [[package]]
+ name = "codex-rmcp-client"
+-version = "0.0.0"
++version = "0.162.1"
+ dependencies = [
+  "anyhow",
+  "axum",
+@@ -4463,7 +4463,7 @@ dependencies = [
+ 
+ [[package]]
+ name = "codex-rollout"
+-version = "0.0.0"
++version = "0.162.1"
+ dependencies = [
+  "anyhow",
+  "chrono",
+@@ -4494,7 +4494,7 @@ dependencies = [
+ 
+ [[package]]
+ name = "codex-rollout-trace"
+-version = "0.0.0"
++version = "0.162.1"
+ dependencies = [
+  "anyhow",
+  "codex-code-mode",
+@@ -4510,7 +4510,7 @@ dependencies = [
+ 
+ [[package]]
+ name = "codex-sandboxing"
+-version = "0.0.0"
++version = "0.162.1"
+ dependencies = [
+  "anyhow",
+  "codex-mxc-sandbox",
+@@ -4538,7 +4538,7 @@ dependencies = [
+ 
+ [[package]]
+ name = "codex-secrets"
+-version = "0.0.0"
++version = "0.162.1"
+ dependencies = [
+  "age",
+  "anyhow",
+@@ -4559,7 +4559,7 @@ dependencies = [
+ 
+ [[package]]
+ name = "codex-shell-command"
+-version = "0.0.0"
++version = "0.162.1"
+ dependencies = [
+  "anyhow",
+  "base64 0.22.1",
+@@ -4582,7 +4582,7 @@ dependencies = [
+ 
+ [[package]]
+ name = "codex-shell-escalation"
+-version = "0.0.0"
++version = "0.162.1"
+ dependencies = [
+  "anyhow",
+  "clap",
+@@ -4602,7 +4602,7 @@ dependencies = [
+ 
+ [[package]]
+ name = "codex-skills"
+-version = "0.0.0"
++version = "0.162.1"
+ dependencies = [
+  "codex-protocol",
+  "codex-shell-command",
+@@ -4619,7 +4619,7 @@ dependencies = [
+ 
+ [[package]]
+ name = "codex-skills-extension"
+-version = "0.0.0"
++version = "0.162.1"
+ dependencies = [
+  "assert_matches",
+  "blake3",
+@@ -4657,7 +4657,7 @@ dependencies = [
+ 
+ [[package]]
+ name = "codex-state"
+-version = "0.0.0"
++version = "0.162.1"
+ dependencies = [
+  "anyhow",
+  "chrono",
+@@ -4684,7 +4684,7 @@ dependencies = [
+ 
+ [[package]]
+ name = "codex-stdio-to-uds"
+-version = "0.0.0"
++version = "0.162.1"
+ dependencies = [
+  "anyhow",
+  "codex-uds",
+@@ -4696,7 +4696,7 @@ dependencies = [
+ 
+ [[package]]
+ name = "codex-tcp-tunnel"
+-version = "0.0.0"
++version = "0.162.1"
+ dependencies = [
+  "anyhow",
+  "bytes",
+@@ -4717,7 +4717,7 @@ dependencies = [
+ 
+ [[package]]
+ name = "codex-terminal-detection"
+-version = "0.0.0"
++version = "0.162.1"
+ dependencies = [
+  "pretty_assertions",
+  "tracing",
+@@ -4725,7 +4725,7 @@ dependencies = [
+ 
+ [[package]]
+ name = "codex-test-binary-support"
+-version = "0.0.0"
++version = "0.162.1"
+ dependencies = [
+  "codex-arg0",
+  "tempfile",
+@@ -4733,7 +4733,7 @@ dependencies = [
+ 
+ [[package]]
+ name = "codex-thread-manager-sample"
+-version = "0.0.0"
++version = "0.162.1"
+ dependencies = [
+  "anyhow",
+  "clap",
+@@ -4744,7 +4744,7 @@ dependencies = [
+ 
+ [[package]]
+ name = "codex-thread-store"
+-version = "0.0.0"
++version = "0.162.1"
+ dependencies = [
+  "chrono",
+  "codex-app-server-protocol",
+@@ -4775,7 +4775,7 @@ dependencies = [
+ 
+ [[package]]
+ name = "codex-tools"
+-version = "0.0.0"
++version = "0.162.1"
+ dependencies = [
+  "bitflags 2.13.1",
+  "codex-code-mode",
+@@ -4801,7 +4801,7 @@ dependencies = [
+ 
+ [[package]]
+ name = "codex-tui"
+-version = "0.0.0"
++version = "0.162.1"
+ dependencies = [
+  "anyhow",
+  "app_test_support",
+@@ -4927,7 +4927,7 @@ dependencies = [
+ 
+ [[package]]
+ name = "codex-uds"
+-version = "0.0.0"
++version = "0.162.1"
+ dependencies = [
+  "async-io",
+  "libc",
+@@ -4941,7 +4941,7 @@ dependencies = [
+ 
+ [[package]]
+ name = "codex-user-verification"
+-version = "0.0.0"
++version = "0.162.1"
+ dependencies = [
+  "base64 0.22.1",
+  "core-foundation 0.10.1",
+@@ -4961,7 +4961,7 @@ dependencies = [
+ 
+ [[package]]
+ name = "codex-utils-absolute-path"
+-version = "0.0.0"
++version = "0.162.1"
+ dependencies = [
+  "dirs",
+  "dunce",
+@@ -4975,14 +4975,14 @@ dependencies = [
+ 
+ [[package]]
+ name = "codex-utils-approval-presets"
+-version = "0.0.0"
++version = "0.162.1"
+ dependencies = [
+  "codex-protocol",
+ ]
+ 
+ [[package]]
+ name = "codex-utils-audio"
+-version = "0.0.0"
++version = "0.162.1"
+ dependencies = [
+  "base64 0.22.1",
+  "codex-protocol",
+@@ -4996,7 +4996,7 @@ dependencies = [
+ 
+ [[package]]
+ name = "codex-utils-cache"
+-version = "0.0.0"
++version = "0.162.1"
+ dependencies = [
+  "lru",
+  "sha1 0.10.6",
+@@ -5005,7 +5005,7 @@ dependencies = [
+ 
+ [[package]]
+ name = "codex-utils-cargo-bin"
+-version = "0.0.0"
++version = "0.162.1"
+ dependencies = [
+  "assert_cmd",
+  "runfiles",
+@@ -5014,7 +5014,7 @@ dependencies = [
+ 
+ [[package]]
+ name = "codex-utils-cli"
+-version = "0.0.0"
++version = "0.162.1"
+ dependencies = [
+  "clap",
+  "codex-protocol",
+@@ -5026,15 +5026,15 @@ dependencies = [
+ 
+ [[package]]
+ name = "codex-utils-elapsed"
+-version = "0.0.0"
++version = "0.162.1"
+ 
+ [[package]]
+ name = "codex-utils-fuzzy-match"
+-version = "0.0.0"
++version = "0.162.1"
+ 
+ [[package]]
+ name = "codex-utils-git-discovery"
+-version = "0.0.0"
++version = "0.162.1"
+ dependencies = [
+  "codex-git-utils",
+  "codex-utils-absolute-path",
+@@ -5047,7 +5047,7 @@ dependencies = [
+ 
+ [[package]]
+ name = "codex-utils-home-dir"
+-version = "0.0.0"
++version = "0.162.1"
+ dependencies = [
+  "codex-utils-absolute-path",
+  "dirs",
+@@ -5057,7 +5057,7 @@ dependencies = [
+ 
+ [[package]]
+ name = "codex-utils-image"
+-version = "0.0.0"
++version = "0.162.1"
+ dependencies = [
+  "base64 0.22.1",
+  "codex-utils-cache",
+@@ -5071,7 +5071,7 @@ dependencies = [
+ 
+ [[package]]
+ name = "codex-utils-json-to-toml"
+-version = "0.0.0"
++version = "0.162.1"
+ dependencies = [
+  "pretty_assertions",
+  "serde_json",
+@@ -5080,7 +5080,7 @@ dependencies = [
+ 
+ [[package]]
+ name = "codex-utils-oss"
+-version = "0.0.0"
++version = "0.162.1"
+ dependencies = [
+  "codex-core",
+  "codex-lmstudio",
+@@ -5090,7 +5090,7 @@ dependencies = [
+ 
+ [[package]]
+ name = "codex-utils-output-truncation"
+-version = "0.0.0"
++version = "0.162.1"
+ dependencies = [
+  "codex-protocol",
+  "codex-utils-string",
+@@ -5100,7 +5100,7 @@ dependencies = [
+ 
+ [[package]]
+ name = "codex-utils-path"
+-version = "0.0.0"
++version = "0.162.1"
+ dependencies = [
+  "codex-utils-absolute-path",
+  "dunce",
+@@ -5111,7 +5111,7 @@ dependencies = [
+ 
+ [[package]]
+ name = "codex-utils-path-uri"
+-version = "0.0.0"
++version = "0.162.1"
+ dependencies = [
+  "base64 0.22.1",
+  "codex-utils-absolute-path",
+@@ -5127,7 +5127,7 @@ dependencies = [
+ 
+ [[package]]
+ name = "codex-utils-plugins"
+-version = "0.0.0"
++version = "0.162.1"
+ dependencies = [
+  "codex-exec-server",
+  "codex-exec-server-protocol",
+@@ -5141,7 +5141,7 @@ dependencies = [
+ 
+ [[package]]
+ name = "codex-utils-process"
+-version = "0.0.0"
++version = "0.162.1"
+ dependencies = [
+  "pretty_assertions",
+  "tokio",
+@@ -5149,7 +5149,7 @@ dependencies = [
+ 
+ [[package]]
+ name = "codex-utils-pty"
+-version = "0.0.0"
++version = "0.162.1"
+ dependencies = [
+  "anyhow",
+  "codex-utils-cargo-bin",
+@@ -5168,7 +5168,7 @@ dependencies = [
+ 
+ [[package]]
+ name = "codex-utils-readiness"
+-version = "0.0.0"
++version = "0.162.1"
+ dependencies = [
+  "assert_matches",
+  "thiserror 2.0.18",
+@@ -5178,7 +5178,7 @@ dependencies = [
+ 
+ [[package]]
+ name = "codex-utils-redacted-string"
+-version = "0.0.0"
++version = "0.162.1"
+ dependencies = [
+  "schemars 0.8.22",
+  "serde",
+@@ -5186,14 +5186,14 @@ dependencies = [
+ 
+ [[package]]
+ name = "codex-utils-rustls-provider"
+-version = "0.0.0"
++version = "0.162.1"
+ dependencies = [
+  "rustls",
+ ]
+ 
+ [[package]]
+ name = "codex-utils-sandbox-summary"
+-version = "0.0.0"
++version = "0.162.1"
+ dependencies = [
+  "codex-protocol",
+  "codex-utils-absolute-path",
+@@ -5203,7 +5203,7 @@ dependencies = [
+ 
+ [[package]]
+ name = "codex-utils-sleep-inhibitor"
+-version = "0.0.0"
++version = "0.162.1"
+ dependencies = [
+  "core-foundation 0.9.4",
+  "libc",
+@@ -5213,14 +5213,14 @@ dependencies = [
+ 
+ [[package]]
+ name = "codex-utils-stream-parser"
+-version = "0.0.0"
++version = "0.162.1"
+ dependencies = [
+  "pretty_assertions",
+ ]
+ 
+ [[package]]
+ name = "codex-utils-string"
+-version = "0.0.0"
++version = "0.162.1"
+ dependencies = [
+  "pretty_assertions",
+  "regex-lite",
+@@ -5230,14 +5230,14 @@ dependencies = [
+ 
+ [[package]]
+ name = "codex-utils-template"
+-version = "0.0.0"
++version = "0.162.1"
+ dependencies = [
+  "pretty_assertions",
+ ]
+ 
+ [[package]]
+ name = "codex-v8-poc"
+-version = "0.0.0"
++version = "0.162.1"
+ dependencies = [
+  "pretty_assertions",
+  "v8",
+@@ -5245,7 +5245,7 @@ dependencies = [
+ 
+ [[package]]
+ name = "codex-voice-host"
+-version = "0.0.0"
++version = "0.162.1"
+ dependencies = [
+  "anyhow",
+  "codex-install-context",
+@@ -5272,7 +5272,7 @@ dependencies = [
+ 
+ [[package]]
+ name = "codex-web-search-extension"
+-version = "0.0.0"
++version = "0.162.1"
+ dependencies = [
+  "codex-api",
+  "codex-core",
+@@ -5294,7 +5294,7 @@ dependencies = [
+ 
+ [[package]]
+ name = "codex-websocket-auth"
+-version = "0.0.0"
++version = "0.162.1"
+ dependencies = [
+  "anyhow",
+  "base64 0.22.1",
+@@ -5313,7 +5313,7 @@ dependencies = [
+ 
+ [[package]]
+ name = "codex-websocket-client"
+-version = "0.0.0"
++version = "0.162.1"
+ dependencies = [
+  "codex-http-client",
+  "codex-utils-rustls-provider",
+@@ -5329,7 +5329,7 @@ dependencies = [
+ 
+ [[package]]
+ name = "codex-windows-sandbox"
+-version = "0.0.0"
++version = "0.162.1"
+ dependencies = [
+  "anyhow",
+  "base64 0.22.1",
+@@ -5359,7 +5359,7 @@ dependencies = [
+ 
+ [[package]]
+ name = "codex-windows-sandbox-service"
+-version = "0.0.0"
++version = "0.162.1"
+ dependencies = [
+  "anyhow",
+  "codex-cloud-config",
+@@ -5376,14 +5376,14 @@ dependencies = [
+ 
+ [[package]]
+ name = "codex-windows-sandbox-test-support"
+-version = "0.0.0"
++version = "0.162.1"
+ dependencies = [
+  "dirs",
+ ]
+ 
+ [[package]]
+ name = "codex-workload-identity"
+-version = "0.0.0"
++version = "0.162.1"
+ dependencies = [
+  "codex-http-client",
+  "pretty_assertions",
+@@ -5398,7 +5398,7 @@ dependencies = [
+ 
+ [[package]]
+ name = "codex-worktree"
+-version = "0.0.0"
++version = "0.162.1"
+ dependencies = [
+  "anyhow",
+  "codex-git-utils",
+@@ -5639,7 +5639,7 @@ dependencies = [
+ 
+ [[package]]
+ name = "core_test_support"
+-version = "0.0.0"
++version = "0.162.1"
+ dependencies = [
+  "anyhow",
+  "assert_cmd",
+diff --git a/codex-rs/tui/src/app.rs b/codex-rs/tui/src/app.rs
+index 5dfc3ad..6d4672f 100644
+--- a/codex-rs/tui/src/app.rs
++++ b/codex-rs/tui/src/app.rs
+@@ -849,6 +849,25 @@ impl App {
+         app_server: &mut AppServerSession,
+         event: TuiEvent,
+     ) -> Result<AppRunControl> {
++        let bridge_eligible = !tui.is_owned_screen()
++            && !tui.is_alt_screen_active()
++            && self.overlay.is_none()
++            && self.chat_widget.no_modal_or_popup_active()
++            && !self.chat_widget.is_external_writer_view()
++            && !self.chat_widget.fork_in_progress
++            && !self.reconnect.offline
++            && !self.backtrack.primed
++            && !self.backtrack.overlay_preview_active
++            && !matches!(&event, TuiEvent::Key(key) if self.should_handle_unavailable_thread_key(*key));
++        if crate::clici_bridge::event(
++            &event,
++            bridge_eligible,
++            self.current_displayed_thread_id().map(|id| id.to_string()),
++            &self.transcript_cells,
++            !self.scrollback_has_older_history,
++        ) {
++            return Ok(AppRunControl::Continue);
++        }
+         tui.link_hover.observe(&event);
+         self.refresh_link_hover(tui)?;
+         self.invalidate_right_click_paste(&event);
+@@ -1105,6 +1124,25 @@ impl App {
+                     self.chat_widget.pre_draw_tick();
+                     self.refresh_agents_overview_usage(app_server, tui.frame_requester());
+                     let rendered_area = self.render_chat_widget_frame(tui, screen_size)?;
++                    let clici_input_observed_at = crate::clici_bridge::observation_time();
++                    crate::clici_bridge::publish(
++                        self.current_displayed_thread_id().map(|id| id.to_string()),
++                        &self.transcript_cells,
++                        !tui.is_owned_screen()
++                            && !tui.is_alt_screen_active()
++                            && self.overlay.is_none()
++                            && self.chat_widget.no_modal_or_popup_active()
++                            && !self.chat_widget.is_external_writer_view()
++                            && !self.chat_widget.fork_in_progress
++                            && !self.reconnect.offline
++                            && !self.backtrack.primed
++                            && !self.backtrack.overlay_preview_active,
++                        !self.scrollback_has_older_history,
++                        clici_input_observed_at,
++                    );
++                    if crate::clici_bridge::poll_keyboard() {
++                        tui.frame_requester().schedule_frame_in(std::time::Duration::from_millis(100));
++                    }
+                     if tui.is_owned_screen()
+                         && self.transcript_view.history
+                             != crate::pager_overlay::TranscriptHistoryState::Failed
+diff --git a/codex-rs/tui/src/app/history_pagination_tests.rs b/codex-rs/tui/src/app/history_pagination_tests.rs
+index e64fa5b..e1e376e 100644
+--- a/codex-rs/tui/src/app/history_pagination_tests.rs
++++ b/codex-rs/tui/src/app/history_pagination_tests.rs
+@@ -52,6 +52,7 @@ fn overlapping_history_keeps_live_turn_state_and_newer_items() {
+ 
+ fn user_cell(message: &str) -> Arc<dyn HistoryCell> {
+     Arc::new(UserHistoryCell {
++        clici_anchor: None,
+         spoken: false,
+         message: message.to_string(),
+         text_elements: Vec::new(),
+diff --git a/codex-rs/tui/src/app/input.rs b/codex-rs/tui/src/app/input.rs
+index 2a8938d..5f2dc21 100644
+--- a/codex-rs/tui/src/app/input.rs
++++ b/codex-rs/tui/src/app/input.rs
+@@ -735,7 +735,7 @@ impl App {
+         false
+     }
+ 
+-    fn should_handle_unavailable_thread_key(&self, key_event: KeyEvent) -> bool {
++    pub(super) fn should_handle_unavailable_thread_key(&self, key_event: KeyEvent) -> bool {
+         !self.chat_widget.has_active_view()
+             && self
+                 .current_displayed_thread_id()
+diff --git a/codex-rs/tui/src/app/owned_transcript_tests.rs b/codex-rs/tui/src/app/owned_transcript_tests.rs
+index 026fe11..0e268c0 100644
+--- a/codex-rs/tui/src/app/owned_transcript_tests.rs
++++ b/codex-rs/tui/src/app/owned_transcript_tests.rs
+@@ -25,6 +25,7 @@ use ratatui::buffer::Buffer;
+ 
+ pub(in crate::app) fn user_cell(message: &str) -> Arc<dyn HistoryCell> {
+     Arc::new(UserHistoryCell {
++        clici_anchor: None,
+         spoken: false,
+         message: message.to_string(),
+         text_elements: Vec::new(),
+diff --git a/codex-rs/tui/src/app/recap_tests.rs b/codex-rs/tui/src/app/recap_tests.rs
+index 437cb66..e32ea30 100644
+--- a/codex-rs/tui/src/app/recap_tests.rs
++++ b/codex-rs/tui/src/app/recap_tests.rs
+@@ -58,6 +58,7 @@ fn turn(status: TurnStatus) -> Turn {
+ 
+ fn user_history_cell(message: &str) -> Arc<dyn HistoryCell> {
+     Arc::new(UserHistoryCell {
++        clici_anchor: None,
+         message: message.to_string(),
+         spoken: false,
+         text_elements: Vec::new(),
+diff --git a/codex-rs/tui/src/app/tests.rs b/codex-rs/tui/src/app/tests.rs
+index 73bc892..75ac4eb 100644
+--- a/codex-rs/tui/src/app/tests.rs
++++ b/codex-rs/tui/src/app/tests.rs
+@@ -5953,6 +5953,7 @@ async fn render_clear_ui_header_after_long_transcript_for_snapshot() -> String {
+ 
+     let user_cell = |text: &str| -> Arc<dyn HistoryCell> {
+         Arc::new(UserHistoryCell {
++            clici_anchor: None,
+             spoken: false,
+             message: text.to_string(),
+             text_elements: Vec::new(),
+@@ -7665,6 +7666,7 @@ async fn backtrack_selection_preserves_selected_prompt_and_requests_branch() {
+                      remote_image_urls: Vec<String>|
+      -> Arc<dyn HistoryCell> {
+         Arc::new(UserHistoryCell {
++            clici_anchor: None,
+             spoken: false,
+             message: text.to_string(),
+             text_elements,
+@@ -9825,6 +9827,7 @@ async fn clear_only_ui_reset_preserves_chat_session_state() {
+     app.chat_widget
+         .apply_external_edit("draft prompt".to_string());
+     app.transcript_cells = vec![Arc::new(UserHistoryCell {
++        clici_anchor: None,
+         spoken: false,
+         message: "old message".to_string(),
+         text_elements: Vec::new(),
+diff --git a/codex-rs/tui/src/app/tests/recap_generation_tests.rs b/codex-rs/tui/src/app/tests/recap_generation_tests.rs
+index 6199df7..17df422 100644
+--- a/codex-rs/tui/src/app/tests/recap_generation_tests.rs
++++ b/codex-rs/tui/src/app/tests/recap_generation_tests.rs
+@@ -38,6 +38,7 @@ async fn prepare_eligible_recap(app: &mut App, thread_id: ThreadId) {
+     app.active_thread_id = Some(thread_id);
+     app.transcript_cells
+         .push(Arc::new(crate::history_cell::UserHistoryCell {
++            clici_anchor: None,
+             message: "Finish the recap implementation".to_string(),
+             spoken: false,
+             text_elements: Vec::new(),
+@@ -128,6 +129,7 @@ stream_max_retries = 0
+         )));
+     app.transcript_cells
+         .push(Arc::new(crate::history_cell::UserHistoryCell {
++            clici_anchor: None,
+             message: "Keep follow-up work queued.".to_string(),
+             spoken: false,
+             text_elements: Vec::new(),
+@@ -234,6 +236,7 @@ async fn manual_recap_works_when_auto_recap_disabled() -> Result<()> {
+     app.active_thread_id = Some(thread_id);
+     app.transcript_cells
+         .push(Arc::new(crate::history_cell::UserHistoryCell {
++            clici_anchor: None,
+             message: "Summarize this conversation".to_string(),
+             spoken: false,
+             text_elements: Vec::new(),
+@@ -414,6 +417,7 @@ async fn recap_generation_uses_remote_workspace_cwd() -> Result<()> {
+     let mut tui = crate::tui::test_support::make_test_tui()?;
+     app.transcript_cells
+         .push(Arc::new(crate::history_cell::UserHistoryCell {
++            clici_anchor: None,
+             message: "Finish the recap implementation".to_string(),
+             spoken: false,
+             text_elements: Vec::new(),
+diff --git a/codex-rs/tui/src/app/tests/startup_warnings_tests.rs b/codex-rs/tui/src/app/tests/startup_warnings_tests.rs
+index 0f4c92a..92c3f59 100644
+--- a/codex-rs/tui/src/app/tests/startup_warnings_tests.rs
++++ b/codex-rs/tui/src/app/tests/startup_warnings_tests.rs
+@@ -59,6 +59,7 @@ async fn deprecation_delivery_deduplicates_retained_transcript() -> Result<()> {
+     app.insert_history_cell(
+         &mut tui,
+         Box::new(UserHistoryCell {
++            clici_anchor: None,
+             message: "Hello\nPlease say hello.".into(),
+             text_elements: Vec::new(),
+             local_image_paths: Vec::new(),
+@@ -144,6 +145,7 @@ async fn startup_warnings_preserve_stream_repair_and_backtrack_selection() -> Re
+         app.config.cwd.to_path_buf(),
+     ));
+     app.transcript_cells = vec![Arc::new(UserHistoryCell {
++        clici_anchor: None,
+         message: "Selected prompt".into(),
+         text_elements: Vec::new(),
+         local_image_paths: Vec::new(),
+diff --git a/codex-rs/tui/src/app/tests/transcript_composer.rs b/codex-rs/tui/src/app/tests/transcript_composer.rs
+index 7fe8788..bf212ef 100644
+--- a/codex-rs/tui/src/app/tests/transcript_composer.rs
++++ b/codex-rs/tui/src/app/tests/transcript_composer.rs
+@@ -233,6 +233,7 @@ async fn transcript_flag_off_preserves_viewer_and_backtracking() -> Result<()> {
+     app.transcript_cells = ["first", "second"]
+         .map(|message| {
+             Arc::new(UserHistoryCell {
++                clici_anchor: None,
+                 message: message.into(),
+                 text_elements: Vec::new(),
+                 local_image_paths: Vec::new(),
+diff --git a/codex-rs/tui/src/app/tests/transcript_selection.rs b/codex-rs/tui/src/app/tests/transcript_selection.rs
+index 29f2782..5e10404 100644
+--- a/codex-rs/tui/src/app/tests/transcript_selection.rs
++++ b/codex-rs/tui/src/app/tests/transcript_selection.rs
+@@ -14,6 +14,7 @@ async fn text_selection_temporarily_replaces_the_rendered_backtrack_highlight()
+     let draft = app.chat_widget.capture_thread_input_state();
+     let prompt = "Selected prompt";
+     app.transcript_cells = vec![Arc::new(UserHistoryCell {
++        clici_anchor: None,
+         message: prompt.into(),
+         text_elements: Vec::new(),
+         local_image_paths: Vec::new(),
+diff --git a/codex-rs/tui/src/app/transcript_export_tests.rs b/codex-rs/tui/src/app/transcript_export_tests.rs
+index 21ee6e4..4759d73 100644
+--- a/codex-rs/tui/src/app/transcript_export_tests.rs
++++ b/codex-rs/tui/src/app/transcript_export_tests.rs
+@@ -21,6 +21,7 @@ fn markdown_transcript_preserves_messages_and_formats_activity() {
+     assert!(render_markdown_transcript(&[]).is_err());
+     let user = |message: &str, local_image_paths| {
+         Arc::new(UserHistoryCell {
++            clici_anchor: None,
+             spoken: false,
+             message: message.to_string(),
+             text_elements: Vec::new(),
+diff --git a/codex-rs/tui/src/app_backtrack.rs b/codex-rs/tui/src/app_backtrack.rs
+index f55b75c..bd37d52 100644
+--- a/codex-rs/tui/src/app_backtrack.rs
++++ b/codex-rs/tui/src/app_backtrack.rs
+@@ -1111,6 +1111,7 @@ mod tests {
+         assert!(!has_backtrack_target(&cells));
+ 
+         cells.push(Arc::new(UserHistoryCell {
++            clici_anchor: None,
+             spoken: false,
+             message: "hello".to_string(),
+             text_elements: Vec::new(),
+diff --git a/codex-rs/tui/src/chatwidget.rs b/codex-rs/tui/src/chatwidget.rs
+index 7dbb54b..6a6fe88 100644
+--- a/codex-rs/tui/src/chatwidget.rs
++++ b/codex-rs/tui/src/chatwidget.rs
+@@ -1287,6 +1287,7 @@ impl ChatWidget {
+         self.request_redraw();
+     }
+ 
++    #[cfg(test)]
+     fn on_committed_user_message(
+         &mut self,
+         items: &[UserInput],
+@@ -1294,6 +1295,20 @@ impl ChatWidget {
+         from_replay: bool,
+         turn_id: &str,
+     ) {
++        self.on_committed_user_message_identified(items, client_id, from_replay, turn_id, None);
++    }
++
++    fn on_committed_user_message_identified(
++        &mut self,
++        items: &[UserInput],
++        client_id: Option<&str>,
++        from_replay: bool,
++        turn_id: &str,
++        item_id: Option<&str>,
++    ) {
++        if let (Some(session), Some(item)) = (self.thread_id(), item_id) {
++            crate::clici_bridge::receipt(&session.to_string(), client_id, item);
++        }
+         if let Some(input) = realtime::realtime_delegation_input(items) {
+             if !from_replay && self.should_hide_realtime_delegation(turn_id) {
+                 return;
+@@ -1303,7 +1318,13 @@ impl ChatWidget {
+                 text: input,
+                 text_elements: Vec::new(),
+             }];
+-            self.on_committed_user_message(&projected, client_id, from_replay, turn_id);
++            self.on_committed_user_message_identified(
++                &projected,
++                client_id,
++                from_replay,
++                turn_id,
++                item_id,
++            );
+             return;
+         }
+         let display = Self::user_message_display_from_inputs(items);
+@@ -1320,7 +1341,7 @@ impl ChatWidget {
+                     mention_bindings: mention_bindings_from_user_inputs(items, &display.message),
+                     pending_pastes: Vec::new(),
+                 });
+-            self.on_user_message_display(display);
++            self.on_user_message_display_identified(display, item_id, client_id);
+             return;
+         }
+ 
+@@ -1344,7 +1365,7 @@ impl ChatWidget {
+                 self.refresh_pending_input_preview();
+                 let pending_display =
+                     user_message_display_for_history(pending.user_message, &pending.history_record);
+-                self.on_user_message_display(pending_display);
++                self.on_user_message_display_identified(pending_display, item_id, client_id);
+                 // Later receipts carry the wire media, which may differ from the local attachment.
+                 self.last_rendered_user_message_display = Some(display);
+                 self.last_rendered_user_message_client_id = Some(pending.client_id);
+@@ -1352,12 +1373,12 @@ impl ChatWidget {
+                 tracing::warn!(
+                     "pending steer matched receipt but queue was empty when rendering committed user message"
+                 );
+-                self.on_user_message_display(display);
++                self.on_user_message_display_identified(display, item_id, client_id);
+             }
+         } else if !self.review.is_review_mode
+             && self.last_rendered_user_message_display.as_ref() != Some(&display)
+         {
+-            self.on_user_message_display(display);
++            self.on_user_message_display_identified(display, item_id, client_id);
+         }
+         if let Some(client_id) = client_id
+             && self.input_queue.queued_user_messages.iter().any(|message| {
+@@ -1370,6 +1391,15 @@ impl ChatWidget {
+     }
+ 
+     fn on_user_message_display(&mut self, display: UserMessageDisplay) {
++        self.on_user_message_display_identified(display, None, None);
++    }
++
++    fn on_user_message_display_identified(
++        &mut self,
++        display: UserMessageDisplay,
++        item_id: Option<&str>,
++        client_id: Option<&str>,
++    ) {
+         self.transcript.last_status_copy_targets = None;
+         self.last_rendered_user_message_display = Some(display.clone());
+         self.last_rendered_user_message_client_id = None;
+@@ -1378,12 +1408,14 @@ impl ChatWidget {
+             || !display.local_images.is_empty()
+             || !display.remote_image_urls.is_empty()
+         {
+-            self.add_to_history(history_cell::new_user_prompt(
++            let mut cell = history_cell::new_user_prompt(
+                 display.message,
+                 display.text_elements,
+                 display.local_images,
+                 display.remote_image_urls,
+-            ));
++            );
++            cell.clici_anchor = crate::clici_bridge::anchor(item_id, client_id);
++            self.add_to_history(cell);
+         }
+     }
+ 
+diff --git a/codex-rs/tui/src/chatwidget/input_submission.rs b/codex-rs/tui/src/chatwidget/input_submission.rs
+index e20aaa3..5224e19 100644
+--- a/codex-rs/tui/src/chatwidget/input_submission.rs
++++ b/codex-rs/tui/src/chatwidget/input_submission.rs
+@@ -481,10 +481,11 @@ impl ChatWidget {
+         let render_before_submit =
+             render_in_history && matches!(&self.codex_op_target, CodexOpTarget::AppEvent);
+         if render_before_submit {
+-            self.on_user_message_display(user_message_display_for_history(
+-                submitted_message.clone(),
+-                &history_record,
+-            ));
++            self.on_user_message_display_identified(
++                user_message_display_for_history(submitted_message.clone(), &history_record),
++                None,
++                Some(&client_user_message_id),
++            );
+         }
+ 
+         if !self.submit_op(op.clone()) {
+@@ -548,10 +549,11 @@ impl ChatWidget {
+             self.safety_buffering_prompt = Some(submitted_message.clone());
+             self.safety_buffering_source = source;
+             if !render_before_submit {
+-                self.on_user_message_display(user_message_display_for_history(
+-                    submitted_message,
+-                    &history_record,
+-                ));
++                self.on_user_message_display_identified(
++                    user_message_display_for_history(submitted_message, &history_record),
++                    None,
++                    Some(&client_user_message_id),
++                );
+             }
+         }
+ 
+diff --git a/codex-rs/tui/src/chatwidget/replay.rs b/codex-rs/tui/src/chatwidget/replay.rs
+index 1907577..5f6105d 100644
+--- a/codex-rs/tui/src/chatwidget/replay.rs
++++ b/codex-rs/tui/src/chatwidget/replay.rs
+@@ -274,7 +274,9 @@ impl ChatWidget {
+         let replay_kind = render_source.replay_kind();
+         match item {
+             ThreadItem::UserMessage {
+-                content, client_id, ..
++                id,
++                content,
++                client_id,
+             } => {
+                 if let Some(replies) = crate::async_question_reply::parse_input(&content) {
+                     let ids = replies
+@@ -285,11 +287,12 @@ impl ChatWidget {
+                     self.refresh_pending_input_preview();
+                     self.request_redraw();
+                 }
+-                self.on_committed_user_message(
++                self.on_committed_user_message_identified(
+                     &content,
+                     client_id.as_deref(),
+                     from_replay,
+                     &turn_id,
++                    Some(&id),
+                 );
+             }
+             ThreadItem::AgentMessage {
+diff --git a/codex-rs/tui/src/history_cell/messages.rs b/codex-rs/tui/src/history_cell/messages.rs
+index 1cd4a35..7447984 100644
+--- a/codex-rs/tui/src/history_cell/messages.rs
++++ b/codex-rs/tui/src/history_cell/messages.rs
+@@ -14,6 +14,7 @@ use std::borrow::Cow;
+ 
+ #[derive(Debug)]
+ pub(crate) struct UserHistoryCell {
++    pub(crate) clici_anchor: Option<crate::clici_bridge::Anchor>,
+     pub message: String,
+     pub text_elements: Vec<TextElement>,
+     pub local_image_paths: Vec<PathBuf>,
+@@ -245,6 +246,7 @@ impl HistoryCell for UserHistoryCell {
+             source.right_reserve = 1;
+             source.copy_as_prose = true;
+         }
++        crate::clici_bridge::decorate(&mut lines, self.clici_anchor.as_ref(), width);
+         lines
+     }
+ 
+@@ -726,6 +728,7 @@ pub(crate) fn new_user_prompt(
+     remote_image_urls: Vec<String>,
+ ) -> UserHistoryCell {
+     UserHistoryCell {
++        clici_anchor: None,
+         message,
+         text_elements,
+         local_image_paths,
+diff --git a/codex-rs/tui/src/history_cell/tests.rs b/codex-rs/tui/src/history_cell/tests.rs
+index ea59afb..82e2289 100644
+--- a/codex-rs/tui/src/history_cell/tests.rs
++++ b/codex-rs/tui/src/history_cell/tests.rs
+@@ -2311,6 +2311,7 @@ fn ran_cell_multiline_with_stderr_snapshot() {
+ fn user_history_cell_wraps_and_prefixes_each_line_snapshot() {
+     let msg = "_count_r\x1b[13;2:3uows";
+     let cell = UserHistoryCell {
++        clici_anchor: None,
+         spoken: false,
+         message: msg.to_string(),
+         text_elements: Vec::new(),
+@@ -2335,6 +2336,7 @@ fn user_history_cell_wraps_long_urls_inside_the_message_gutter() {
+     );
+     let image_start = message.find("[Image #1]").unwrap();
+     let cell = UserHistoryCell {
++        clici_anchor: None,
+         spoken: false,
+         message,
+         text_elements: vec![TextElement::new(
+@@ -2386,6 +2388,7 @@ fn user_history_cell_wraps_long_urls_inside_the_message_gutter() {
+ #[test]
+ fn user_history_cell_renders_remote_image_urls() {
+     let cell = UserHistoryCell {
++        clici_anchor: None,
+         spoken: false,
+         message: "describe these".to_string(),
+         text_elements: Vec::new(),
+@@ -2407,6 +2410,7 @@ fn user_image_labels_follow_the_painted_prompt_surface() {
+ 
+     let placeholder = "[Image #1]";
+     let cell = UserHistoryCell {
++        clici_anchor: None,
+         spoken: false,
+         message: format!("{placeholder} describe these"),
+         text_elements: vec![TextElement::new(
+@@ -2443,6 +2447,7 @@ fn user_image_labels_follow_the_painted_prompt_surface() {
+ #[test]
+ fn user_history_cell_summarizes_inline_data_urls() {
+     let mut cell = UserHistoryCell {
++        clici_anchor: None,
+         spoken: false,
+         message: "describe inline image".to_string(),
+         text_elements: Vec::new(),
+@@ -2469,6 +2474,7 @@ fn user_history_cell_summarizes_inline_data_urls() {
+ #[test]
+ fn user_history_cell_numbers_multiple_remote_images() {
+     let cell = UserHistoryCell {
++        clici_anchor: None,
+         spoken: false,
+         message: "describe both".to_string(),
+         text_elements: Vec::new(),
+@@ -2489,6 +2495,7 @@ fn user_history_cell_numbers_multiple_remote_images() {
+ #[test]
+ fn user_history_cell_height_matches_rendered_lines_with_remote_images() {
+     let cell = UserHistoryCell {
++        clici_anchor: None,
+         spoken: false,
+         message: "line one\nline two".to_string(),
+         text_elements: Vec::new(),
+@@ -2512,6 +2519,7 @@ fn user_history_cell_height_matches_rendered_lines_with_remote_images() {
+ #[test]
+ fn user_history_cell_trims_trailing_blank_message_lines() {
+     let cell = UserHistoryCell {
++        clici_anchor: None,
+         spoken: false,
+         message: "line one\n\n   \n\t \n".to_string(),
+         text_elements: Vec::new(),
+@@ -2533,6 +2541,7 @@ fn user_history_cell_trims_trailing_blank_message_lines() {
+ fn user_history_cell_trims_trailing_blank_message_lines_with_text_elements() {
+     let message = "tokenized\n\n\n".to_string();
+     let cell = UserHistoryCell {
++        clici_anchor: None,
+         spoken: false,
+         message,
+         text_elements: vec![TextElement::new(
+@@ -2557,6 +2566,7 @@ fn user_history_cell_trims_trailing_blank_message_lines_with_text_elements() {
+ fn render_uses_wrapping_for_long_url_like_line() {
+     let url = "https://example.test/api/v1/projects/alpha-team/releases/2026-02-17/builds/1234567890/artifacts/reports/performance/summary/detail/with/a/very/long/path/that/keeps/going/for/testing/purposes-only-and-does/not/need/to/resolve/index.html?session_id=abc123def456ghi789jkl012mno345pqr678stu901vwx234yz";
+     let cell: Box<dyn HistoryCell> = Box::new(UserHistoryCell {
++        clici_anchor: None,
+         spoken: false,
+         message: url.to_string(),
+         text_elements: Vec::new(),
+@@ -3037,6 +3047,7 @@ fn agent_markdown_cell_narrow_width_shows_prefix_only() {
+ #[test]
+ fn wrapped_and_prefixed_cells_handle_tiny_widths() {
+     let user_cell = UserHistoryCell {
++        clici_anchor: None,
+         spoken: false,
+         message: "tiny width coverage for wrapped user history".to_string(),
+         text_elements: Vec::new(),
+@@ -3144,6 +3155,7 @@ fn consolidation_walker_replaces_agent_message_cells() {
+ 
+     // Build a transcript with: [UserCell, AgentMsg(head), AgentMsg(cont), AgentMsg(cont)]
+     let user = Arc::new(UserHistoryCell {
++        clici_anchor: None,
+         spoken: false,
+         message: "hello".to_string(),
+         text_elements: Vec::new(),
+diff --git a/codex-rs/tui/src/insert_history.rs b/codex-rs/tui/src/insert_history.rs
+index d07d6cb..68f4a51 100644
+--- a/codex-rs/tui/src/insert_history.rs
++++ b/codex-rs/tui/src/insert_history.rs
+@@ -239,6 +239,11 @@ pub(crate) fn wrap_history_hyperlink_lines(
+     for line in lines {
+         let line_wrapped = match wrap_policy {
+             HistoryLineWrapPolicy::Terminal => vec![line.clone()],
++            HistoryLineWrapPolicy::PreWrap
++                if crate::clici_bridge::is_anchor_line(line, wrap_width) =>
++            {
++                vec![line.clone()]
++            }
+             HistoryLineWrapPolicy::PreWrap
+                 if line_contains_url_like(&line.line)
+                     && !line_has_mixed_url_and_non_url_tokens(&line.line) =>
+@@ -500,6 +505,66 @@ mod tests {
+     use ratatui::layout::Rect;
+     use ratatui::style::Color;
+ 
++    #[test]
++    fn clici_blank_anchors_survive_native_wrap_without_changing_text() {
++        use crate::history_cell::HistoryCell;
++        let mut cell = crate::history_cell::new_user_prompt(
++            "duplicate prompt 日本語 🙂\nsecond line".into(),
++            vec![],
++            vec![],
++            vec![],
++        );
++        let anchor = crate::clici_bridge::Anchor::new(Some("native-item"), None);
++        for width in [24, 80] {
++            cell.clici_anchor = None;
++            let baseline = cell.display_hyperlink_lines(width);
++            cell.clici_anchor = Some(anchor.clone());
++            let marked = cell.display_hyperlink_lines(width);
++            assert_eq!(baseline.len(), marked.len());
++            let (wrapped, _) = wrap_history_hyperlink_lines(
++                &marked,
++                width as usize,
++                HistoryLineWrapPolicy::PreWrap,
++            );
++            let render = |lines: &[HyperlinkLine]| {
++                let backend = VT100Backend::new(width, 32);
++                let mut terminal = crate::custom_terminal::Terminal::with_options(backend).unwrap();
++                terminal.set_viewport_area(Rect::new(0, 0, width, 1));
++                insert_history_hyperlink_lines_with_mode_and_wrap_policy(
++                    &mut terminal,
++                    lines,
++                    InsertHistoryMode::FullScreen,
++                    HistoryLineWrapPolicy::PreWrap,
++                    Size::new(width, 32),
++                )
++                .unwrap();
++                terminal.backend().vt100().screen().clone()
++            };
++            let plain_screen = render(&baseline);
++            let marked_screen = render(&marked);
++            // VT100 contents() retains explicitly painted spaces, whereas the
++            // baseline uses unpainted padding. Compare the complete text grid;
++            // both represent the same blank separator cells to Terminal UIA.
++            let text_grid = |screen: &vt100::Screen| {
++                screen
++                    .rows(0, width)
++                    .map(|row| row.trim_end_matches(' ').to_owned())
++                    .collect::<Vec<_>>()
++            };
++            assert_eq!(text_grid(&plain_screen), text_grid(&marked_screen));
++            for (row, end) in [(0, false), (wrapped.len() - 1, true)] {
++                for (column, (r, g, b)) in anchor.colors(end).into_iter().enumerate() {
++                    let painted = marked_screen.cell(row as u16, column as u16).unwrap();
++                    assert_eq!(
++                        painted.fgcolor(),
++                        vt100::Color::Rgb(r, g, b),
++                        "width={width}, row={row}, column={column}"
++                    );
++                }
++            }
++        }
++    }
++
+     #[test]
+     fn writes_bold_then_regular_spans() {
+         use ratatui::style::Stylize;
+@@ -900,6 +965,7 @@ mod tests {
+ 
+         let url = "https://example.test/forwarded/threads/10930?page=1&queue=customer_support_unprocessed&forwardedScope=all";
+         let cell = UserHistoryCell {
++            clici_anchor: None,
+             spoken: false,
+             message: url.to_string(),
+             text_elements: Vec::new(),
+diff --git a/codex-rs/tui/src/lib.rs b/codex-rs/tui/src/lib.rs
+index dc0fbd0..33ad47a 100644
+--- a/codex-rs/tui/src/lib.rs
++++ b/codex-rs/tui/src/lib.rs
+@@ -119,6 +119,7 @@ mod bottom_pane;
+ mod branch_summary;
+ mod chatwidget;
+ mod cli;
++mod clici_bridge;
+ mod clipboard_copy;
+ mod clipboard_html;
+ mod clipboard_paste;
+diff --git a/codex-rs/tui/src/thread_transcript.rs b/codex-rs/tui/src/thread_transcript.rs
+index babf331..e603bf9 100644
+--- a/codex-rs/tui/src/thread_transcript.rs
++++ b/codex-rs/tui/src/thread_transcript.rs
+@@ -259,6 +259,10 @@ fn item_to_cells(
+                 item.text_elements()
+             };
+             cells.push(Arc::new(UserHistoryCell {
++                clici_anchor: crate::clici_bridge::anchor(
++                    Some(&item.id),
++                    item.client_id.as_deref(),
++                ),
+                 spoken: false,
+                 message: reply_text.unwrap_or(message),
+                 text_elements,
