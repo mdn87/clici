@@ -52,3 +52,12 @@ Desktop.ini
 tools/.certs/
 *.pfx
 __pycache__/
+
+# Local credentials and agent scratch; sanitized templates remain versioned.
+.env*
+!.env.example
+!.env.*.example
+!.env.template
+!.env.*.template
+*.sync-conflict-*
+.lugos-audit/
