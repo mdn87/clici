@@ -18,7 +18,10 @@ reproduces the old failure on purpose.
 ## What it does
 
 - `session.append` pins the engine-stamped UUID of each eligible main-loop
-  composer prompt and gives it a random 128-bit nonce.
+  composer prompt and gives it a random 128-bit nonce, written as uppercase
+  hex. The helper's `RenderedPromptMap.Resolve` accepts only uppercase nonces
+  (the case Codex emits); lowercase nonces made every frame fail as
+  "Incomplete or ambiguous rendered anchors" until PR #35.
 - `ui.render` for `UserMessage` wraps the original drawing in two blank six-cell
   RGB rows that encode the nonce, using the same encoding as the Codex bridge and
   Clici's COM resolver. IDs and nonces never enter the visible text; the stored
@@ -44,7 +47,9 @@ alone decides eligibility from painted rows read through COM.
 
 Known gaps: a permission dialog is inferred from `tool.check` verdicts, so a
 tool whose dialog the engine opens without a verdict keeps navigation withdrawn
-until the call settles; a slash-command panel withdraws navigation until the
+until the call settles, and the keys do nothing while an approval or question
+dialog is open (composer-only capture; whole-pane capture is not approved); a
+slash-command panel withdraws navigation until the
 next accepted prompt; Esc-Esc rewind and transcript overlays are not observable
 through the mods API and are not detected. A frame file outlives a helper killed
 with its console; each new helper sweeps siblings older than an hour.
@@ -62,7 +67,7 @@ node --test ./tools/proof/prompt-navigation/claude-renderer/tests/anchors.node.m
 
 Type checking uses the installed 2.1.296 declaration under
 `.claude-plugin/types/claude-code/index.d.ts`. Vendor declarations are ignored
-and not redistributed. The seven Node tests run in CI. The fourteen native hook
+and not redistributed. The eight Node tests run in CI. The fourteen native hook
 tests require Claude 2.1.296 locally; they cover event handling, returned trees,
 frame publication, ownership withdrawal and release, and helper exit, not
 retained terminal rows.
@@ -98,5 +103,10 @@ expecting missing rows.
 
 The harness saves synthetic output, decoded cells, the final screen and a JSON
 result. This is renderer-output and helper-protocol evidence, not Windows
-Terminal COM, physical keyboard, selection or resize qualification. The cases
+Terminal COM, physical keyboard, selection or resize qualification. The
+`--bridge` case starts the helper without `CLICI_RENDERER_KEYS`, so it never
+reaches `RenderedPromptMap.Resolve` or the keyboard hook; that gap is why the
+lowercase-nonce defect passed it. Matt checked the physical keys in a real
+Windows Terminal pane on 2026-10-17 after PR #35: navigation works, and a draft,
+the scrollback, a selection and the clipboard survive it. The cases
 stay outside ordinary CI because they need a locally installed vendor executable.
