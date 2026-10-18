@@ -27,23 +27,31 @@ function bridge(on: On) {
     const frames: Frame[] = [];
     const writes: string[] = [];
     const spawned: string[][] = [];
+    const logs: string[] = [];
     const clock = mock.clock(on, { now: 1_700_000_000_000 });
     let exitHelper = () => undefined as void;
     let settleTool = () => undefined as void;
     let verdict: 'allow' | 'ask' = 'ask';
-    on('fs.write', (_$, e) => { writes.push(e.path); frames.push(JSON.parse(e.text)); return { value: undefined }; });
-    on('ui.log', () => ({ value: undefined }));
+    let failWrites = 0;
+    let failSpawns = 0;
+    on('fs.write', (_$, e) => {
+        if (failWrites > 0) { failWrites--; throw new Error('disk full'); }
+        writes.push(e.path); frames.push(JSON.parse(e.text)); return { value: undefined };
+    });
+    on('ui.log', (_$, e) => { logs.push(e.text); return { value: undefined }; });
     on('command.run', () => ({ text: 'other command ran' }));
     on('tool.check', () => ({ decision: verdict }));
     on('tool.call', async () => { await new Promise<void>(resolve => { settleTool = resolve; }); return { result: 'ok' }; });
     on('process.spawn', async function* (_$, e) {
         spawned.push([...e.argv]);
+        if (failSpawns > 0) { failSpawns--; throw new Error('access denied'); }
         yield { stream: 'stdout' as const, text: '{"version":1,"ready":true,"parentProcessId":1,"agent":"claude-code"}\n' };
         await new Promise<void>(resolve => { exitHelper = resolve; });
         return { value: { code: 1, signal: null } };
     });
-    return { frames, writes, spawned, clock, last: () => frames[frames.length - 1]!,
-        exitHelper: () => exitHelper(), settleTool: () => settleTool(), allow: () => { verdict = 'allow'; } };
+    return { frames, writes, spawned, logs, clock, last: () => frames[frames.length - 1]!,
+        exitHelper: () => exitHelper(), settleTool: () => settleTool(), allow: () => { verdict = 'allow'; },
+        failWrite: () => { failWrites++; }, failSpawn: () => { failSpawns++; } };
 }
 
 const BRIDGE_ENV = { CLICI_RENDERER_BRIDGE: HELPER, TEMP: 'C:\\Users\\matt\\Temp' };
@@ -244,18 +252,115 @@ test('session end publishes a withdrawal and stops the heartbeat', async ($, on)
     expect(world.frames.length).toBe(count);
 });
 
-test('a helper that exits ends frame publication and the inspection shows no bridge', async ($, on) => {
+// Advances past a replacement wait and lets the new helper's first frames land.
+async function wait(world: ReturnType<typeof bridge>, ms: number) {
+    await world.clock.advance(ms);
+    await world.clock.settle();
+}
+
+test('a helper that exits is replaced on a fresh frame file and keeps the painted prompts', async ($, on) => {
     const world = bridge(on);
     await start($, on, true, '2.1.296', BRIDGE_ENV);
     await $.session.append(prompt('one')); await $.ui.render(render('one'));
     await world.clock.settle();
-    expect((await report($)).bridge).toBe(true);
+    const owned = world.last();
     world.exitHelper();
     await world.clock.settle();
     expect((await report($)).bridge).toBe(false);
     const count = world.frames.length;
-    await world.clock.advance(500);
-    await $.session.append(prompt('two'));
+    await wait(world, 999);
+    expect(world.spawned.length).toBe(1);
+    expect(world.frames.length).toBe(count); // Nothing renews the old helper's lease while it waits.
+    await wait(world, 1);
+    expect(world.spawned.length).toBe(2);
+    const [oldPath, newPath] = world.spawned.map(argv => argv[2]!);
+    expect(newPath).not.toBe(oldPath);
+    expect(world.writes.slice(count).every(written => written.replaceAll(String.fromCharCode(92), '/') === newPath)).toBe(true);
+    await wait(world, 300); // The replacement's own heartbeat publishes with no hook event.
+    expect(world.frames.length).toBeGreaterThan(count + 2);
+    expect(world.last().composerOwnsInput).toBe(true);
+    expect(world.last().prompts).toEqual(owned.prompts);
+    expect((await report($)).bridge).toBe(true);
+});
+
+test('replacements back off from 1 s to 30 s and stop after ten', async ($, on) => {
+    const world = bridge(on);
+    await start($, on, true, '2.1.296', BRIDGE_ENV);
     await world.clock.settle();
-    expect(world.frames.length).toBe(count);
+    const delays = [1000, 2000, 4000, 8000, 16000, 30000, 30000, 30000, 30000, 30000];
+    for (const [index, delay] of delays.entries()) {
+        world.exitHelper();
+        await wait(world, delay - 1);
+        expect(world.spawned.length).toBe(index + 1);
+        await wait(world, 1);
+        expect(world.spawned.length).toBe(index + 2);
+    }
+    world.exitHelper();
+    await wait(world, 120_000);
+    expect(world.spawned.length).toBe(11);
+    expect(world.logs.filter(line => line.includes('not replaced')).length).toBe(1);
+    expect((await report($)).bridge).toBe(false);
+});
+
+test('a failed frame write and the stream end of one helper count as one failure', async ($, on) => {
+    const world = bridge(on);
+    await start($, on, true, '2.1.296', BRIDGE_ENV);
+    await world.clock.settle();
+    world.failWrite();
+    await wait(world, 100);
+    expect((await report($)).bridge).toBe(false);
+    world.exitHelper(); // The same helper's stream now ends too.
+    await wait(world, 1000);
+    expect(world.spawned.length).toBe(2);
+    world.exitHelper();
+    await wait(world, 1999);
+    expect(world.spawned.length).toBe(2); // One failure was counted, so the second wait is 2 s, not 4 s.
+    await wait(world, 1);
+    expect(world.spawned.length).toBe(3);
+});
+
+test('a helper that fails to start leaves no ghost bridge and is retried', async ($, on) => {
+    const world = bridge(on);
+    world.failSpawn();
+    await start($, on, true, '2.1.296', BRIDGE_ENV);
+    await world.clock.settle();
+    expect((await report($)).bridge).toBe(false);
+    await wait(world, 1000);
+    expect(world.spawned.length).toBe(2);
+    expect((await report($)).bridge).toBe(true);
+});
+
+test('session end never replaces the helper and cancels a pending replacement', async ($, on) => {
+    const world = bridge(on);
+    await start($, on, true, '2.1.296', BRIDGE_ENV);
+    await world.clock.settle();
+    world.exitHelper();
+    await world.clock.settle();
+    await $.session.end({ reason: 'prompt_input_exit', sessionId: 'session-a', resume: { id: 'session-a' } });
+    await wait(world, 5000);
+    expect(world.spawned.length).toBe(1);
+});
+
+test('a helper torn down by session end is not counted as a failure', async ($, on) => {
+    const world = bridge(on);
+    await start($, on, true, '2.1.296', BRIDGE_ENV);
+    await world.clock.settle();
+    await $.session.end({ reason: 'prompt_input_exit', sessionId: 'session-a', resume: { id: 'session-a' } });
+    world.exitHelper();
+    await wait(world, 5000);
+    expect(world.spawned.length).toBe(1);
+    expect(world.logs.some(line => line.includes('replacing'))).toBe(false);
+});
+
+test('a session start during a pending replacement runs exactly one helper', async ($, on) => {
+    const world = bridge(on);
+    await start($, on, true, '2.1.296', BRIDGE_ENV);
+    await world.clock.settle();
+    world.exitHelper();
+    await world.clock.settle();
+    await $.session.start({ cwd: '/synthetic', surface: 'terminal', isInteractive: true });
+    await world.clock.settle();
+    expect(world.spawned.length).toBe(2);
+    await wait(world, 5000);
+    expect(world.spawned.length).toBe(2);
 });
