@@ -180,8 +180,12 @@ foreground/focus changes, pointer input, and other keys. Native modal draws
 withdraw eligibility. Pane, geometry, native-session, prompt-list and input-scope
 changes require requalification. Expired, ambiguous or unsupported contexts pass
 through; a canceled press is never replayed. A stalled helper loses its lease and
-the native client stops it after its one-second pipe timeout. Polling stops when
-the helper becomes unavailable. No automatic hook reinstallation is attempted.
+the native client stops it after its one-second pipe timeout. A failed helper is
+replaced by a fresh one on a later frame, after a delay that starts at one second
+and doubles to a 30-second cap; frames keep being drawn while it waits, so an idle
+session still recovers. The replacement starts unqualified in a new epoch, so no
+lease or press survives a failure. A session stops trying after 10 replacements.
+No automatic hook reinstallation is attempted.
 
 `CLICI_NATIVE_KEY_PROBE=1` is the earlier diagnostic after-Terminal Ctrl+Up/Down
 path; its keys are unchanged. Leave it off when using the pre-Terminal adapter.
@@ -213,4 +217,8 @@ prefix, checks prompt IDs, selection, both modifier orders and early modifier
 release, and verifies that eligible punctuation is consumed while ineligible
 punctuation reaches the synthetic fixture. Only that fixture records received
 test keys in `<directory>/keys.jsonl`. Use a fresh fixture directory for each run.
-Results are saved under `<directory>/evidence/input-live.json`.
+Results are saved under `<directory>/evidence/input-live.json`. Add `--frames`
+to drive the same sequence through `renderer-bridge-frames`, the file transport
+the Claude Code plugin uses, with lowercase nonce bindings; its results go to
+`input-live-frames.json`. A background process cannot take the foreground, so
+the fixture window must already be foreground when the script starts.

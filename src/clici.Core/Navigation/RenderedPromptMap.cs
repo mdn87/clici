@@ -21,12 +21,15 @@ public static class RenderedPromptMap
             anchors.Count > bindings.Count || documentRows < 1) return Refuse();
 
         var ids = new HashSet<string>(StringComparer.Ordinal);
-        var nonces = new HashSet<string>(StringComparer.Ordinal);
+        // Nonces are hex, so case carries no identity: agents may emit either case
+        // and the painted colors are the same. Two nonces equal apart from case
+        // are duplicates.
+        var nonces = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
         foreach (var binding in bindings)
         {
             if (binding is null || string.IsNullOrWhiteSpace(binding.MessageId) || binding.MessageId.Length > 512 ||
                 binding.Nonce is null || binding.Nonce.Length != 32 || !binding.Nonce.All(Uri.IsHexDigit) ||
-                binding.Nonce != binding.Nonce.ToUpperInvariant() || !ids.Add(binding.MessageId) || !nonces.Add(binding.Nonce))
+                !ids.Add(binding.MessageId) || !nonces.Add(binding.Nonce))
                 return Refuse();
         }
 
@@ -39,7 +42,7 @@ public static class RenderedPromptMap
         {
             var anchor = ordered[index];
             var binding = bindings[first + index];
-            if (anchor.Nonce != binding.Nonce || anchor.StartRow <= previousEnd || anchor.StartRow >= documentRows - 1 ||
+            if (!string.Equals(anchor.Nonce, binding.Nonce, StringComparison.OrdinalIgnoreCase) || anchor.StartRow <= previousEnd || anchor.StartRow >= documentRows - 1 ||
                 anchor.EndRow <= anchor.StartRow + 1 || anchor.EndRow >= documentRows) return Refuse();
             prompts.Add(new(anchor.StartRow + 1, anchor.EndRow, anchor.Nonce, binding.MessageId));
             previousEnd = anchor.EndRow;
