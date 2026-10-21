@@ -26,7 +26,7 @@ Get-ChildItem -LiteralPath $helperRoot -File | Where-Object Extension -ne '.pdb'
 foreach ($name in @('LICENSE','NOTICE')) {
     if (Test-Path -LiteralPath (Join-Path $sourceRoot $name)) { Copy-Item -LiteralPath (Join-Path $sourceRoot $name) -Destination (Join-Path $bundleRoot $name) }
 }
-foreach ($name in @('codex-0.162.1.patch','clici_bridge.rs','protocol.rs','README.md')) {
+foreach ($name in @('codex-0.162.1.patch','clici_bridge.rs','protocol.rs','clici_bridge_admission.rs','README.md')) {
     Copy-Item -LiteralPath (Join-Path $PSScriptRoot $name) -Destination (Join-Path $bundleRoot "source/$name")
 }
 Copy-Item -LiteralPath (Join-Path $PSScriptRoot 'Enable-RendererNavigation.ps1') -Destination $bundleRoot

@@ -10,25 +10,6 @@ if ($MyInvocation.InvocationName -ne '.') {
 }
 if ($Disable) {
     if (Get-Variable CliciRendererPreviousEnvironment -Scope Global -ErrorAction SilentlyContinue) {
-        # Stop only renderer helpers launched beneath this shell by the bundled
-        # Codex CLI or by Claude Code. The CLI and its draft/session remain alive.
-        $processes = @(Get-CimInstance Win32_Process -Property ProcessId,ParentProcessId,ExecutablePath)
-        $byId = @{}
-        foreach ($process in $processes) { $byId[[uint32]$process.ProcessId] = $process }
-        foreach ($process in $processes) {
-            if ($process.ExecutablePath -ne $global:CliciRendererHelperPath) { continue }
-            $ancestor = $byId[[uint32]$process.ParentProcessId]
-            if (-not $ancestor) { continue }
-            $seen = @{}
-            while ($ancestor -and -not $seen.ContainsKey([uint32]$ancestor.ProcessId)) {
-                if ($ancestor.ProcessId -eq $PID) {
-                    Stop-Process -Id $process.ProcessId -ErrorAction SilentlyContinue
-                    break
-                }
-                $seen[[uint32]$ancestor.ProcessId] = $true
-                $ancestor = $byId[[uint32]$ancestor.ParentProcessId]
-            }
-        }
         foreach ($entry in $global:CliciRendererPreviousEnvironment.GetEnumerator()) {
             $restoreValue = if ($null -eq $entry.Value) { [System.Management.Automation.Language.NullString]::Value } else { $entry.Value }
             [Environment]::SetEnvironmentVariable($entry.Key, $restoreValue, 'Process')
@@ -36,7 +17,7 @@ if ($Disable) {
         Remove-Variable CliciRendererPreviousEnvironment -Scope Global
         Remove-Variable CliciRendererHelperPath,CliciRendererNativePath -Scope Global
     }
-    Write-Output 'Renderer navigation disabled in this shell and its running Codex and Claude children. Native sessions remain open.'
+    Write-Output 'Renderer navigation disabled for new children of this shell. Running sessions keep their inherited environment; restart them with the bridge disabled to stop navigation.'
     return
 }
 if (-not $IsWindows -or -not $env:WT_SESSION) {
