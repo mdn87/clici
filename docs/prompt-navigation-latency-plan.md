@@ -1,6 +1,6 @@
 # Restore responsive Codex typing with prompt navigation
 
-Status: reviewed repair implemented and built; automated live checks pass. Physical-keyboard observation and rollout remain pending.
+Status: repair implemented, verified, merged in PR #47, and installed with Matt's approval. Physical typing and both shortcuts confirmed working.
 Date: 2026-10-20. Source baseline: `cd9ca5f`.
 
 ## Outcome and boundaries
@@ -401,19 +401,34 @@ change refused navigation. Reusing a terminal without clearing its history
 exceeded 4,096 rows and correctly refused; the clean long fixture then passed.
 The native resume-directory prompt required choosing the isolated directory.
 
-The isolated bundle is `artifacts/latency-candidate-20261021`. Its CLI and helper
+The live-test bundle is `artifacts/latency-candidate-20261021`. The final package
+is `artifacts/latency-candidate-final-20261021`; its later changes are the terminal
+supervisor diagnostic, a proof-only timing command, and documentation. Its CLI and helper
 were built locally. Building the unchanged Code Mode host was prevented by the
 pinned V8 150.4.0 release download returning 404. The bundle therefore reuses the
 existing host from the same pinned upstream commit, after verifying SHA-256
 `9F865A748C984492CA9B69AAC75680E4954F31311C43EC33DDBDAE0ED77BD4BD` against the
 installed manifest. A local-provider `codex exec` smoke run with this host passed.
-No installed bundle or global shell/Codex configuration was changed.
+The prior installed bundle is retained for rollback.
 
-Remaining qualification: physical typing/IME and tab switching; the full
-three-agent/focus-signal suppression matrix; a matched bridge-off/old/new native
-frame-flush and idle-CPU comparison; timed restart-budget exhaustion. Hook wall
+Matt confirmed physical typing and both navigation shortcuts work without
+changing the draft. The real retry-budget soak passed after 182.04 seconds:
+ten replacements exhausted the budget, and ten subsequent publications could
+not restart it. The final helper accepted legacy v1; the new native supervisor
+refused the installed old helper before sending observations.
+
+Matt explicitly authorized installation and startup re-enablement. The installed
+release is `%LOCALAPPDATA%/Clici/renderer-navigation/releases/`
+`codex-0.162.1-96aba4ccdd0670bf`. All twenty manifest files verified. A fresh
+portable-Terminal PowerShell and fresh interactive Git Bash selected the final
+CLI/helper, enabled keyboard navigation and Claude anchors, and the Codex
+classic-scrollback setting verified. Existing chats were not closed or rewritten.
+Existing Codex processes need restarting to use the repair.
+
+Broader qualification remains open: IME and the full three-agent/focus-signal
+suppression matrix; a matched bridge-off/old/new native frame-flush and idle-CPU
+comparison. Hook wall
 clock measurements include downstream `CallNextHookEx` time and occasionally
 exceed the 1 ms p95 target; they must not be represented as isolated Clici CPU
 cost. These checks are distinct from the passing typing-latency and navigation
-results above. Global rollout remains disabled pending the operator observation
-and explicit authorization to restore shell integration.
+results above. These broader checks are not claimed by this latency repair.
