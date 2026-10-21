@@ -28,9 +28,9 @@ internal static class Program
                 RendererBridge.RunFrames(args[1]);
                 return 0;
             }
-            if (args.Length == 2 && args[0] == "anchor-fixture")
+            if (args.Length is 2 or 3 && args[0] == "anchor-fixture")
             {
-                ColorAnchorProbe.Fixture(args[1]);
+                ColorAnchorProbe.Fixture(args[1], args.Length == 3 ? int.Parse(args[2]) : 32);
                 return 0;
             }
             if (args.Length == 0)
@@ -143,6 +143,45 @@ internal static class Program
             }
 
             var pattern = (IUIAutomationTextPattern)element.GetCurrentPattern(UIA_PatternIds.UIA_TextPatternId);
+            if (args[0] == "typing-latency")
+            {
+                if (args.Length != 4 || !args[2].StartsWith("CLICI_FIXTURE_", StringComparison.Ordinal) ||
+                    !int.TryParse(args[3], out var count) || count is < 1 or > 100)
+                    throw new ArgumentException("Expected typing-latency <proof hwnd> <CLICI_FIXTURE_draft marker> <1..100>.");
+                static string Compact(string text) => string.Concat(text.Where(character => !char.IsWhiteSpace(character)));
+                var expected = Compact(args[2]);
+                if (!Compact(pattern.DocumentRange.GetText(262144)).Contains(expected, StringComparison.Ordinal))
+                    throw new InvalidOperationException("Synthetic draft marker was not found; no input sent.");
+                var samples = new List<double>();
+                for (var index = 0; index < count; index++)
+                {
+                    NativeWindows.RequireActiveProofPane(hwnd, element);
+                    expected += "a";
+                    var latency = Stopwatch.StartNew();
+                    NativeWindows.SendProofKey(hwnd, "type-a");
+                    while (!Compact(pattern.DocumentRange.GetText(262144)).Contains(expected, StringComparison.Ordinal))
+                    {
+                        NativeWindows.RequireActiveProofPane(hwnd, element);
+                        if (latency.ElapsedMilliseconds > 2000)
+                            throw new InvalidOperationException($"Character {index + 1} was not visible within two seconds.");
+                        Thread.Sleep(1);
+                    }
+                    samples.Add(latency.Elapsed.TotalMilliseconds);
+                    Thread.Sleep(10);
+                }
+                var ordered = samples.Order().ToArray();
+                Write(new
+                {
+                    result = "Typed",
+                    count,
+                    samples,
+                    p50Milliseconds = ordered[(count - 1) / 2],
+                    p95Milliseconds = ordered[(int)Math.Ceiling(count * .95) - 1],
+                    maxMilliseconds = ordered[^1],
+                    measurement = "SendInput to visible UIA text, including polling overhead; no prompt submitted"
+                });
+                return 0;
+            }
             if (args[0] == "activate")
             {
                 element.SetFocus();
@@ -489,6 +528,7 @@ internal static class NativeWindows
         var (virtualKey, modifiers) = key switch
         {
             "enter" => ((ushort)0x0D, Array.Empty<ushort>()),
+            "type-a" => ((ushort)0x41, Array.Empty<ushort>()),
             "alt-shift-comma" => ((ushort)0xBC, new ushort[] { 0x12, 0x10 }),
             "alt-shift-period" => ((ushort)0xBE, new ushort[] { 0x12, 0x10 }),
             "ctrl-up" => ((ushort)0x26, new ushort[] { 0x11 }),

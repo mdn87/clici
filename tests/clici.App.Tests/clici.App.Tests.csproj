@@ -5,6 +5,7 @@
     <UseWindowsForms>true</UseWindowsForms>
     <IsPackable>false</IsPackable>
     <RootNamespace>Clici.App.Tests</RootNamespace>
+    <AllowUnsafeBlocks>true</AllowUnsafeBlocks>
   </PropertyGroup>
 
   <ItemGroup>
@@ -20,6 +21,7 @@
 
   <ItemGroup>
     <ProjectReference Include="..\..\src\clici.App\clici.App.csproj" />
+    <Compile Include="../../tools/proof/prompt-navigation/NativeAdmission.cs" Link="NativeAdmission.cs" />
   </ItemGroup>
 
 </Project>

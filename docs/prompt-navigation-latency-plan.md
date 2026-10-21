@@ -1,6 +1,6 @@
 # Restore responsive Codex typing with prompt navigation
 
-Status: one fresh Claude Fable review completed; findings incorporated. Implementation not started.
+Status: reviewed repair implemented and built; automated live checks pass. Physical-keyboard observation and rollout remain pending.
 Date: 2026-10-20. Source baseline: `cd9ca5f`.
 
 ## Outcome and boundaries
@@ -26,7 +26,7 @@ See [review disposition](prompt-navigation-latency-review.md) for all 16 finding
 the exact reviewed manifest, and the distinction between review delivery and
 implementation verification. This planning milestone does not establish a fix.
 
-## Evidence and remaining uncertainty
+## Original diagnosis (before implementation)
 
 - An isolated fork of the affected conversation, using the same patched Codex
   binary with Clici environment variables removed, typed quickly according to
@@ -347,3 +347,73 @@ Rollback is to launch the stock CLI or the bridge-off candidate and retain the
 prior bundle. Do not delete user sessions or rewrite conversation state.
 Completion requires the stated evidence; missing native build/live evidence is
 reported as incomplete validation, not replaced with a passing protocol test.
+
+## Implementation evidence (2026-10-21)
+
+The one-round Fable review remains the only advisory review. The repair moves
+startup, pipe waits, watchdogs and teardown into a background supervisor with
+one active observation and one replaceable pending observation. Native input
+revokes a shared atomic admission word directly; queued older snapshots cannot
+restore it. Ordinary typing no longer discards the v2 layout qualification, and
+maintenance ticks publish current state without forcing a redraw. Legacy Claude
+continues using v1.
+
+The helper waits for its private v2 handshake before installing hooks. The parent
+assigns its kill-on-close Job before sending that handshake; this replaces the
+plan's suspended-process implementation while preserving hook-start ordering.
+The abrupt-parent-exit process test confirms that the helper does not survive.
+No live cross-process disable toggle was added. Session `-Disable` now accurately
+restores the environment for future children instead of killing helpers that the
+supervisor could restart. Restart an existing session bridge-off to disable it.
+
+Measured evidence, retained under `artifacts/`:
+
+- The original synchronous regression waited 1.015 seconds. After the repair,
+  1,000 publications plus disable/drop took 0.34 ms in the final fault-test run.
+  This measures publication, not native event-to-render latency.
+- .NET Release: 255 tests passed (158 Core, 97 App). Standalone Rust: 8 unit
+  tests and 11 process tests passed; the normally ignored real .NET/Rust ABI
+  test was explicitly run and passed. Five installer and 14 Node tests passed.
+- The actual patched Codex CLI builds. Nine Clici-related native TUI tests pass;
+  this is a targeted run, not all 5,648 upstream TUI tests. The canonical patch
+  reverse-checks against the built checkout. Formatting and diff checks pass.
+- Read-only UIA mapping: ten samples each at 112, 1,000 and 3,916 rows all found
+  the three correct prompt identities. Median / maximum scan times were
+  85.8 / 130.4, 130.0 / 160.4 and 158.1 / 199.9 ms respectively. Narrow-window
+  reflow retained all identities. The old long scan exceeded its one-second
+  deadline; that measured failure justified changing traversal.
+- Real Windows hooks in portable Terminal: each history size passed 40
+  navigation actions plus a selection-preservation action. Each delivered all
+  100 ordinary characters with zero extra full scans, and passed ineligible
+  punctuation through. Evidence is `latency-live-short/evidence/input-live-v2.json`
+  and `latency-final-live/{medium,long-clean}/evidence/input-live-v2.json`.
+- The actual Codex candidate, with an isolated home and a local HTTP response
+  fixture, passed both shortcut directions, return-to-live, distinct prompt IDs,
+  unsent draft and nonempty selection preservation without another submission.
+  `latency-native-live/evidence/native-input-live.json` records the results.
+- Actual Codex typing: 100 marked characters measured from SendInput until UIA
+  exposed the updated draft: p50 46.08 ms, p95 47.26 ms, maximum 61.73 ms. This
+  includes polling overhead and is not a direct instrumented frame-flush time.
+  Raw samples: `latency-native-live/evidence/typing-latency.json`.
+
+Failed fixture attempts are retained, not counted as passing samples. A focus
+change refused navigation. Reusing a terminal without clearing its history
+exceeded 4,096 rows and correctly refused; the clean long fixture then passed.
+The native resume-directory prompt required choosing the isolated directory.
+
+The isolated bundle is `artifacts/latency-candidate-20261021`. Its CLI and helper
+were built locally. Building the unchanged Code Mode host was prevented by the
+pinned V8 150.4.0 release download returning 404. The bundle therefore reuses the
+existing host from the same pinned upstream commit, after verifying SHA-256
+`9F865A748C984492CA9B69AAC75680E4954F31311C43EC33DDBDAE0ED77BD4BD` against the
+installed manifest. A local-provider `codex exec` smoke run with this host passed.
+No installed bundle or global shell/Codex configuration was changed.
+
+Remaining qualification: physical typing/IME and tab switching; the full
+three-agent/focus-signal suppression matrix; a matched bridge-off/old/new native
+frame-flush and idle-CPU comparison; timed restart-budget exhaustion. Hook wall
+clock measurements include downstream `CallNextHookEx` time and occasionally
+exceed the 1 ms p95 target; they must not be represented as isolated Clici CPU
+cost. These checks are distinct from the passing typing-latency and navigation
+results above. Global rollout remains disabled pending the operator observation
+and explicit authorization to restore shell integration.

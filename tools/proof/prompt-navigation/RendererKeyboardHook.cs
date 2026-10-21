@@ -18,17 +18,39 @@ internal sealed class RendererKeyboardHook : IDisposable
     private readonly HookCallback mouseCallback;
     private readonly WinEventCallback focusCallback;
     private readonly bool testInput;
+    private readonly NativeAdmission? admission;
+    private long admissionWord;
+    private long layoutRevision;
+    private readonly long[] timingSamples = new long[256];
+    private long timingCount, maximumTicks;
+    internal object? Timing
+    {
+        get
+        {
+            if (!testInput) return null;
+            var count = Volatile.Read(ref timingCount);
+            var samples = timingSamples.Take((int)Math.Min(count, timingSamples.Length)).Order().ToArray();
+            return new
+            {
+                count,
+                maxMilliseconds = Volatile.Read(ref maximumTicks) * 1000.0 / Stopwatch.Frequency,
+                p95Milliseconds = samples.Length == 0 ? 0 : samples[(int)((samples.Length - 1) * .95)] * 1000.0 / Stopwatch.Frequency
+            };
+        }
+    }
     private nint boundWindow;
     private long revision;
     private uint threadId;
     private Exception? failure;
     internal long Revision => Interlocked.Read(ref revision);
+    internal long LayoutRevision => admission is null ? Revision : Interlocked.Read(ref layoutRevision);
     internal object? LastAdmission { get; private set; }
     internal int LastInvalidation { get; private set; }
 
-    internal RendererKeyboardHook(Process parent, bool proofOnly)
+    internal RendererKeyboardHook(Process parent, bool proofOnly, NativeAdmission? admission = null)
     {
         this.parent = parent;
+        this.admission = admission;
         testInput = proofOnly && Environment.GetEnvironmentVariable("CLICI_PROOF_INJECTED_KEYS") == "1";
         keyboardCallback = Keyboard;
         mouseCallback = Mouse;
@@ -44,25 +66,41 @@ internal sealed class RendererKeyboardHook : IDisposable
     {
         LastInvalidation = reason;
         Interlocked.Increment(ref revision);
+        if (reason != 4 && reason != 5) Interlocked.Increment(ref layoutRevision);
         Session.Invalidate();
     }
 
-    internal bool Publish(nint window, NavigationInputContext context, long observedAt, long expectedRevision)
+    internal bool Publish(nint window, NavigationInputContext context, long observedAt, long expectedRevision, ulong expectedAdmission = 0)
     {
-        if (Revision != expectedRevision || GetForegroundWindow() != window ||
+        if (Revision != expectedRevision || admission is not null && !admission.Allows(expectedAdmission) || GetForegroundWindow() != window ||
             Down(1) || Down(2) || Down(4) || Down(0x11) || Down(0x5B) || Down(0x5C))
         {
             Invalidate(5);
             return false;
         }
         boundWindow = window;
+        Volatile.Write(ref admissionWord, unchecked((long)expectedAdmission));
         Session.Publish(context, observedAt);
         // A concurrent focus/mouse event must never be undone by publication.
-        if (Revision != expectedRevision) { Session.Invalidate(); return false; }
+        if (Revision != expectedRevision || admission is not null && !admission.Allows(expectedAdmission)) { Session.Invalidate(); return false; }
         return true;
     }
 
     private nint Keyboard(int code, nuint message, nint data)
+    {
+        if (!testInput) return KeyboardCore(code, message, data);
+        var start = Stopwatch.GetTimestamp();
+        try { return KeyboardCore(code, message, data); }
+        finally
+        {
+            var elapsed = Stopwatch.GetTimestamp() - start;
+            timingSamples[timingCount % timingSamples.Length] = elapsed;
+            maximumTicks = Math.Max(maximumTicks, elapsed);
+            Volatile.Write(ref timingCount, timingCount + 1);
+        }
+    }
+
+    private nint KeyboardCore(int code, nuint message, nint data)
     {
         if (code < 0) return CallNextHookEx(0, code, message, data);
         try
@@ -76,6 +114,8 @@ internal sealed class RendererKeyboardHook : IDisposable
             var down = message is 0x100 or 0x104;
             if (GetForegroundWindow() != boundWindow || WaitForSingleObject(parent.Handle, 0) != 0x102)
                 Invalidate(2);
+            if (admission is not null && !admission.Allows(unchecked((ulong)Volatile.Read(ref admissionWord))))
+                Invalidate(4); // Native input revocation does not imply reflow.
             if (key.VirtualKey != Bindings.Previous.VirtualKey && key.VirtualKey != Bindings.Next.VirtualKey)
             {
                 // Both modifier orders and either side are valid. Modifiers
@@ -88,7 +128,7 @@ internal sealed class RendererKeyboardHook : IDisposable
                 (Down(0x12) ? NavigationModifiers.Alt : 0) |
                 (Down(0x5B) || Down(0x5C) ? NavigationModifiers.Windows : 0);
             var result = Session.Handle(new((int)key.VirtualKey, modifiers, down), Environment.TickCount64);
-            if (down) LastAdmission = new { result = result.ToString(), modifiers = modifiers.ToString(), revision = Revision, at = Environment.TickCount64 };
+            if (down && testInput) LastAdmission = new { result = result.ToString(), modifiers = modifiers.ToString(), revision = Revision, at = Environment.TickCount64 };
             if (result != NavigationKeyResult.PassThrough) return 1;
         }
         catch { Invalidate(); }

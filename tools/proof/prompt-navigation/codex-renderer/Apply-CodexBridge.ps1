@@ -14,7 +14,7 @@ if (git -C $sourceRoot status --porcelain --untracked-files=all) {
     throw 'The Codex checkout must be clean, including untracked files. No files changed.'
 }
 $destination = Join-Path $sourceRoot 'codex-rs/tui/src'
-foreach ($name in @('clici_bridge.rs', 'clici_bridge_protocol.rs')) {
+foreach ($name in @('clici_bridge.rs', 'clici_bridge_protocol.rs', 'clici_bridge_admission.rs')) {
     if (Test-Path -LiteralPath (Join-Path $destination $name)) {
         throw "Refusing to overwrite $name. No files changed."
     }
@@ -26,4 +26,5 @@ git -C $sourceRoot apply --whitespace=error-all $patch
 if ($LASTEXITCODE -ne 0) { throw 'Patch application failed; inspect the separate checkout.' }
 Copy-Item -LiteralPath (Join-Path $PSScriptRoot 'clici_bridge.rs') -Destination (Join-Path $destination 'clici_bridge.rs')
 Copy-Item -LiteralPath (Join-Path $PSScriptRoot 'protocol.rs') -Destination (Join-Path $destination 'clici_bridge_protocol.rs')
+Copy-Item -LiteralPath (Join-Path $PSScriptRoot 'clici_bridge_admission.rs') -Destination (Join-Path $destination 'clici_bridge_admission.rs')
 Write-Output 'Applied the development renderer bridge to the separate Codex source checkout.'

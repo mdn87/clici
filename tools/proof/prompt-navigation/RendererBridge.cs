@@ -28,6 +28,7 @@ internal sealed class RendererBridge
     private string? lastViewport;
     private long layoutEpoch;
     private RendererKeyboardHook? keyboard;
+    private NativeAdmission? admission;
     private NavigationInputRequest? inFlight;
     private readonly bool proofOnly = Environment.GetEnvironmentVariable("CLICI_RENDERER_TERMINALS") != "1";
     private NavigationIdentity? qualifiedIdentity;
@@ -36,6 +37,10 @@ internal sealed class RendererBridge
     private ProofWindow? qualifiedWindow;
     private long qualifiedRevision = -1;
     private (int Width, int Height) qualifiedSize;
+    private IUIAutomationTextRange? qualifiedWitness;
+    private string? witnessNonce;
+    private long nextDiscoveryAt;
+    private long fullScans;
 
     private RendererBridge(int parentId, AgentKind agent = AgentKind.Codex)
     {
@@ -70,13 +75,24 @@ internal sealed class RendererBridge
 
     internal sealed record Request(int Version, long Sequence, long Deadline, int ProcessId,
         string SessionId, long Epoch, string Direction, bool HistoryComplete, bool ComposerOwnsInput,
-        IReadOnlyList<RenderedPromptBinding> Prompts, long InputObservedAt = 0);
+        IReadOnlyList<RenderedPromptBinding> Prompts, long InputObservedAt = 0, ulong AdmissionWord = 0);
 
     internal static void Run(int parentId)
     {
         var bridge = new RendererBridge(parentId);
+        // v2 starts with a private handshake. The native parent assigns the Job
+        // before sending this, so no hook can be installed outside its lifetime.
+        if (Environment.GetEnvironmentVariable("CLICI_RENDERER_PROTOCOL") == "2")
+        {
+            if (ParentProcessId() != parentId) throw new InvalidOperationException("Unexpected native parent.");
+            using var hello = JsonDocument.Parse(ReadLine() ?? throw new InvalidOperationException("Missing admission handshake."));
+            if (hello.RootElement.GetProperty("version").GetInt32() != 2) throw new InvalidOperationException("Admission version mismatch.");
+            bridge.admission = new NativeAdmission((nint)hello.RootElement.GetProperty("mappingHandle").GetInt64(),
+                parentId, hello.RootElement.GetProperty("incarnation").GetUInt64());
+        }
+        using var admission = bridge.admission;
         using var keyboard = bridge.Start();
-        Console.WriteLine("""{"version":1,"ready":true}""");
+        Console.WriteLine(JsonSerializer.Serialize(new { version = admission is null ? 1 : 2, ready = true }, Json));
         while (ReadLine() is { } line)
             bridge.Dispatch(() => JsonSerializer.Deserialize<Request>(line, Json)
                 ?? throw new InvalidOperationException("Missing request."));
@@ -128,7 +144,7 @@ internal sealed class RendererBridge
                 System.Security.Principal.WindowsIdentity.GetCurrent()).IsInRole(System.Security.Principal.WindowsBuiltInRole.Administrator))
             throw new InvalidOperationException("Elevated renderer navigation is not supported.");
         keyboard = Environment.GetEnvironmentVariable("CLICI_RENDERER_KEYS") == "1"
-            ? new RendererKeyboardHook(parent, proofOnly) : null;
+            ? new RendererKeyboardHook(parent, proofOnly, admission) : null;
         return keyboard;
     }
 
@@ -148,7 +164,10 @@ internal sealed class RendererBridge
         catch (Exception exception) when (exception is not OutOfMemoryException)
         {
             cursor = null;
-            keyboard?.Invalidate();
+            // Ordinary typing can revoke an in-flight native observation. That
+            // changes input eligibility, not the verified terminal layout.
+            keyboard?.Invalidate(admission is not null && request is not null &&
+                admission.Word != request.AdmissionWord ? 4 : 0);
             Console.WriteLine(JsonSerializer.Serialize(new
             {
                 sequence = request?.Sequence ?? 0,
@@ -244,10 +263,13 @@ internal sealed class RendererBridge
             admission = keyboard?.LastAdmission,
             invalidation = keyboard?.LastInvalidation,
             revision = keyboard?.Revision,
+            fullScans,
+            hookTiming = keyboard?.Timing,
             elapsedMilliseconds = timer.Elapsed.TotalMilliseconds
         };
         CheckRequest(request);
         var hookRevision = keyboard?.Revision ?? 0;
+        var layoutRevision = keyboard?.LayoutRevision ?? 0;
         if (request.Direction is not ("previous" or "next" or "observe")) throw new InvalidOperationException("Unknown direction.");
         if (request.Direction == "observe")
         {
@@ -264,17 +286,25 @@ internal sealed class RendererBridge
             cursor = null;
             return Result(false, "PassThrough", "Native composer does not own input or has no complete prompts");
         }
+        // A known background pane never scans the foreground session's history.
+        if (admission is not null && qualifiedPane is not null && qualifiedWindow is not null &&
+            (!NativeWindows.IsForeground((nint)qualifiedWindow.Handle) || qualifiedPane.CurrentHasKeyboardFocus == 0))
+        {
+            keyboard?.Invalidate(2);
+            return Result(false, "PassThrough", "Bound pane is not focused");
+        }
         // Keep lease renewal independent of expensive window/pane discovery.
         // The focused COM element and native window are still checked each time;
         // keyboard, mouse and focus events invalidate this cached qualification.
         if (request.Direction == "observe" && keyboard is not null && qualifiedPane is not null &&
             qualifiedWindow is not null && qualifiedIdentity?.Session?.SessionId == request.SessionId &&
-            qualifiedIdentity.SessionEpoch == request.Epoch && qualifiedRevision == hookRevision &&
+            qualifiedIdentity.SessionEpoch == request.Epoch && qualifiedRevision == layoutRevision &&
             qualifiedPrompts is not null && qualifiedPrompts.SequenceEqual(request.Prompts) &&
             NativeWindows.IsForeground((nint)qualifiedWindow.Handle) && qualifiedPane.CurrentHasKeyboardFocus != 0)
         {
             var size = qualifiedPane.CurrentBoundingRectangle;
-            if (qualifiedSize == (size.right - size.left, size.bottom - size.top))
+            if (qualifiedSize == (size.right - size.left, size.bottom - size.top) &&
+                (admission is null || WitnessMatches()))
             {
                 if (!PublishLease(request, qualifiedWindow, qualifiedIdentity, hookRevision))
                     return Result(false, "PassThrough", "No fresh native input lease");
@@ -282,6 +312,9 @@ internal sealed class RendererBridge
                 if (inFlight is null) return Result(false, "Observed", "Keyboard lease renewed; no confirmed press");
             }
         }
+        if (admission is not null && inFlight is null && Environment.TickCount64 < nextDiscoveryAt)
+            return Result(false, "PassThrough", "Discovery retry is throttled");
+        if (admission is not null) nextDiscoveryAt = Environment.TickCount64 + 1000;
         var window = NativeWindows.ForegroundRendererWindow(proofOnly);
         if (window is null) { keyboard?.Invalidate(); return Result(false, "PassThrough", "No foreground proof window"); }
         var root = automation.ElementFromHandle((nint)window.Handle);
@@ -300,7 +333,7 @@ internal sealed class RendererBridge
         var pattern = (IUIAutomationTextPattern)pane.GetCurrentPattern(UIA_PatternIds.UIA_TextPatternId);
         var rect = pane.CurrentBoundingRectangle;
         var paneId = $"{window.ProcessId}:{window.Handle}:{string.Join(',', pane.GetRuntimeId())}";
-        var currentScope = $"{paneId}:{request.SessionId}:{request.Epoch}:{hookRevision}:{rect.right - rect.left}:{rect.bottom - rect.top}";
+        var currentScope = $"{paneId}:{request.SessionId}:{request.Epoch}:{layoutRevision}:{rect.right - rect.left}:{rect.bottom - rect.top}";
         var observation = Observe(pattern, request);
         var mapping = RenderedPromptMap.Resolve(request.Prompts, observation.Anchors, observation.RowCount);
         if (!mapping.Success)
@@ -333,8 +366,14 @@ internal sealed class RendererBridge
         qualifiedPrompts = request.Prompts;
         qualifiedPane = pane;
         qualifiedWindow = window;
-        qualifiedRevision = hookRevision;
+        qualifiedRevision = layoutRevision;
         qualifiedSize = (rect.right - rect.left, rect.bottom - rect.top);
+        if (admission is not null)
+        {
+            var witness = observation.Anchors[0];
+            qualifiedWitness = RowAt(pattern.DocumentRange, (int)witness.StartRow);
+            witnessNonce = witness.Nonce;
+        }
         var direction = request.Direction == "previous" ? NavigationDirection.Previous : NavigationDirection.Next;
         if (request.Direction == "observe" && keyboard is not null)
         {
@@ -401,11 +440,27 @@ internal sealed class RendererBridge
     private bool PublishLease(Request request, ProofWindow window, NavigationIdentity identity, long revision) =>
         request.InputObservedAt > 0 && request.InputObservedAt <= Environment.TickCount64 &&
         request.Deadline - request.InputObservedAt <= 750 &&
-        keyboard!.Publish((nint)window.Handle, new(identity, revision, request.Deadline), request.InputObservedAt, revision);
+        keyboard!.Publish((nint)window.Handle, new(identity, revision, request.Deadline), request.InputObservedAt, revision, request.AdmissionWord);
+
+    private bool WitnessMatches()
+    {
+        if (qualifiedWitness is null || witnessNonce is null) return false;
+        var cell = qualifiedWitness.Clone();
+        cell.MoveEndpointByRange(TextPatternRangeEndpoint.TextPatternRangeEndpoint_End,
+            cell, TextPatternRangeEndpoint.TextPatternRangeEndpoint_Start);
+        cell.MoveEndpointByUnit(TextPatternRangeEndpoint.TextPatternRangeEndpoint_End, TextUnit.TextUnit_Character, 1);
+        foreach (var expected in ColorAnchorProbe.Colors(witnessNonce, false))
+        {
+            if (cell.GetText(2) != " " || cell.GetAttributeValue(UIA_TextAttributeIds.UIA_ForegroundColorAttributeId) is not int actual || actual != expected)
+                return false;
+            cell.Move(TextUnit.TextUnit_Character, 1);
+        }
+        return true;
+    }
 
     private void CheckRequest(Request request)
     {
-        if (request.Version != 1 || request.Sequence <= lastSequence || request.ProcessId != parent.Id ||
+        if (request.Version != (admission is null ? 1 : 2) || request.Sequence <= lastSequence || request.ProcessId != parent.Id ||
             string.IsNullOrWhiteSpace(request.SessionId) || request.SessionId.Length > 512 || request.Epoch < 0 ||
             request.Prompts is null || request.Prompts.Count > RenderedPromptMap.MaximumPrompts ||
             request.Prompts.Count == 0 && request.Direction != "observe")
@@ -418,6 +473,8 @@ internal sealed class RendererBridge
     {
         if (parent.HasExited || request.Deadline <= Environment.TickCount64 ||
             request.Deadline - Environment.TickCount64 > 1000 ||
+            admission is not null && (admission.Word != request.AdmissionWord ||
+                request.ComposerOwnsInput != ((request.AdmissionWord & 1) != 0)) ||
             inFlight is not null && keyboard?.Session.CanExecute(inFlight, Environment.TickCount64) != true)
             throw new InvalidOperationException("Renderer request expired or its process exited.");
     }
@@ -427,6 +484,7 @@ internal sealed class RendererBridge
 
     private Observation Observe(IUIAutomationTextPattern pattern, Request request)
     {
+        fullScans++;
         var firstColors = new Dictionary<int, List<(string Nonce, bool End, int[] Colors)>>();
         foreach (var prompt in request.Prompts)
         {
@@ -446,33 +504,44 @@ internal sealed class RendererBridge
         if (visibleRanges.Length != 1) throw new InvalidOperationException("Ambiguous viewport.");
         var visible = visibleRanges.GetElement(0);
         var found = new Dictionary<string, List<(int Row, bool End)>>(StringComparer.Ordinal);
-        // GetText joins soft-wrapped rows without CRLF. Use the same UIA line
-        // units for discovery, viewport coordinates and later scroll targets.
-        var rows = new List<IUIAutomationTextRange>();
-        var viewportRow = 0;
-        for (var index = 0; ; index++)
+        // Narrow candidate blocks before reading colors instead of walking every
+        // row over COM. Coordinates still use UIA line units, including soft wraps.
+        var lastRow = document.Clone();
+        lastRow.MoveEndpointByRange(TextPatternRangeEndpoint.TextPatternRangeEndpoint_Start,
+            document, TextPatternRangeEndpoint.TextPatternRangeEndpoint_End);
+        lastRow.MoveEndpointByUnit(TextPatternRangeEndpoint.TextPatternRangeEndpoint_Start, TextUnit.TextUnit_Character, -1);
+        lastRow.ExpandToEnclosingUnit(TextUnit.TextUnit_Line);
+        var rowCount = RowIndex(document, lastRow) + 1;
+        var viewportRow = RowIndex(document, visible);
+        var pending = new Stack<(int Start, int Count)>();
+        pending.Push((0, rowCount));
+        while (pending.TryPop(out var block))
         {
             CheckLive(request);
-            if (index >= MaximumRows) throw new InvalidOperationException("Terminal row limit.");
-            var row = RowAt(document, index);
-            rows.Add(row);
-            if (row.CompareEndpoints(TextPatternRangeEndpoint.TextPatternRangeEndpoint_Start,
-                visible, TextPatternRangeEndpoint.TextPatternRangeEndpoint_Start) <= 0) viewportRow = index;
-            if (row.CompareEndpoints(TextPatternRangeEndpoint.TextPatternRangeEndpoint_End,
-                document, TextPatternRangeEndpoint.TextPatternRangeEndpoint_End) == 0) break;
-        }
-        for (var index = 0; index < rows.Count; index++)
-        {
-            CheckLive(request);
-            var row = rows[index];
-            var beginning = row.GetText(6);
-            if (beginning.Length != 6 || beginning.AsSpan().IndexOfAnyExcept(' ') >= 0) continue;
+            var row = RowAt(document, block.Start);
+            if (block.Count > 1)
+            {
+                var end = RowAt(document, block.Start + block.Count - 1);
+                row.MoveEndpointByRange(TextPatternRangeEndpoint.TextPatternRangeEndpoint_End,
+                    end, TextPatternRangeEndpoint.TextPatternRangeEndpoint_End);
+            }
+            var chunk = row.GetText(MaximumCharacters);
+            // GetText preserves blank logical rows, while joining soft wraps.
+            // Prune noncandidate blocks; use UIA line units for every coordinate.
+            // No offset is inferred from Unicode character counts or CRLF counts.
+            if (!chunk.StartsWith("      ", StringComparison.Ordinal) &&
+                !chunk.Contains("\n      ", StringComparison.Ordinal)) continue;
+            if (block.Count > 1)
+            {
+                var half = block.Count / 2;
+                pending.Push((block.Start + half, block.Count - half));
+                pending.Push((block.Start, half));
+                continue;
+            }
             var cell = row.Clone();
             cell.MoveEndpointByRange(TextPatternRangeEndpoint.TextPatternRangeEndpoint_End,
                 cell, TextPatternRangeEndpoint.TextPatternRangeEndpoint_Start);
             cell.MoveEndpointByUnit(TextPatternRangeEndpoint.TextPatternRangeEndpoint_End, TextUnit.TextUnit_Character, 1);
-            if (cell.GetAttributeValue(UIA_TextAttributeIds.UIA_ForegroundColorAttributeId) is not int first ||
-                !firstColors.TryGetValue(first, out var candidates)) continue;
             var actual = new List<int>();
             for (var column = 0; column < 6; column++)
             {
@@ -481,26 +550,40 @@ internal sealed class RendererBridge
                 actual.Add(color);
                 cell.Move(TextUnit.TextUnit_Character, 1);
             }
-
+            if (actual.Count != 6 || !firstColors.TryGetValue(actual[0], out var candidates)) continue;
             foreach (var candidate in candidates.Where(candidate => actual.SequenceEqual(candidate.Colors)))
             {
                 if (!found.TryGetValue(candidate.Nonce, out var pair)) found.Add(candidate.Nonce, pair = []);
-                pair.Add((index, candidate.End));
+                pair.Add((block.Start, candidate.End));
             }
         }
 
         var anchors = new List<PaintedPromptAnchor>();
         foreach (var (nonce, pair) in found)
         {
+            pair.Sort((left, right) => left.Row.CompareTo(right.Row));
             if (pair.Count != 2 || pair[0].End || !pair[1].End)
                 throw new InvalidOperationException("Partial or duplicate painted anchor.");
             anchors.Add(new(nonce, pair[0].Row, pair[1].Row));
         }
 
-        return new(anchors, text, rows.Count, viewportRow,
+        return new(anchors, text, rowCount, viewportRow,
             visible.CompareEndpoints(TextPatternRangeEndpoint.TextPatternRangeEndpoint_End,
                 document, TextPatternRangeEndpoint.TextPatternRangeEndpoint_End) >= 0,
             ViewportKey(pattern, visible));
+    }
+
+    private static int RowIndex(IUIAutomationTextRange document, IUIAutomationTextRange position)
+    {
+        var prefix = position.Clone();
+        prefix.MoveEndpointByRange(TextPatternRangeEndpoint.TextPatternRangeEndpoint_End,
+            prefix, TextPatternRangeEndpoint.TextPatternRangeEndpoint_Start);
+        var moved = prefix.MoveEndpointByUnit(TextPatternRangeEndpoint.TextPatternRangeEndpoint_Start,
+            TextUnit.TextUnit_Line, -MaximumRows);
+        if (moved == -MaximumRows || prefix.CompareEndpoints(TextPatternRangeEndpoint.TextPatternRangeEndpoint_Start,
+            document, TextPatternRangeEndpoint.TextPatternRangeEndpoint_Start) != 0)
+            throw new InvalidOperationException("Terminal row limit or inconsistent provider coordinates.");
+        return -moved;
     }
 
     private static IUIAutomationTextRange RowAt(IUIAutomationTextRange document, int index)

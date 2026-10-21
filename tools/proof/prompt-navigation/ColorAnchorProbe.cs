@@ -29,8 +29,9 @@ internal static class ColorAnchorProbe
         Console.Write("\x1b[0m\r\n");
     }
 
-    internal static void Fixture(string directory)
+    internal static void Fixture(string directory, int replyRows = 32)
     {
+        if (replyRows is < 0 or > 1300) throw new ArgumentOutOfRangeException(nameof(replyRows));
         Console.OutputEncoding = System.Text.Encoding.UTF8;
         var anchors = Enumerable.Range(1, 3).Select(index => new
         {
@@ -48,7 +49,7 @@ internal static class ColorAnchorProbe
             Print(anchor.nonce, false);
             Console.WriteLine("› CLICI_FIXTURE_DUPLICATE 日本語 🙂");
             Print(anchor.nonce, true);
-            for (var line = 0; line < 32; line++)
+            for (var line = 0; line < replyRows; line++)
             {
                 Console.WriteLine($"CLICI_FIXTURE_REPLY_{anchor.index}_{line:00}");
             }

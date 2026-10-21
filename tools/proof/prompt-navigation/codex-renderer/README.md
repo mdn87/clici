@@ -72,8 +72,15 @@ bundle with the repository's installer. Use `--powershell-profile`,
   prefix becomes a capture boundary. Missing interior/newest prompts, repeated
   IDs/nonces, partial paint, duplicate paint, and invalid order refuse navigation.
 - Metadata uses private stdin/stdout pipes, contains no prompt text, and carries
-  process/session identity, sequence, epoch and a monotonic deadline. One I/O
-  worker bounds pipe waits; failure kills the owned helper and disables it.
+  process/session identity, sequence, epoch and a monotonic deadline. A background
+  supervisor enforces deadlines independently of the pipe worker. Native input
+  only replaces the latest pending observation; it never waits for a reply.
+- Protocol v2 adds an unnamed, read-only child mapping containing one atomic
+  admission epoch/eligibility word. Revocation bypasses the observation mailbox.
+  Queued older confirmations cannot authorize a scroll after a modal/focus/input
+  change. The helper starts hooks only after the parent assigns its kill-on-close
+  Job and sends the private mapping handshake. Legacy Claude keeps protocol v1
+  and its existing input/cache invalidation rules.
 
 The companion helper defaults to explicitly named portable `CLICI-PROOF-*`
 Windows Terminal windows. `CLICI_RENDERER_TERMINALS=1` opts into ordinary,
@@ -148,17 +155,18 @@ loads the bundled plugin. No launch wrapper or alternate-screen renderer is
 introduced. `NO_COLOR` must be absent because the anchors require RGB attributes.
 The tray application's navigation option remains unimplemented.
 
-Dot-source the same script with `-Disable` to restore the shell environment and
-stop only the renderer helpers launched beneath that shell by the bundled Codex
-CLI or by Claude Code. Existing Codex and Claude sessions stay open; their
-drafts remain in the native process. Closing the shell
-also removes its environment changes. Upstream Codex updates do not update this
-pinned experimental bundle.
+Dot-source the same script with `-Disable` to restore this shell's environment
+for future children. Running sessions keep their inherited environment; restart
+them with the bridge disabled to stop navigation. Killing a helper alone is not
+a disable operation: the supervisor can replace it. The tray Enabled checkbox
+still controls clipboard cleanup, not renderer navigation.
 
 ## Input ownership and remaining qualification
 
 Passive publication remains the default. With `CLICI_RENDERER_KEYS=1`, the
-native UI sends input-context heartbeats every 100 ms. Each carries a monotonic
+native UI observes input context every 100 ms while active (one second while
+unfocused), without forcing a redraw. Native events also publish updates.
+Each carries a monotonic
 observation time and a 750 ms expiry. A cached, focused pane qualification admits
 exact Alt+Shift+Comma (previous) and Alt+Shift+Period (next) presses before Windows
 Terminal clears selection or snaps to live output. Every admitted press must
@@ -180,23 +188,36 @@ foreground/focus changes, pointer input, and other keys. Native modal draws
 withdraw eligibility. Pane, geometry, native-session, prompt-list and input-scope
 changes require requalification. Expired, ambiguous or unsupported contexts pass
 through; a canceled press is never replayed. A stalled helper loses its lease and
-the native client stops it after its one-second pipe timeout. A failed helper is
-replaced by a fresh one on a later frame, after a delay that starts at one second
-and doubles to a 30-second cap; frames keep being drawn while it waits, so an idle
-session still recovers. The replacement starts unqualified in a new epoch, so no
-lease or press survives a failure. A session stops trying after 10 replacements.
-No automatic hook reinstallation is attempted.
+the background supervisor stops it after its one-second pipe timeout. Startup,
+pipe writes, reply waits, and process teardown never run on the native input
+thread. One active observation and one replaceable pending observation bound
+work. A replacement starts unqualified, after backoff from one second to a
+30-second cap. Ten replacements exhaust a latched budget; restart Codex to reset
+it. Killing a helper alone does not disable its supervisor. The installer disable
+command affects future shells; close or relaunch an existing session bridge-off
+to stop that session's navigation.
 
-`CLICI_NATIVE_KEY_PROBE=1` is the earlier diagnostic after-Terminal Ctrl+Up/Down
-path; its keys are unchanged. Leave it off when using the pre-Terminal adapter.
+Ordinary typing revokes admission without discarding the v2 pane/layout cache.
+Renewal checks an existing painted witness and current focus/geometry off the
+hook thread. Discovery is throttled and never scans a known background pane.
+Full mapping narrows candidate blank-row blocks using bounded text, then checks
+all six colors in UIA line coordinates. It does not infer coordinates from
+CRLF or Unicode character counts. Scrolling still uses a fresh map and final
+document, focus, selection, and readback checks.
+
+`CLICI_NATIVE_KEY_PROBE` no longer intercepts native Ctrl+Up/Down: an asynchronous
+bridge cannot supply its former synchronous handled result. Production
+Alt+Shift+Comma/Period still use the pre-Terminal adapter.
 `CLICI_PROOF_INJECTED_KEYS=1` accepts only
 the probe's marked synthetic keys and only in proof-window mode; live mode always
 rejects injected keys.
 
 The original Ctrl+Up/Down native single-pane fixture verified duplicate prompt
 identities, previous/next, return-to-live, an unsent draft and a nonempty selection.
-The replacement Alt+Shift punctuation defaults pass the automated tests, but their
-complete live sequence remains unqualified; see the dated proof report.
+The replacement Alt+Shift punctuation defaults passed the automated real-hook
+sequence at 112, 1,000 and 3,916 rows and the actual isolated Codex draft/selection
+check. See the [latency repair evidence](../../../../docs/prompt-navigation-latency-plan.md#implementation-evidence-2026-10-21)
+for timings and remaining qualification.
 Marked injected keys
 exercise the real Windows hook; this is not physical-keyboard qualification.
 The full modal/IME, split-pane, exit, redraw, eviction and upgrade matrix remains open.
@@ -222,3 +243,17 @@ to drive the same sequence through `renderer-bridge-frames`, the file transport
 the Claude Code plugin uses, with lowercase nonce bindings; its results go to
 `input-live-frames.json`. A background process cannot take the foreground, so
 the fixture window must already be foreground when the script starts.
+
+Add `--native-admission --navigation-repetitions 10` for the Codex v2 shared-word
+path, forty navigation attempts, and a 100-character zero-rescan check. Use
+`anchor-fixture <directory> 328` for approximately 1,000 rows or `1300` for
+approximately 3,916 rows. Start with empty scrollback; earlier fixture output
+counts toward the 4,096-row capture limit. The harness waits up to five minutes
+for stable foreground input and sends keys only to the attested proof window.
+
+For an isolated actual Codex session with a known synthetic unsent draft, run
+`PromptNavigation.Probe.exe typing-latency <hwnd> CLICI_FIXTURE_UNSENT_DRAFT 100`.
+This appends 100 lowercase `a` characters without submitting the prompt and
+records SendInput-to-visible-UIA-text timings, including polling overhead.
+It requires the portable proof window, active pane and exact draft marker;
+it is not a physical-keyboard or IME measurement.
