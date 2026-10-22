@@ -43,7 +43,9 @@ Desktop.ini
 ## Local agent/session state
 .Codex/
 .codex/
-.dias/
+/.dias/*
+!/.dias/chips.json
+!/.dias/status.json
 .claude/handoff.md
 .claude/handoff-history/
 .lugos-wip/

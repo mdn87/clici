@@ -1,0 +1,288 @@
+{
+  "schemaVersion": 1,
+  "projectId": "clici",
+  "projectLabel": "clici",
+  "chips": [
+    {
+      "schemaVersion": 1,
+      "chipId": "clici:core-normalization",
+      "projectId": "clici",
+      "title": "Margin normalization and wrapped-line joining core",
+      "summary": "Conflict-based margin classifier, two-or-four-space base detection, and evidence-gated rejoining of terminal-wrapped lines, covered by the Core unit suite.",
+      "stage": "done",
+      "sequence": 10,
+      "prereqs": [],
+      "linkedRunIds": [],
+      "confidence": "reported",
+      "aheadOfPrereqs": null,
+      "timestamps": {
+        "createdAt": "2026-08-06T02:37:08.000Z",
+        "updatedAt": "2026-08-29T12:56:20.000Z"
+      },
+      "evidence": [
+        {
+          "entryId": "clici:core-normalization:created",
+          "at": "2026-08-06T02:37:08.000Z",
+          "kind": "created",
+          "message": "Initial tray utility scaffold and the introductory-slice specification landed on the first day of the repository."
+        },
+        {
+          "entryId": "clici:core-normalization:classifier",
+          "at": "2026-08-09T03:17:34.000Z",
+          "kind": "note",
+          "message": "The two-ratio margin gate was replaced with a conflict-based classifier; a column-zero first line is treated as a selection artifact."
+        },
+        {
+          "entryId": "clici:core-normalization:joining",
+          "at": "2026-08-17T20:03:13.000Z",
+          "kind": "note",
+          "message": "Wrapped-line joining with the wrap signature and an unconditional join hotkey shipped as JOIN-001 through JOIN-005."
+        },
+        {
+          "entryId": "clici:core-normalization:done",
+          "at": "2026-08-29T12:56:20.000Z",
+          "kind": "stage-change",
+          "message": "Joining now requires word-boundary evidence at the seams (JOIN-001a, JOIN-004a); the Core suite passes on main."
+        }
+      ]
+    },
+    {
+      "schemaVersion": 1,
+      "chipId": "clici:tray-privacy-resilience",
+      "projectId": "clici",
+      "title": "Tray app, clipboard privacy policy, and resilience hardening",
+      "summary": "Tray-only WinForms app with owner-first source attribution, preserved clipboard privacy formats, plain-text-only rewrites, and five adversarial defects fixed and recorded.",
+      "stage": "done",
+      "sequence": 20,
+      "prereqs": [
+        "clici:core-normalization"
+      ],
+      "linkedRunIds": [],
+      "confidence": "reported",
+      "aheadOfPrereqs": null,
+      "timestamps": {
+        "createdAt": "2026-08-06T02:37:08.000Z",
+        "updatedAt": "2026-08-08T21:28:50.000Z"
+      },
+      "evidence": [
+        {
+          "entryId": "clici:tray-privacy-resilience:created",
+          "at": "2026-08-06T02:37:08.000Z",
+          "kind": "created",
+          "message": "Tray application, clipboard listener, single-instance guard, and configuration store were part of the initial scaffold."
+        },
+        {
+          "entryId": "clici:tray-privacy-resilience:report",
+          "at": "2026-08-07T02:00:00.000Z",
+          "kind": "note",
+          "message": "Resilience run reproduced four defects (large items, hidden retries, stale overwrite, lost rich formats); all four were fixed in the installed build."
+        },
+        {
+          "entryId": "clici:tray-privacy-resilience:done",
+          "at": "2026-08-08T21:28:50.000Z",
+          "kind": "stage-change",
+          "message": "Clipboard history flyout freeze fixed by debouncing clipboard work off the notification path; the resilience report records the root cause."
+        }
+      ]
+    },
+    {
+      "schemaVersion": 1,
+      "chipId": "clici:v0.1.0-release",
+      "projectId": "clici",
+      "title": "v0.1.0 release with installer, hosted CI, and closed installer runbook",
+      "summary": "Per-user installer with a Start-with-Windows toggle, hosted Windows CI, a tag-built release workflow, and the published 0.1.0 artifact with all fifteen runbook steps recorded.",
+      "stage": "done",
+      "sequence": 30,
+      "prereqs": [
+        "clici:tray-privacy-resilience"
+      ],
+      "linkedRunIds": [],
+      "confidence": "reported",
+      "aheadOfPrereqs": null,
+      "timestamps": {
+        "createdAt": "2026-08-07T06:37:55.000Z",
+        "updatedAt": "2026-08-30T01:45:34.000Z"
+      },
+      "evidence": [
+        {
+          "entryId": "clici:v0.1.0-release:created",
+          "at": "2026-08-07T06:37:55.000Z",
+          "kind": "created",
+          "message": "Startup registration and the Start-with-Windows tray toggle landed alongside the first installer work."
+        },
+        {
+          "entryId": "clici:v0.1.0-release:ci",
+          "at": "2026-08-24T07:19:51.000Z",
+          "kind": "note",
+          "message": "Hosted Windows build-and-test workflow merged; local, pull-request, and main runs all passed the same 113 tests."
+        },
+        {
+          "entryId": "clici:v0.1.0-release:tagged",
+          "at": "2026-08-29T13:16:13.000Z",
+          "kind": "note",
+          "message": "v0.1.0 tagged and built by the release workflow from the tagged commit, with a checksum published beside the unsigned installer."
+        },
+        {
+          "entryId": "clici:v0.1.0-release:done",
+          "at": "2026-08-30T01:45:34.000Z",
+          "kind": "stage-change",
+          "message": "Installer runbook steps 1-15 recorded on main, including reinstall-while-running against the published artifact; the box is back on the released build."
+        }
+      ]
+    },
+    {
+      "schemaVersion": 1,
+      "chipId": "clici:v0.1-windows-proof",
+      "projectId": "clici",
+      "title": "v0.1 evidence-backed Windows proof",
+      "summary": "The proof plan for v0.1: automated baseline and installer proof are recorded; the manual functional clipboard matrix is the open remainder before a proof report can be written.",
+      "stage": "active",
+      "sequence": 40,
+      "prereqs": [
+        "clici:v0.1.0-release"
+      ],
+      "linkedRunIds": [],
+      "confidence": "reported",
+      "aheadOfPrereqs": null,
+      "timestamps": {
+        "createdAt": "2026-08-06T03:35:56.000Z",
+        "updatedAt": "2026-09-27T20:55:20.000Z"
+      },
+      "evidence": [
+        {
+          "entryId": "clici:v0.1-windows-proof:created",
+          "at": "2026-08-06T03:35:56.000Z",
+          "kind": "created",
+          "message": "Proof plan defined against the implementation baseline: automated acceptance criteria, POC questions, and nineteen manual matrix steps."
+        },
+        {
+          "entryId": "clici:v0.1-windows-proof:active",
+          "at": "2026-08-29T22:44:46.000Z",
+          "kind": "stage-change",
+          "message": "Functional proof ledger moved into tracked docs so its unrun state is visible in a clone; installer proof and automated baseline are the recorded parts."
+        },
+        {
+          "entryId": "clici:v0.1-windows-proof:review",
+          "at": "2026-09-27T20:55:20.000Z",
+          "kind": "note",
+          "message": "Repository review: no commits since the runbook closeout on 2026-08-29 and the working tree holds only an ignore-file edit; the manual matrix is still unrun."
+        }
+      ]
+    },
+    {
+      "schemaVersion": 1,
+      "chipId": "clici:run-proof-ledger",
+      "projectId": "clici",
+      "title": "Run the v0.1 functional proof ledger",
+      "summary": "Nineteen manual clipboard cases (M01-M19) have never been run against a 0.1.0 build; they need an operator at a Windows keyboard across terminals, editors, and history.",
+      "stage": "ready",
+      "sequence": 50,
+      "prereqs": [
+        "clici:v0.1.0-release"
+      ],
+      "linkedRunIds": [],
+      "confidence": "reported",
+      "aheadOfPrereqs": null,
+      "timestamps": {
+        "createdAt": "2026-09-01T08:13:59.000Z",
+        "updatedAt": "2026-09-27T20:55:20.000Z"
+      },
+      "evidence": [
+        {
+          "entryId": "clici:run-proof-ledger:seed",
+          "at": "2026-09-01T08:13:59.000Z",
+          "kind": "created",
+          "message": "Seeded from the v0.1 proof ledger during the 2026-09-01 chip-board refresh."
+        },
+        {
+          "entryId": "clici:run-proof-ledger:review",
+          "at": "2026-09-27T20:55:20.000Z",
+          "kind": "note",
+          "message": "Still unrun. The BASELINE row is stale (37 tests then, 119 on main now) and must be re-run first; registry-backed cases need an interactive shell, not an agent session."
+        }
+      ]
+    },
+    {
+      "schemaVersion": 1,
+      "chipId": "clici:proof-report-and-next-release",
+      "projectId": "clici",
+      "title": "Proof report, spec sync, and the next release",
+      "summary": "Summarize the proof run into a report, record the POC-08 rich-format decision, sync the spec and README support boundary, and tag the next release through the release checklist.",
+      "stage": "planned",
+      "sequence": 60,
+      "prereqs": [
+        "clici:v0.1-windows-proof",
+        "clici:run-proof-ledger"
+      ],
+      "linkedRunIds": [],
+      "confidence": "reported",
+      "aheadOfPrereqs": null,
+      "timestamps": {
+        "createdAt": "2026-09-27T20:55:20.000Z",
+        "updatedAt": "2026-09-27T20:55:20.000Z"
+      },
+      "evidence": [
+        {
+          "entryId": "clici:proof-report-and-next-release:created",
+          "at": "2026-09-27T20:55:20.000Z",
+          "kind": "created",
+          "message": "Derived from the completion criteria of the proof plan and the release checklist; the unreleased section of the changelog is empty."
+        }
+      ]
+    },
+    {
+      "schemaVersion": 1,
+      "chipId": "clici:integrated-terminal-attribution",
+      "projectId": "clici",
+      "title": "Source fingerprint matrix and focused-control detection",
+      "summary": "Build a source-fingerprint matrix across real terminals and agent hosts, then add focused-control detection to tell editor-integrated terminals apart from editor copies.",
+      "stage": "vague",
+      "sequence": 70,
+      "prereqs": [
+        "clici:proof-report-and-next-release"
+      ],
+      "linkedRunIds": [],
+      "confidence": "unknown",
+      "aheadOfPrereqs": null,
+      "timestamps": {
+        "createdAt": "2026-09-27T20:55:20.000Z",
+        "updatedAt": "2026-09-27T20:55:20.000Z"
+      },
+      "evidence": [
+        {
+          "entryId": "clici:integrated-terminal-attribution:created",
+          "at": "2026-09-27T20:55:20.000Z",
+          "kind": "created",
+          "message": "Listed under planned next steps in the README together with moving clipboard work to a dedicated STA thread and tray last-action status."
+        }
+      ]
+    },
+    {
+      "schemaVersion": 1,
+      "chipId": "clici:rich-format-and-packaging",
+      "projectId": "clici",
+      "title": "Rich-format normalization, signed packaging, and image export",
+      "summary": "Evaluate consistent HTML and RTF normalization, signed or MSI packaging, remote-desktop clipboard behavior, and the unmerged clipboard-image export experiment for WSL.",
+      "stage": "vague",
+      "sequence": 80,
+      "prereqs": [
+        "clici:proof-report-and-next-release"
+      ],
+      "linkedRunIds": [],
+      "confidence": "unknown",
+      "aheadOfPrereqs": null,
+      "timestamps": {
+        "createdAt": "2026-09-27T20:55:20.000Z",
+        "updatedAt": "2026-09-27T20:55:20.000Z"
+      },
+      "evidence": [
+        {
+          "entryId": "clici:rich-format-and-packaging:created",
+          "at": "2026-09-27T20:55:20.000Z",
+          "kind": "created",
+          "message": "Rich-format and packaging items come from the README limitations; the image-export branch has two commits from 2026-08-21 that never reached main."
+        }
+      ]
+    }
+  ]
+}
