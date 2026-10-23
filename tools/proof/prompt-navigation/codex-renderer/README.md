@@ -197,9 +197,13 @@ it. Killing a helper alone does not disable its supervisor. The installer disabl
 command affects future shells; close or relaunch an existing session bridge-off
 to stop that session's navigation.
 
-Ordinary typing revokes admission without discarding the v2 pane/layout cache.
+Ordinary typing revokes input eligibility without discarding the pane/layout cache
+in either Codex v2 or Claude's legacy frame transport.
 Renewal checks an existing painted witness and current focus/geometry off the
-hook thread. Discovery is throttled and never scans a known background pane.
+hook thread. Discovery is throttled for both transports and never scans a known
+background pane. These protections must not depend on the optional v2 admission
+mapping: legacy helpers otherwise rescan the foreground terminal on every
+heartbeat or keypress, including when it belongs to another agent.
 Full mapping narrows candidate blank-row blocks using bounded text, then checks
 all six colors in UIA line coordinates. It does not infer coordinates from
 CRLF or Unicode character counts. Scrolling still uses a fresh map and final
