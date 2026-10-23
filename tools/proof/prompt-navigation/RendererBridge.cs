@@ -287,7 +287,7 @@ internal sealed class RendererBridge
             return Result(false, "PassThrough", "Native composer does not own input or has no complete prompts");
         }
         // A known background pane never scans the foreground session's history.
-        if (admission is not null && qualifiedPane is not null && qualifiedWindow is not null &&
+        if (qualifiedPane is not null && qualifiedWindow is not null &&
             (!NativeWindows.IsForeground((nint)qualifiedWindow.Handle) || qualifiedPane.CurrentHasKeyboardFocus == 0))
         {
             keyboard?.Invalidate(2);
@@ -303,8 +303,7 @@ internal sealed class RendererBridge
             NativeWindows.IsForeground((nint)qualifiedWindow.Handle) && qualifiedPane.CurrentHasKeyboardFocus != 0)
         {
             var size = qualifiedPane.CurrentBoundingRectangle;
-            if (qualifiedSize == (size.right - size.left, size.bottom - size.top) &&
-                (admission is null || WitnessMatches()))
+            if (qualifiedSize == (size.right - size.left, size.bottom - size.top) && WitnessMatches())
             {
                 if (!PublishLease(request, qualifiedWindow, qualifiedIdentity, hookRevision))
                     return Result(false, "PassThrough", "No fresh native input lease");
@@ -312,9 +311,9 @@ internal sealed class RendererBridge
                 if (inFlight is null) return Result(false, "Observed", "Keyboard lease renewed; no confirmed press");
             }
         }
-        if (admission is not null && inFlight is null && Environment.TickCount64 < nextDiscoveryAt)
+        if (inFlight is null && Environment.TickCount64 < nextDiscoveryAt)
             return Result(false, "PassThrough", "Discovery retry is throttled");
-        if (admission is not null) nextDiscoveryAt = Environment.TickCount64 + 1000;
+        nextDiscoveryAt = Environment.TickCount64 + 1000;
         var window = NativeWindows.ForegroundRendererWindow(proofOnly);
         if (window is null) { keyboard?.Invalidate(); return Result(false, "PassThrough", "No foreground proof window"); }
         var root = automation.ElementFromHandle((nint)window.Handle);
@@ -368,12 +367,9 @@ internal sealed class RendererBridge
         qualifiedWindow = window;
         qualifiedRevision = layoutRevision;
         qualifiedSize = (rect.right - rect.left, rect.bottom - rect.top);
-        if (admission is not null)
-        {
-            var witness = observation.Anchors[0];
-            qualifiedWitness = RowAt(pattern.DocumentRange, (int)witness.StartRow);
-            witnessNonce = witness.Nonce;
-        }
+        var witness = observation.Anchors[0];
+        qualifiedWitness = RowAt(pattern.DocumentRange, (int)witness.StartRow);
+        witnessNonce = witness.Nonce;
         var direction = request.Direction == "previous" ? NavigationDirection.Previous : NavigationDirection.Next;
         if (request.Direction == "observe" && keyboard is not null)
         {

@@ -432,3 +432,33 @@ clock measurements include downstream `CallNextHookEx` time and occasionally
 exceed the 1 ms p95 target; they must not be represented as isolated Clici CPU
 cost. These checks are distinct from the passing typing-latency and navigation
 results above. These broader checks are not claimed by this latency repair.
+
+## Recurrence investigation (2026-10-22)
+
+The installed Codex repair was present, but two legacy Claude frame helpers
+were also running. With the same Terminal window focused throughout, three
+four-second samples measured 2.203 CPU seconds normally, 0.125 with only the
+Claude scanning threads temporarily suspended, and 2.484 after resuming them.
+Both threads were restored. This establishes scanner-induced Terminal load;
+it does not measure typing latency or establish the cause of the complete
+freeze. Matt reported recovery after closing Antigravity; that association
+has not been independently reproduced.
+
+Legacy helpers bypassed the v2 background-pane check and discovery throttle,
+and treated ordinary typing as layout invalidation. The follow-up patch applies
+those protections to both transports. Cached legacy qualification now checks
+the painted witness too, preserving the identity check when retaining a layout.
+
+The new legacy-hook regression failed before the change and passed afterward.
+All 256 .NET tests, 14 Node tests, five installer tests, eight Rust unit tests,
+11 process tests, and the explicit Rust/.NET ABI test passed. Whitespace and
+diff checks passed. The live input script now checks 100-character typing for
+Claude frame transport as well as native v2.
+
+The candidate helper and integrity-checked 20-file bundle are under
+`artifacts/typing-recurrence-20261022/`. The native Codex binary is unchanged.
+Live typing/navigation verification is awaiting the disposable fixture's
+keyboard focus: Windows refused programmatic foreground activation, so the
+test sent no input. The follow-up is not installed or claimed to resolve the
+complete freeze. Keep this patch separate until the live test is complete;
+installation outside the workspace also requires Matt's approval.

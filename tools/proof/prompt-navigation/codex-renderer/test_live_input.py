@@ -172,7 +172,7 @@ try:
     assert not (run/'keys.jsonl').exists(), 'An admitted shortcut leaked keys into the fixture'
     results.append(dict(step='selection',reply=reply,before=before,after=after))
     print('selection',json.dumps(reply),flush=True)
-    if args.native_admission:
+    if args.native_admission or args.frames:
         time.sleep(.3)
         scan_count = latest_observation()['fullScans']
         for _ in range(100):

@@ -33,6 +33,11 @@ reproduces the old failure on purpose.
   The plugin writes a JSON frame there every 100 ms and on every state change;
   the helper discovers its parent process itself, refuses frames older than
   750 ms, and feeds them to the same lease and keyboard adapter Codex uses.
+- Passive history discovery runs at most once per second. Once qualified, a
+  background helper does not scan the foreground pane. Ordinary typing revokes
+  input eligibility but retains the verified layout; renewal checks a painted
+  anchor witness before reusing it. These protections also apply to legacy
+  frame transport and do not require Codex's v2 admission mapping.
 - Every frame is an `observe` request; the plugin never sends a direction. The
   helper's own low-level keyboard hook accepts Alt+Shift+, and Alt+Shift+.
   only while the lease from a recent frame is valid, and the next frame

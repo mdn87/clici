@@ -22,6 +22,7 @@
   <ItemGroup>
     <ProjectReference Include="..\..\src\clici.App\clici.App.csproj" />
     <Compile Include="../../tools/proof/prompt-navigation/NativeAdmission.cs" Link="NativeAdmission.cs" />
+    <Compile Include="../../tools/proof/prompt-navigation/RendererKeyboardHook.cs" Link="RendererKeyboardHook.cs" />
   </ItemGroup>
 
 </Project>

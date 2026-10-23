@@ -43,7 +43,7 @@ internal sealed class RendererKeyboardHook : IDisposable
     private uint threadId;
     private Exception? failure;
     internal long Revision => Interlocked.Read(ref revision);
-    internal long LayoutRevision => admission is null ? Revision : Interlocked.Read(ref layoutRevision);
+    internal long LayoutRevision => Interlocked.Read(ref layoutRevision);
     internal object? LastAdmission { get; private set; }
     internal int LastInvalidation { get; private set; }
 
