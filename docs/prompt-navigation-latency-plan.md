@@ -457,8 +457,26 @@ Claude frame transport as well as native v2.
 
 The candidate helper and integrity-checked 20-file bundle are under
 `artifacts/typing-recurrence-20261022/`. The native Codex binary is unchanged.
-Live typing/navigation verification is awaiting the disposable fixture's
+Live typing/navigation verification could not acquire the disposable fixture's
 keyboard focus: Windows refused programmatic foreground activation, so the
-test sent no input. The follow-up is not installed or claimed to resolve the
-complete freeze. Keep this patch separate until the live test is complete;
-installation outside the workspace also requires Matt's approval.
+test timed out without sending input. This gap remains explicit; the patch is
+not claimed to establish the cause or resolution of the complete freeze.
+
+Matt subsequently authorized installation. The installed release is
+`codex-0.162.1-daea1af5dcc6e6d0`; all twenty manifest files verified. Both
+startup profiles point to it, their unrelated content was preserved, and
+the Codex configuration is semantically unchanged. A newly launched session
+was observed running the new helper.
+
+To update existing sessions without closing conversations, the helper directory
+in the prior release (`codex-0.162.1-96aba4ccdd0670bf`) was backed up and replaced,
+and its manifest updated to match. This is an explicitly recorded compatibility
+update to that prior release, not an immutable copy of its original bundle.
+Only the three remaining navigation helper processes were restarted; all three
+owning CLI process identities and start times were unchanged. All twenty files
+in the compatibility release also verified afterward. Originals and the prior
+manifest are preserved under `%LOCALAPPDATA%/Clici/renderer-navigation/backups/`
+`typing-recurrence-20261022-225902`; the original bundle also remains in the
+repository's ignored artifacts. Installation and process evidence are in
+`artifacts/typing-recurrence-20261022/installation-result.json` and
+`live-helper-refresh.json`.
