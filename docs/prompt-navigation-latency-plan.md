@@ -686,4 +686,11 @@ as `suffix-*` and `claude-lorem-after-user-done-*`.
 Release `codex-0.162.1-1d6db505b2bef1ab` and the compatibility helper path are
 installed. Both manifests verify all 20 files. Startup settings and previous
 helpers are backed up; all four CLI parent identities were preserved. Physical
-shortcut and typing confirmation in the existing Claude session is pending.
+shortcut and typing were subsequently confirmed by Matt in the existing Claude
+session. He reported mouse and text-caret flicker; the mouse flicker later stopped,
+with one possibly unrelated cursor lag. Caret flicker was reported again after
+typing. The temporary viewport watcher had already ended, and helper process
+identities remained stable. A 25-second Win32 cursor-state sample showed a stable
+mouse pointer while another window was focused; it does not establish caret
+behavior in Claude. The distinction between normal caret blinking and rapid
+redraw remains to be confirmed; no speculative rendering change was installed.

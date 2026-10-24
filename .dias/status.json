@@ -8,10 +8,10 @@
   "milestonePhase": "integration-proof",
   "portfolioGroup": "developer-tools",
   "displayPriority": 500,
-  "assessedAt": "2026-10-24T14:49:55.777Z",
+  "assessedAt": "2026-10-24T15:04:17.490Z",
   "confidence": "reported",
   "currentMilestone": "Restore navigation in Codex and Claude without typing lag; bounded-history and confirmed-key fixes are installed.",
-  "remainingSummary": "Confirm the installed recovery in the existing Claude test session. The cause of older marker loss remains unresolved.",
+  "remainingSummary": "Clarify the reported text caret flicker. Claude navigation and typing are confirmed; older damaged paint remains a capture boundary.",
   "nextChipId": "clici:prompt-navigation-bridge",
   "source": {
     "label": "Repository review of README, changelog, plans, proof ledger, navigation reports, and git history",

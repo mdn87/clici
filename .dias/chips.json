@@ -192,8 +192,8 @@
       "chipId": "clici:prompt-navigation-bridge",
       "projectId": "clici",
       "title": "Prompt navigation bridge for Codex and Claude in Windows Terminal",
-      "summary": "Claude recovery is installed and maps the newest complete turn. Physical shortcut and typing confirmation remain; older damaged paint bounds navigation.",
-      "stage": "active",
+      "summary": "Matt confirms Claude navigation and normal typing. Mouse flicker stopped; the text caret needs a blink-versus-redraw check.",
+      "stage": "blocked",
       "sequence": 50,
       "prereqs": [
         "clici:v0.1-windows-proof"
@@ -208,7 +208,7 @@
       },
       "timestamps": {
         "createdAt": "2026-10-16T02:06:25.000Z",
-        "updatedAt": "2026-10-24T14:49:55.777Z"
+        "updatedAt": "2026-10-24T15:04:17.490Z"
       },
       "evidence": [
         {
@@ -285,9 +285,9 @@
         },
         {
           "entryId": "claude-suffix-recovery-20261024",
-          "at": "2026-10-24T14:49:55.777Z",
+          "at": "2026-10-24T15:04:17.490Z",
           "kind": "note",
-          "message": "Recovery is installed with CLI sessions preserved. All 276 tests pass; Claude maps the latest complete turn and stops at older damage. Physical check remains."
+          "message": "Matt confirms Claude navigation and normal typing after the installed recovery. Mouse flicker stopped; text caret behavior is being clarified."
         }
       ]
     },
