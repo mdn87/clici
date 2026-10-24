@@ -192,8 +192,8 @@
       "chipId": "clici:prompt-navigation-bridge",
       "projectId": "clici",
       "title": "Prompt navigation bridge for Codex and Claude in Windows Terminal",
-      "summary": "Lugos Codex jump confirmed. Claude is missing a closing marker; a fresh turn in the test session is needed to check whether the damage repeats.",
-      "stage": "blocked",
+      "summary": "Claude recovery is installed and maps the newest complete turn. Physical shortcut and typing confirmation remain; older damaged paint bounds navigation.",
+      "stage": "active",
       "sequence": 50,
       "prereqs": [
         "clici:v0.1-windows-proof"
@@ -208,7 +208,7 @@
       },
       "timestamps": {
         "createdAt": "2026-10-16T02:06:25.000Z",
-        "updatedAt": "2026-10-24T14:32:31.929Z"
+        "updatedAt": "2026-10-24T14:49:55.777Z"
       },
       "evidence": [
         {
@@ -282,6 +282,12 @@
           "at": "2026-10-24T14:32:31.929Z",
           "kind": "note",
           "message": "Lugos Codex jump confirmed by Matt and viewport evidence. Claude has a missing closing marker; isolated renderer checks pass except the instant-reply case."
+        },
+        {
+          "entryId": "claude-suffix-recovery-20261024",
+          "at": "2026-10-24T14:49:55.777Z",
+          "kind": "note",
+          "message": "Recovery is installed with CLI sessions preserved. All 276 tests pass; Claude maps the latest complete turn and stops at older damage. Physical check remains."
         }
       ]
     },

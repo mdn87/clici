@@ -480,7 +480,7 @@ internal sealed class RendererBridge
             throw new InvalidOperationException($"Navigation gesture expired or was invalidated (remaining {inFlight.DeadlineMilliseconds - Environment.TickCount64} ms).");
     }
 
-    private sealed record Observation(List<PaintedPromptAnchor> Anchors, string Text,
+    private sealed record Observation(IReadOnlyList<PaintedPromptAnchor> Anchors, string Text,
         int RowCount, long ViewportRow, bool AtLive, string ViewportKey,
         IUIAutomationTextRange Range, bool Truncated);
 
@@ -598,14 +598,9 @@ internal sealed class RendererBridge
             }
         }
 
-        var anchors = new List<PaintedPromptAnchor>();
-        foreach (var (nonce, pair) in found)
-        {
-            pair.Sort((left, right) => left.Row.CompareTo(right.Row));
-            if (pair.Count != 2 || pair[0].End || !pair[1].End)
-                throw new InvalidOperationException("Partial or duplicate painted anchor.");
-            anchors.Add(new(nonce, pair[0].Row, pair[1].Row));
-        }
+        var markers = found.SelectMany(item => item.Value.Select(marker =>
+            new PaintedPromptMarker(item.Key, marker.Row, marker.End))).ToArray();
+        var anchors = RenderedPromptMap.CompleteSuffix(request.Prompts, markers, rowCount);
 
         return new(anchors, text, rowCount, viewportRow,
             visible.CompareEndpoints(TextPatternRangeEndpoint.TextPatternRangeEndpoint_End,

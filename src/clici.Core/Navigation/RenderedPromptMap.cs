@@ -4,12 +4,53 @@ namespace Clici.Core.Navigation;
 // anchors come from independently observed terminal attributes after rendering.
 public sealed record RenderedPromptBinding(string MessageId, string Nonce);
 public sealed record PaintedPromptAnchor(string Nonce, long StartRow, long EndRow);
+public sealed record PaintedPromptMarker(string Nonce, long Row, bool End);
 public sealed record RenderedPromptMapResult(bool Success, bool ReachesHistoryStart,
     IReadOnlyList<PromptOccurrence> Prompts);
 
 public static class RenderedPromptMap
 {
     public const int MaximumPrompts = 4096;
+
+    public static IReadOnlyList<PaintedPromptAnchor> CompleteSuffix(
+        IReadOnlyList<RenderedPromptBinding> bindings, IReadOnlyList<PaintedPromptMarker> markers, long documentRows)
+    {
+        ArgumentNullException.ThrowIfNull(bindings);
+        ArgumentNullException.ThrowIfNull(markers);
+        if (bindings.Count is 0 or > MaximumPrompts || markers.Count == 0 || markers.Count > bindings.Count * 2 ||
+            documentRows < 1 || bindings.Any(b => b is null || b.Nonce is null) ||
+            markers.Any(m => m is null || m.Nonce is null || m.Row < 0 || m.Row >= documentRows)) return [];
+
+        var known = bindings.Select(b => b.Nonce).ToHashSet(StringComparer.OrdinalIgnoreCase);
+        if (markers.Any(m => !known.Contains(m.Nonce))) return [];
+        var groups = markers.GroupBy(m => m.Nonce, StringComparer.OrdinalIgnoreCase)
+            .ToDictionary(g => g.Key, g => g.OrderBy(m => m.Row).ToArray(), StringComparer.OrdinalIgnoreCase);
+        var anchors = new List<PaintedPromptAnchor>();
+        long previousEnd = -1;
+        foreach (var binding in bindings)
+        {
+            if (!groups.TryGetValue(binding.Nonce, out var pair))
+            {
+                anchors.Clear();
+                continue;
+            }
+            // Even discarded older evidence must agree with native order.
+            // Duplicates, overlap and reversed boundaries are ambiguous, not gaps.
+            if (pair.Length > 2 || pair[0].Row <= previousEnd) return [];
+            previousEnd = pair[^1].Row;
+            if (pair.Length == 1)
+            {
+                anchors.Clear();
+                continue;
+            }
+            if (pair[0].End || !pair[1].End || pair[1].Row <= pair[0].Row + 1) return [];
+            anchors.Add(new(binding.Nonce, pair[0].Row, pair[1].Row));
+        }
+        // Only a contiguous, complete suffix reaching the newest native turn
+        // can navigate. Resolve also validates every native ID and nonce, even
+        // before the gap. Its false history-start flag makes the gap a boundary.
+        return Resolve(bindings, anchors, documentRows).Success ? anchors : [];
+    }
 
     public static RenderedPromptMapResult Resolve(IReadOnlyList<RenderedPromptBinding> bindings,
         IReadOnlyList<PaintedPromptAnchor> anchors, long documentRows)

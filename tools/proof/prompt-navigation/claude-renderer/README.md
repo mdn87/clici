@@ -13,8 +13,10 @@ height 0 until the asynchronous render answer settles. The 0 ms fake reply
 reproduces missing rows; the tested 500 ms replies retain all three prompts and
 complete marker pairs. These passing fixtures do not rule out failures in real
 sessions. On October 24, COM verified a missing closing marker in Matt's Claude
-test session; navigation correctly refuses that incomplete map. The cause of
-that particular missing marker remains under investigation.
+test session. A later turn retained both markers. The helper now limits navigation
+to the complete recent turns after the damaged turn and stops at that boundary.
+A damaged newest turn still refuses navigation; no missing boundary is inferred.
+The cause of the lost marker remains unresolved.
 
 ## What it does
 
