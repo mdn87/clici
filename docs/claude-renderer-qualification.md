@@ -1,8 +1,8 @@
 # Claude renderer integration: 2026-10-17 qualification
 
 **Claude navigation is bundled and installable; physical Windows Terminal
-keyboard qualification is still open.** The renderer failure reported earlier
-the same day was a fixture artifact, not a vendor defect. The plugin now
+keyboard qualification is still open.** The isolated renderer failure below
+depends on timing; passing delayed-reply fixtures do not establish reliable rendering in real sessions. The plugin now
 publishes composer-ownership frames to the same helper, lease and keyboard
 adapter that Codex uses, and the renderer bundle installer loads it for new
 Windows Terminal shells. Nothing in this repository changes a user profile or
@@ -13,7 +13,8 @@ setting by itself; the installer does so only when run.
 The acceptance fixture's fake endpoint answered in 0 ms. A hooked `UserMessage`
 draws at height 0 until the asynchronous `ui.render` answer settles, and an
 instant reply redrew the transcript before that happened, so the retained rows
-lost the prompt. Every real model answers later than that. With a 500 ms reply
+lost the prompt. This exposes a race in asynchronous rendering; it cannot be
+dismissed solely because real model replies usually take longer. With a 500 ms reply
 the stock, pass-through and full plugin cases all pass; `--reply-delay 0`
 still reproduces the old result. The 2026-10-17 morning evidence under
 `artifacts/prompt-navigation/20261017-claude/verified-*-296` was captured at 0 ms
@@ -95,3 +96,14 @@ throwaway shell, and exercised by the fixture through `CLAUDE_CODE_PLUGIN_DIRS`.
 Reference: Claude's [mods reference](https://code.claude.com/docs/en/plugins/mods/reference)
 and [rendering guide](https://code.claude.com/docs/en/plugins/mods/interface).
 The installed 2.1.296 declaration and live executable are the authority.
+
+## October 24 actual-session failure
+
+The operator identified **Lorem ipsum page filler** as the Claude test session.
+Read-only COM inspection found three native prompts, two complete marker pairs,
+and only the start marker for the newest prompt. The next blank row contained
+default foreground colors. The helper correctly refuses the incomplete map;
+this is separate from the repaired long-history and confirmed-key deadline
+failures. Ordinary, resized, and streamed filler fixtures still pass. The exact
+cause and a reliable repair remain unresolved; see the
+[latency investigation](prompt-navigation-latency-plan.md#actual-session-result-and-separate-claude-rendering-failure).

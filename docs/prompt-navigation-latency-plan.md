@@ -592,3 +592,67 @@ The Taskmaster subagent registered `clici/workspace`; both Codex and Claude
 handoffs report saved. Taskmaster's native configuration validation passed.
 Its host configuration change has no Lugos Audit receipt because that CLI was
 unavailable on the host; the Clici repository receipt is separate.
+
+
+### Existing sessions: bounded history and confirmation deadline
+
+Matt reported that the installed scanner still did not navigate in existing
+Lugos and Review remaining work windows. The Lugos Codex process had the helper
+enabled, and a read-only capture matched all eight of its actual native prompt
+bindings. Long working histories also reached the scanner's 4,096-row refusal.
+Refreshing helpers alone was therefore insufficient.
+
+The scanner now captures the most recent 4,096 physical rows and keeps all row
+coordinates relative to that range. It checks the same range and text again
+before scrolling, hashes only the bounded viewport prefix, and reports a capture
+boundary rather than claiming older history is complete. Character, deadline,
+identity, complete-anchor, focus, and selection checks remain enforced. A partial
+anchor crossing the cutoff still refuses the mapping.
+
+A 5,416-row dense fixture reproduced the installed row-limit refusal. The bounded
+candidate mapped its two retained native prompts in 69 ms; short and 3,916-row
+fixtures also mapped. Repeated keyboard tests then exposed expiration of the
+old pre-press lease after a fresh post-press native confirmation. Two new unit
+assertions failed on that behavior before the confirmation fix. Confirmation now
+uses the fresh matching lease while retaining the one-second limit from the
+original keypress. It cannot revive an expired press or survive invalidation.
+The native contract explicitly records that distinction from passive renewal.
+
+Both transports subsequently passed 41 verified navigation actions, preserved
+selection and terminal text, delivered 100 characters without additional full
+scans, and passed the ineligible shortcut through. Codex p95/max was 218/351 ms;
+Claude was 251/308 ms. Failed attempts remain in the same evidence directory.
+All 268 .NET tests and solution/helper formatting checks passed. No native Rust,
+Claude plugin, installer, or launcher source changed in this correction.
+
+Release `codex-0.162.1-d755ab0bf17e3dbb` is installed with startup/config backups.
+The existing CLI processes still use the compatibility helper path. Their helpers
+were refreshed without closing the CLI sessions. Evidence is under
+`artifacts/navigation-diagnosis-20261024/over-limit/`.
+
+### Actual-session result and separate Claude rendering failure
+
+Matt confirmed the previous-turn shortcut worked in the existing Lugos Codex
+session on October 24. The native log recorded `Jump reason=Verified` at
+14:17:55 UTC. A read-only viewport watcher observed the pane leave the live edge
+and remain at the older turn while focused. This confirms that jump; it does not
+establish every shortcut or sustained typing performance in real sessions.
+
+Matt identified **Lorem ipsum page filler** as the Claude test session. Its
+native report contained three prompts, but COM found complete marker pairs for
+only the first two. The third start marker was present at row 96; its closing
+marker was absent. Per-cell inspection found default colors in the following
+blank row. A diagnostic scan allowing nonblank candidate rows found the same
+missing marker, ruling out the scanner's blank-row optimization for this case.
+The buffer was only 230 rows, so neither the history limit nor a deadline explains
+this refusal. Complete-pair validation remains enforced.
+
+Fresh isolated tests using Claude 2.1.296 retained all three pairs with ordinary
+replies, short follow-up prompts, ConPTY resizing, and streamed wrapped filler.
+The existing zero-delay test still lost markers; Ctrl+L did not recover them.
+That demonstrates a renderer timing weakness, but does not establish the cause
+of this particular damaged turn. No speculative renderer change is installed.
+The next observation compares one additional turn in Matt's identified test
+session; Claude remains unresolved. Metadata-only evidence is under
+`artifacts/navigation-diagnosis-20261024/claude-lorem-*`; isolated renderer runs
+are under `claude-render-*` in the same directory.

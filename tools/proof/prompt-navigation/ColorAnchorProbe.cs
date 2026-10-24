@@ -31,7 +31,7 @@ internal static class ColorAnchorProbe
 
     internal static void Fixture(string directory, int replyRows = 32, bool dense = false)
     {
-        if (replyRows is < 0 or > 1300) throw new ArgumentOutOfRangeException(nameof(replyRows));
+        if (replyRows is < 0 or > 10000) throw new ArgumentOutOfRangeException(nameof(replyRows));
         Console.OutputEncoding = System.Text.Encoding.UTF8;
         var anchors = Enumerable.Range(1, 3).Select(index => new
         {

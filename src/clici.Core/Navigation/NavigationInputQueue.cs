@@ -178,6 +178,23 @@ public sealed class NavigationInputQueue
         }
     }
 
+    // A newer native observation confirms an already admitted press. Use that
+    // observation's lease without reviving expired work or extending the total
+    // time allowed since the key was pressed.
+    internal NavigationInputRequest? Confirm(NavigationInputRequest request, long observedAt, long now)
+    {
+        lock (_gate)
+        {
+            if (!IsCurrent(request, now) || observedAt <= request.AcceptedAtMilliseconds || observedAt > now)
+                return null;
+            var maximum = request.AcceptedAtMilliseconds > long.MaxValue - _timeoutMilliseconds
+                ? long.MaxValue : request.AcceptedAtMilliseconds + _timeoutMilliseconds;
+            _active = new(request.Generation, _context!, request.Direction, request.AcceptedAtMilliseconds,
+                Math.Min(_context!.ValidUntilMilliseconds, maximum));
+            return _active;
+        }
+    }
+
     // Recheck immediately before the OS scroll and again before accepting its
     // readback. This cannot cancel an OS call that has already started.
     public bool CanExecute(NavigationInputRequest request, long nowMilliseconds)
