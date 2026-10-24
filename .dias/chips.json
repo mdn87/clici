@@ -135,8 +135,8 @@
       "chipId": "clici:v0.1-windows-proof",
       "projectId": "clici",
       "title": "v0.1 evidence-backed Windows proof",
-      "summary": "The proof plan for v0.1: automated baseline and installer proof are recorded; the manual functional clipboard matrix is the open remainder before a proof report can be written.",
-      "stage": "active",
+      "summary": "Automated baseline, installer runbook, and all nineteen manual clipboard cases are recorded against named builds; two defects the run found were fixed and reverified.",
+      "stage": "done",
       "sequence": 40,
       "prereqs": [
         "clici:v0.1.0-release"
@@ -146,7 +146,7 @@
       "aheadOfPrereqs": null,
       "timestamps": {
         "createdAt": "2026-08-06T03:35:56.000Z",
-        "updatedAt": "2026-09-27T20:55:20.000Z"
+        "updatedAt": "2026-10-18T10:58:45.000Z"
       },
       "evidence": [
         {
@@ -166,39 +166,113 @@
           "at": "2026-09-27T20:55:20.000Z",
           "kind": "note",
           "message": "Repository review: no commits since the runbook closeout on 2026-08-29 and the working tree holds only an ignore-file edit; the manual matrix is still unrun."
+        },
+        {
+          "entryId": "clici:v0.1-windows-proof:ledger-run",
+          "at": "2026-10-17T03:22:46.000Z",
+          "kind": "note",
+          "message": "Manual matrix run started with a guided driver; the stale baseline was rerun first and the first batch of cases passed."
+        },
+        {
+          "entryId": "clici:v0.1-windows-proof:fixes",
+          "at": "2026-10-17T19:11:32.000Z",
+          "kind": "note",
+          "message": "Run findings fixed: contended clipboard reads are retried, and copies with no owner window are skipped instead of trusting the foreground app."
+        },
+        {
+          "entryId": "clici:v0.1-windows-proof:done",
+          "at": "2026-10-18T10:58:45.000Z",
+          "kind": "stage-change",
+          "message": "Proof ledger header closed: every case has a result; the remote-desktop case passed after restarting the remote clipboard helper."
         }
       ]
     },
     {
       "schemaVersion": 1,
-      "chipId": "clici:run-proof-ledger",
+      "chipId": "clici:prompt-navigation-bridge",
       "projectId": "clici",
-      "title": "Run the v0.1 functional proof ledger",
-      "summary": "Nineteen manual clipboard cases (M01-M19) have never been run against a 0.1.0 build; they need an operator at a Windows keyboard across terminals, editors, and history.",
-      "stage": "ready",
+      "title": "Prompt navigation bridge for Codex and Claude in Windows Terminal",
+      "summary": "The installed bundle verifies, but stock Codex launches bypass navigation. Confirm the failing launch path and complete the live focus check before choosing the repair.",
+      "stage": "blocked",
       "sequence": 50,
       "prereqs": [
-        "clici:v0.1.0-release"
+        "clici:v0.1-windows-proof"
+      ],
+      "linkedRunIds": [],
+      "confidence": "reported",
+      "aheadOfPrereqs": {
+        "at": "2026-10-16T06:42:50.000Z",
+        "incompletePrereqs": [
+          "clici:v0.1-windows-proof"
+        ]
+      },
+      "timestamps": {
+        "createdAt": "2026-10-16T02:06:25.000Z",
+        "updatedAt": "2026-10-24T12:24:20.629Z"
+      },
+      "evidence": [
+        {
+          "entryId": "clici:prompt-navigation-bridge:created",
+          "at": "2026-10-16T02:06:25.000Z",
+          "kind": "created",
+          "message": "Navigation plan written and reviewed; the operator chose to keep existing agent launch commands and classic scrollback."
+        },
+        {
+          "entryId": "clici:prompt-navigation-bridge:active",
+          "at": "2026-10-16T06:42:50.000Z",
+          "kind": "stage-change",
+          "message": "Opt-in Codex renderer bridge merged while the v0.1 manual ledger was still open; native terminal marks were found unsuitable."
+        },
+        {
+          "entryId": "clici:prompt-navigation-bridge:claude",
+          "at": "2026-10-17T19:11:32.000Z",
+          "kind": "note",
+          "message": "Claude renderer navigation bundled with the Codex deployment; shortcuts moved to Alt+Shift comma and period with shell autostart."
+        },
+        {
+          "entryId": "clici:prompt-navigation-bridge:recovery",
+          "at": "2026-10-18T22:44:18.000Z",
+          "kind": "note",
+          "message": "Failed helpers are replaced with capped backoff, and Claude prompt anchors now survive conversation compaction."
+        },
+        {
+          "entryId": "clici:prompt-navigation-bridge:latency",
+          "at": "2026-10-23T03:04:28.000Z",
+          "kind": "note",
+          "message": "Typing lag fixed by keeping bridge waits off input and stopping rescans on keystrokes; the operator confirmed typing and both shortcuts."
+        },
+        {
+          "entryId": "clici:prompt-navigation-bridge:launch-investigation-20261024",
+          "at": "2026-10-24T12:24:20.629Z",
+          "kind": "note",
+          "message": "Stock Codex launch bypasses the installed bridge. Tests pass, but live navigation lacks stable focus; the failing launch path still needs confirmation."
+        }
+      ]
+    },
+    {
+      "schemaVersion": 1,
+      "chipId": "clici:prompt-navigation-qualification",
+      "projectId": "clici",
+      "title": "Qualify prompt navigation and expose it in the tray",
+      "summary": "Run the full live Alt+Shift sequence and the physical Claude keyboard check, then add the tray enable switch and refusal status that NAV-006 and NAV-007 require.",
+      "stage": "ready",
+      "sequence": 60,
+      "prereqs": [
+        "clici:prompt-navigation-bridge"
       ],
       "linkedRunIds": [],
       "confidence": "reported",
       "aheadOfPrereqs": null,
       "timestamps": {
-        "createdAt": "2026-09-01T08:13:59.000Z",
-        "updatedAt": "2026-09-27T20:55:20.000Z"
+        "createdAt": "2026-10-24T12:14:56.000Z",
+        "updatedAt": "2026-10-24T12:14:56.000Z"
       },
       "evidence": [
         {
-          "entryId": "clici:run-proof-ledger:seed",
-          "at": "2026-09-01T08:13:59.000Z",
+          "entryId": "clici:prompt-navigation-qualification:created",
+          "at": "2026-10-24T12:14:56.000Z",
           "kind": "created",
-          "message": "Seeded from the v0.1 proof ledger during the 2026-09-01 chip-board refresh."
-        },
-        {
-          "entryId": "clici:run-proof-ledger:review",
-          "at": "2026-09-27T20:55:20.000Z",
-          "kind": "note",
-          "message": "Still unrun. The BASELINE row is stale (37 tests then, 119 on main now) and must be re-run first; registry-backed cases need an interactive shell, not an agent session."
+          "message": "Derived from the open items in the navigation plan, proof report, and Claude qualification notes; tray integration has not started."
         }
       ]
     },
@@ -206,20 +280,20 @@
       "schemaVersion": 1,
       "chipId": "clici:proof-report-and-next-release",
       "projectId": "clici",
-      "title": "Proof report, spec sync, and the next release",
-      "summary": "Summarize the proof run into a report, record the POC-08 rich-format decision, sync the spec and README support boundary, and tag the next release through the release checklist.",
+      "title": "v0.1 proof report, spec sync, and the next release",
+      "summary": "Write the proof report and release recommendation from the closed ledger, sync spec status and README support claims, then cut a release for the unreleased changes.",
       "stage": "planned",
-      "sequence": 60,
+      "sequence": 70,
       "prereqs": [
         "clici:v0.1-windows-proof",
-        "clici:run-proof-ledger"
+        "clici:prompt-navigation-qualification"
       ],
       "linkedRunIds": [],
       "confidence": "reported",
       "aheadOfPrereqs": null,
       "timestamps": {
         "createdAt": "2026-09-27T20:55:20.000Z",
-        "updatedAt": "2026-09-27T20:55:20.000Z"
+        "updatedAt": "2026-10-24T12:14:56.000Z"
       },
       "evidence": [
         {
@@ -227,6 +301,12 @@
           "at": "2026-09-27T20:55:20.000Z",
           "kind": "created",
           "message": "Derived from the completion criteria of the proof plan and the release checklist; the unreleased section of the changelog is empty."
+        },
+        {
+          "entryId": "clici:proof-report-and-next-release:ready",
+          "at": "2026-10-24T12:14:56.000Z",
+          "kind": "note",
+          "message": "Ledger is closed but no proof report exists yet; the unreleased changelog now holds image export, navigation, and two clipboard fixes."
         }
       ]
     },
@@ -234,35 +314,8 @@
       "schemaVersion": 1,
       "chipId": "clici:integrated-terminal-attribution",
       "projectId": "clici",
-      "title": "Source fingerprint matrix and focused-control detection",
-      "summary": "Build a source-fingerprint matrix across real terminals and agent hosts, then add focused-control detection to tell editor-integrated terminals apart from editor copies.",
-      "stage": "vague",
-      "sequence": 70,
-      "prereqs": [
-        "clici:proof-report-and-next-release"
-      ],
-      "linkedRunIds": [],
-      "confidence": "unknown",
-      "aheadOfPrereqs": null,
-      "timestamps": {
-        "createdAt": "2026-09-27T20:55:20.000Z",
-        "updatedAt": "2026-09-27T20:55:20.000Z"
-      },
-      "evidence": [
-        {
-          "entryId": "clici:integrated-terminal-attribution:created",
-          "at": "2026-09-27T20:55:20.000Z",
-          "kind": "created",
-          "message": "Listed under planned next steps in the README together with moving clipboard work to a dedicated STA thread and tray last-action status."
-        }
-      ]
-    },
-    {
-      "schemaVersion": 1,
-      "chipId": "clici:rich-format-and-packaging",
-      "projectId": "clici",
-      "title": "Rich-format normalization, signed packaging, and image export",
-      "summary": "Evaluate consistent HTML and RTF normalization, signed or MSI packaging, remote-desktop clipboard behavior, and the unmerged clipboard-image export experiment for WSL.",
+      "title": "Later: source fingerprints, focused-control detection, rich formats, signing",
+      "summary": "Source-fingerprint matrix, telling editor-integrated terminals from editor copies, a dedicated clipboard thread, rich-format normalization, and signed packaging.",
       "stage": "vague",
       "sequence": 80,
       "prereqs": [
@@ -273,14 +326,20 @@
       "aheadOfPrereqs": null,
       "timestamps": {
         "createdAt": "2026-09-27T20:55:20.000Z",
-        "updatedAt": "2026-09-27T20:55:20.000Z"
+        "updatedAt": "2026-10-24T12:14:56.000Z"
       },
       "evidence": [
         {
-          "entryId": "clici:rich-format-and-packaging:created",
+          "entryId": "clici:integrated-terminal-attribution:created",
           "at": "2026-09-27T20:55:20.000Z",
           "kind": "created",
-          "message": "Rich-format and packaging items come from the README limitations; the image-export branch has two commits from 2026-08-21 that never reached main."
+          "message": "Listed under planned next steps in the README together with moving clipboard work to a dedicated STA thread and tray last-action status."
+        },
+        {
+          "entryId": "clici:integrated-terminal-attribution:merged",
+          "at": "2026-10-24T12:14:56.000Z",
+          "kind": "note",
+          "message": "Absorbed the rich-format and packaging ideas; the image-export experiment has since merged, so it is no longer a later item."
         }
       ]
     }

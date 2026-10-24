@@ -21,7 +21,10 @@ if args.frames and args.native_admission: parser.error('choose frames or native 
 run = args.fixture_directory.resolve()
 probe = args.probe.resolve(strict=True)
 def call(*args):
-    process = subprocess.run([str(probe), *map(str,args)], capture_output=True, text=True, timeout=4)
+    # A runner without an attached console otherwise opens a console for each
+    # probe call, stealing focus from the very pane we are trying to verify.
+    process = subprocess.run([str(probe), *map(str,args)], capture_output=True, text=True,
+                             timeout=4, creationflags=subprocess.CREATE_NO_WINDOW)
     if process.returncode: raise RuntimeError(process.stderr or process.stdout)
     return json.loads(process.stdout)
 window = None

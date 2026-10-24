@@ -480,3 +480,33 @@ manifest are preserved under `%LOCALAPPDATA%/Clici/renderer-navigation/backups/`
 repository's ignored artifacts. Installation and process evidence are in
 `artifacts/typing-recurrence-20261022/installation-result.json` and
 `live-helper-refresh.json`.
+
+## Navigation regression investigation (2026-10-24)
+
+Matt reported that jumping to the latest user turn no longer works. The installed
+integration remains enabled and all twenty files in the October 22 bundle pass
+their manifest hashes. The observed interactive Codex process instead runs the
+stock npm executable and has no renderer helper. Its parent shell was opened by
+Dias. Separately, Dias resolves an explicit native executable before opening the
+shell and passes that path to its launcher; shell PATH activation therefore does
+not select the Clici bundle for that launch. The inspected kickoff selects the
+stock Codex desktop binary. This establishes a launch mismatch, not which session
+Matt observed failing. That clarification is still outstanding. No installed
+files, launch settings, or renderer safeguards were changed.
+
+The live input harness now starts its inspection subprocesses without console
+windows. Without that flag, a console-free runner can steal the fixture's focus
+while checking it. The modified harness reached helper qualification, but a focus
+event revoked the lease before the first shortcut; a fresh fixture could not keep
+foreground focus. These attempts are failures, not navigation acceptance. Read-only
+mapping in both fixtures found all three distinct prompt identities at 112 rows.
+Raw evidence is under `artifacts/navigation-recheck-20261024/`.
+
+The automated baseline passes: 256 .NET tests, fourteen Node tests, five installer
+tests, eight Rust unit tests, eleven Rust process tests, and the explicit Rust/.NET
+admission ABI test against the installed helper. The native Claude plugin test
+requires its own runner; invoking its TypeScript file directly with Node fails
+because the `claude-code` module is unavailable there. No native renderer change
+was made, and neither restored navigation nor a new live performance result is
+claimed. Next, identify the failing launch path and obtain stable fixture focus;
+changes to Dias or installed profiles require authorization for those locations.

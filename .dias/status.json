@@ -4,17 +4,17 @@
   "projectLabel": "clici",
   "assessmentState": "scored",
   "assessmentScope": "current-milestone",
-  "percentComplete": 80,
-  "milestonePhase": "operational-proof",
+  "percentComplete": 55,
+  "milestonePhase": "integration-proof",
   "portfolioGroup": "developer-tools",
   "displayPriority": 500,
-  "assessedAt": "2026-09-27T20:55:20.000Z",
+  "assessedAt": "2026-10-24T12:24:20.629Z",
   "confidence": "reported",
-  "currentMilestone": "Evidence-backed Windows proof of v0.1: the 0.1.0 release is published from a tagged CI build, the automated baseline is green, and the installer runbook is closed on main.",
-  "remainingSummary": "The nineteen manual functional clipboard cases have never been run against a 0.1.0 build and need an operator at a keyboard; then a proof report and spec sync close the milestone.",
-  "nextChipId": "clici:run-proof-ledger",
+  "currentMilestone": "Restore prompt navigation without typing lag; the installed bundle verifies, but the observed stock Codex launch has no bridge.",
+  "remainingSummary": "Confirm the failing launch path and obtain stable fixture focus. Any Dias launcher or installed-profile repair needs authorization for that location.",
+  "nextChipId": "clici:prompt-navigation-bridge",
   "source": {
-    "label": "Repository review of README, plans, proof ledger, runbook, and git history",
-    "updatedAt": "2026-09-27"
+    "label": "Repository review of README, changelog, plans, proof ledger, navigation reports, and git history",
+    "updatedAt": "2026-10-24"
   }
 }
