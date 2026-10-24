@@ -566,16 +566,27 @@ The harness requests pane focus explicitly but never relaxes foreground checks.
 The twenty-file candidate is under
 `artifacts/navigation-diagnosis-20261024/scanner-bundle`. Only the three helper
 binaries differ from the installed bundle; the native CLI is unchanged.
-Installation and running-helper refresh require Matt's approval for writes
-outside this repository. The original installed bundle remains the rollback
-source until that update; its helper directory and manifest must be archived
-before any compatibility refresh for existing CLI processes.
+Matt approved installation and helper refresh. Release
+`codex-0.162.1-090e4752e4479419` is installed and enabled. Both startup profiles
+retain unrelated content, and Codex configuration semantics are unchanged.
+All four navigation helpers restarted; their two Codex and two Claude parent
+processes retained their identities and start times.
+
+Existing processes still reference release `codex-0.162.1-daea1af5dcc6e6d0`, so
+its helper directory and manifest received the same repair. Both release
+manifests verify all twenty files. Original helpers, manifest, installation state,
+and startup settings are preserved under the installation backup directory
+`scanner-repair-20261024-092415`; original helper hashes also verify. Installation
+and refresh evidence is under `artifacts/navigation-diagnosis-20261024/`.
+Actual-session shortcut and typing confirmation is requested. The separately
+observed stock Codex process still bypasses the integration; this change does not
+alter the Dias launcher.
 
 Eight new row-alignment cases pass, including CRLF endings, missing soft-wrap
 boundaries, indented output, short blanks, and Unicode text. All 264 .NET tests,
 14 Node tests, five installer tests, and the explicit Rust/.NET admission ABI
 check passed. Original native Rust test evidence remains applicable because no
-native source changed. No candidate has been installed.
+native source changed. Source PR #49 merged after build-test and format CI passed.
 
 The Taskmaster subagent registered `clici/workspace`; both Codex and Claude
 handoffs report saved. Taskmaster's native configuration validation passed.
