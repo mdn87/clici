@@ -192,8 +192,8 @@
       "chipId": "clici:prompt-navigation-bridge",
       "projectId": "clici",
       "title": "Prompt navigation bridge for Codex and Claude in Windows Terminal",
-      "summary": "Matt confirms Claude navigation and normal typing. Mouse flicker stopped; the text caret needs a blink-versus-redraw check.",
-      "stage": "blocked",
+      "summary": "Installed bridge repairs are confirmed in existing Codex and Claude sessions. Typing and caret behavior are normal; older damaged paint bounds navigation.",
+      "stage": "done",
       "sequence": 50,
       "prereqs": [
         "clici:v0.1-windows-proof"
@@ -208,7 +208,7 @@
       },
       "timestamps": {
         "createdAt": "2026-10-16T02:06:25.000Z",
-        "updatedAt": "2026-10-24T15:04:17.490Z"
+        "updatedAt": "2026-10-24T15:19:24.148Z"
       },
       "evidence": [
         {
@@ -288,6 +288,12 @@
           "at": "2026-10-24T15:04:17.490Z",
           "kind": "note",
           "message": "Matt confirms Claude navigation and normal typing after the installed recovery. Mouse flicker stopped; text caret behavior is being clarified."
+        },
+        {
+          "entryId": "navigation-repair-confirmed-20261024",
+          "at": "2026-10-24T15:19:24.148Z",
+          "kind": "stage-change",
+          "message": "Matt confirms navigation, normal typing, and normal caret blinking. Earlier flicker stopped without another renderer change; bridge repair is complete."
         }
       ]
     },

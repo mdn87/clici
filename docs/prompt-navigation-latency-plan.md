@@ -694,3 +694,13 @@ identities remained stable. A 25-second Win32 cursor-state sample showed a stabl
 mouse pointer while another window was focused; it does not establish caret
 behavior in Claude. The distinction between normal caret blinking and rapid
 redraw remains to be confirmed; no speculative rendering change was installed.
+
+
+### Operator closeout
+
+Matt confirmed that the earlier flicker occurred even while idle, then reported
+that it stopped and the caret now blinks normally. No further renderer or helper
+change was made for the flicker, and its cause was not established. Existing
+Codex and Claude navigation and normal Claude typing are confirmed. The bridge
+repair is closed; broader shortcut qualification and tray integration remain in
+the next board step. The older damaged Claude prompt remains a capture boundary.
