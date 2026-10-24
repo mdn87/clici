@@ -52,8 +52,12 @@ retain order; overflow is consumed and returned as `QueueFull` for status report
 Only one request may be active. The default and maximum request deadline is one
 second, further bounded by the eligibility lease. An in-flight timeout withdraws
 the context; a fresh qualified observation is needed before another admission.
-An expired queued request is dropped before execution. A renewed lease never
-extends an already admitted request's deadline.
+An expired queued request is dropped before execution. Passive lease renewal
+does not extend an admission. A native confirmation observed after the press
+may replace its pre-press lease only while the original admission remains live
+and its identity and eligibility revision still match. Confirmed work expires
+at the earlier of the confirming lease and one second after the original press.
+Confirmation cannot revive expired, invalidated, or differently scoped work.
 
 `CanExecute` must be checked immediately before the scroll and before accepting
 its readback. `Complete` only acknowledges queue work; it does not confirm that a

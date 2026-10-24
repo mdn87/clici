@@ -592,3 +592,42 @@ The Taskmaster subagent registered `clici/workspace`; both Codex and Claude
 handoffs report saved. Taskmaster's native configuration validation passed.
 Its host configuration change has no Lugos Audit receipt because that CLI was
 unavailable on the host; the Clici repository receipt is separate.
+
+
+### Existing sessions: bounded history and confirmation deadline
+
+Matt reported that the installed scanner still did not navigate in existing
+Lugos and Review remaining work windows. The Lugos Codex process had the helper
+enabled, and a read-only capture matched all eight of its actual native prompt
+bindings. Long working histories also reached the scanner's 4,096-row refusal.
+Refreshing helpers alone was therefore insufficient.
+
+The scanner now captures the most recent 4,096 physical rows and keeps all row
+coordinates relative to that range. It checks the same range and text again
+before scrolling, hashes only the bounded viewport prefix, and reports a capture
+boundary rather than claiming older history is complete. Character, deadline,
+identity, complete-anchor, focus, and selection checks remain enforced. A partial
+anchor crossing the cutoff still refuses the mapping.
+
+A 5,416-row dense fixture reproduced the installed row-limit refusal. The bounded
+candidate mapped its two retained native prompts in 69 ms; short and 3,916-row
+fixtures also mapped. Repeated keyboard tests then exposed expiration of the
+old pre-press lease after a fresh post-press native confirmation. Two new unit
+assertions failed on that behavior before the confirmation fix. Confirmation now
+uses the fresh matching lease while retaining the one-second limit from the
+original keypress. It cannot revive an expired press or survive invalidation.
+The native contract explicitly records that distinction from passive renewal.
+
+Both transports subsequently passed 41 verified navigation actions, preserved
+selection and terminal text, delivered 100 characters without additional full
+scans, and passed the ineligible shortcut through. Codex p95/max was 218/351 ms;
+Claude was 251/308 ms. Failed attempts remain in the same evidence directory.
+All 268 .NET tests and solution/helper formatting checks passed. No native Rust,
+Claude plugin, installer, or launcher source changed in this correction.
+
+Release `codex-0.162.1-d755ab0bf17e3dbb` is installed with startup/config backups.
+The existing CLI processes still use the compatibility helper path. Their helpers
+were refreshed without closing the CLI sessions. Actual-session confirmation
+remains outstanding; the synthetic tests do not establish physical-key behavior
+in those conversations. Evidence is under
+`artifacts/navigation-diagnosis-20261024/over-limit/`.

@@ -368,7 +368,7 @@ internal sealed class RendererBridge
         qualifiedRevision = layoutRevision;
         qualifiedSize = (rect.right - rect.left, rect.bottom - rect.top);
         var witness = observation.Anchors[0];
-        qualifiedWitness = RowAt(pattern.DocumentRange, (int)witness.StartRow);
+        qualifiedWitness = RowAt(observation.Range, (int)witness.StartRow);
         witnessNonce = witness.Nonce;
         var direction = request.Direction == "previous" ? NavigationDirection.Previous : NavigationDirection.Next;
         if (request.Direction == "observe" && keyboard is not null)
@@ -383,7 +383,7 @@ internal sealed class RendererBridge
         if (cursor is not null && !mapping.Prompts.Contains(cursor.Prompt)) cursor = null;
         var snapshot = new NavigationSnapshot(identity, request.Sequence, PaneEligibility.Eligible,
             mapping.Prompts[0].Start, observation.RowCount,
-            request.HistoryComplete && mapping.ReachesHistoryStart, true, true,
+            request.HistoryComplete && mapping.ReachesHistoryStart && !observation.Truncated, true, true,
             observation.ViewportRow, observation.AtLive, mapping.Prompts);
         var decision = Clici.Core.Navigation.PromptNavigation.Decide(snapshot, direction, cursor);
         lastViewport = observation.ViewportKey;
@@ -391,16 +391,18 @@ internal sealed class RendererBridge
             return Result(true, decision.Action.ToString(), decision.Reason.ToString());
 
         var target = decision.Action == NavigationAction.ReturnToLive
-            ? pattern.DocumentRange : RowAt(pattern.DocumentRange, (int)decision.Target!.Start);
+            ? pattern.DocumentRange : RowAt(observation.Range, (int)decision.Target!.Start);
         if (decision.Action == NavigationAction.ReturnToLive)
             target.MoveEndpointByRange(TextPatternRangeEndpoint.TextPatternRangeEndpoint_Start,
                 target, TextPatternRangeEndpoint.TextPatternRangeEndpoint_End);
         CheckLive(request);
         NativeWindows.RequireActiveRendererPane((nint)window.Handle, pane, proofOnly);
         var latestRect = pane.CurrentBoundingRectangle;
-        if (latestRect.right - latestRect.left != rect.right - rect.left ||
+        var latestCapture = Capture(pattern.DocumentRange);
+        if (latestCapture.Range.Compare(observation.Range) == 0 ||
+            latestRect.right - latestRect.left != rect.right - rect.left ||
             latestRect.bottom - latestRect.top != rect.bottom - rect.top ||
-            pattern.DocumentRange.GetText(MaximumCharacters + 1) != observation.Text)
+            latestCapture.Range.GetText(MaximumCharacters + 1) != observation.Text)
             throw new InvalidOperationException("Terminal changed before scrolling.");
         var selected = Selection(pattern);
         // Once this call starts, this key belongs to navigation even if readback
@@ -422,7 +424,7 @@ internal sealed class RendererBridge
                     target, TextPatternRangeEndpoint.TextPatternRangeEndpoint_Start) > 0;
             if (!reached || !SameSelection(selected, Selection(pattern)))
                 throw new InvalidOperationException("Scroll target or selection did not verify.");
-            lastViewport = ViewportKey(pattern, viewport);
+            lastViewport = ViewportKey(observation.Range, viewport);
             cursor = decision.Target is { } prompt ? new(identity, prompt) : null;
             return Result(true, decision.Action.ToString(), "Verified", decision.Target?.MessageId);
         }
@@ -467,16 +469,20 @@ internal sealed class RendererBridge
 
     private void CheckLive(Request request)
     {
-        if (parent.HasExited || request.Deadline <= Environment.TickCount64 ||
-            request.Deadline - Environment.TickCount64 > 1000 ||
-            admission is not null && (admission.Word != request.AdmissionWord ||
-                request.ComposerOwnsInput != ((request.AdmissionWord & 1) != 0)) ||
-            inFlight is not null && keyboard?.Session.CanExecute(inFlight, Environment.TickCount64) != true)
-            throw new InvalidOperationException("Renderer request expired or its process exited.");
+        if (parent.HasExited)
+            throw new InvalidOperationException("Renderer process exited.");
+        if (request.Deadline <= Environment.TickCount64 || request.Deadline - Environment.TickCount64 > 1000)
+            throw new InvalidOperationException("Renderer frame expired or exceeds its deadline bound.");
+        if (admission is not null && (admission.Word != request.AdmissionWord ||
+                request.ComposerOwnsInput != ((request.AdmissionWord & 1) != 0)))
+            throw new InvalidOperationException("Native input admission changed.");
+        if (inFlight is not null && keyboard?.Session.CanExecute(inFlight, Environment.TickCount64) != true)
+            throw new InvalidOperationException($"Navigation gesture expired or was invalidated (remaining {inFlight.DeadlineMilliseconds - Environment.TickCount64} ms).");
     }
 
     private sealed record Observation(List<PaintedPromptAnchor> Anchors, string Text,
-        int RowCount, long ViewportRow, bool AtLive, string ViewportKey);
+        int RowCount, long ViewportRow, bool AtLive, string ViewportKey,
+        IUIAutomationTextRange Range, bool Truncated);
 
     private Observation Observe(IUIAutomationTextPattern pattern, Request request)
     {
@@ -493,7 +499,8 @@ internal sealed class RendererBridge
             }
         }
 
-        var document = pattern.DocumentRange;
+        var capture = Capture(pattern.DocumentRange);
+        var document = capture.Range;
         var text = document.GetText(MaximumCharacters + 1);
         if (text.Length > MaximumCharacters) throw new InvalidOperationException("Terminal capture limit.");
         var visibleRanges = pattern.GetVisibleRanges();
@@ -502,13 +509,8 @@ internal sealed class RendererBridge
         var found = new Dictionary<string, List<(int Row, bool End)>>(StringComparer.Ordinal);
         // Narrow candidate blocks before reading colors instead of walking every
         // row over COM. Coordinates still use UIA line units, including soft wraps.
-        var lastRow = document.Clone();
-        lastRow.MoveEndpointByRange(TextPatternRangeEndpoint.TextPatternRangeEndpoint_Start,
-            document, TextPatternRangeEndpoint.TextPatternRangeEndpoint_End);
-        lastRow.MoveEndpointByUnit(TextPatternRangeEndpoint.TextPatternRangeEndpoint_Start, TextUnit.TextUnit_Character, -1);
-        lastRow.ExpandToEnclosingUnit(TextUnit.TextUnit_Line);
-        var rowCount = RowIndex(document, lastRow) + 1;
-        var viewportRow = RowIndex(document, visible);
+        var rowCount = capture.Rows;
+        var viewportRow = RowIndex(document, visible, rowCount);
         var pending = new Stack<(IUIAutomationTextRange Range, int Start, int Count)>();
         pending.Push((document.Clone(), 0, rowCount));
         while (pending.TryPop(out var block))
@@ -608,20 +610,44 @@ internal sealed class RendererBridge
         return new(anchors, text, rowCount, viewportRow,
             visible.CompareEndpoints(TextPatternRangeEndpoint.TextPatternRangeEndpoint_End,
                 document, TextPatternRangeEndpoint.TextPatternRangeEndpoint_End) >= 0,
-            ViewportKey(pattern, visible));
+            ViewportKey(document, visible), document, capture.Truncated);
     }
 
-    private static int RowIndex(IUIAutomationTextRange document, IUIAutomationTextRange position)
+    // Keep the most recent physical rows, rather than requiring the entire
+    // terminal history to fit. No work or coordinate depends on its total size.
+    private static (IUIAutomationTextRange Range, int Rows, bool Truncated) Capture(IUIAutomationTextRange document)
     {
-        var prefix = position.Clone();
-        prefix.MoveEndpointByRange(TextPatternRangeEndpoint.TextPatternRangeEndpoint_End,
-            prefix, TextPatternRangeEndpoint.TextPatternRangeEndpoint_Start);
-        var moved = prefix.MoveEndpointByUnit(TextPatternRangeEndpoint.TextPatternRangeEndpoint_Start,
-            TextUnit.TextUnit_Line, -MaximumRows);
-        if (moved == -MaximumRows || prefix.CompareEndpoints(TextPatternRangeEndpoint.TextPatternRangeEndpoint_Start,
-            document, TextPatternRangeEndpoint.TextPatternRangeEndpoint_Start) != 0)
-            throw new InvalidOperationException("Terminal row limit or inconsistent provider coordinates.");
-        return -moved;
+        var last = document.Clone();
+        last.MoveEndpointByRange(TextPatternRangeEndpoint.TextPatternRangeEndpoint_Start,
+            document, TextPatternRangeEndpoint.TextPatternRangeEndpoint_End);
+        last.MoveEndpointByUnit(TextPatternRangeEndpoint.TextPatternRangeEndpoint_Start, TextUnit.TextUnit_Character, -1);
+        last.ExpandToEnclosingUnit(TextUnit.TextUnit_Line);
+        var range = document.Clone();
+        range.MoveEndpointByRange(TextPatternRangeEndpoint.TextPatternRangeEndpoint_Start,
+            last, TextPatternRangeEndpoint.TextPatternRangeEndpoint_Start);
+        var moved = range.MoveEndpointByUnit(TextPatternRangeEndpoint.TextPatternRangeEndpoint_Start,
+            TextUnit.TextUnit_Line, -(MaximumRows - 1));
+        if (moved > 0 || moved < -(MaximumRows - 1))
+            throw new InvalidOperationException("Terminal row mapping changed.");
+        return (range, 1 - moved, range.CompareEndpoints(TextPatternRangeEndpoint.TextPatternRangeEndpoint_Start,
+            document, TextPatternRangeEndpoint.TextPatternRangeEndpoint_Start) > 0);
+    }
+
+    private static int RowIndex(IUIAutomationTextRange document, IUIAutomationTextRange position, int rows)
+    {
+        if (position.CompareEndpoints(TextPatternRangeEndpoint.TextPatternRangeEndpoint_Start,
+                document, TextPatternRangeEndpoint.TextPatternRangeEndpoint_Start) < 0) return -1;
+        // Count toward the live end, which is inside the bounded capture.
+        // Walking backward would escape the range into older terminal history.
+        var suffix = position.Clone();
+        suffix.MoveEndpointByRange(TextPatternRangeEndpoint.TextPatternRangeEndpoint_End,
+            document, TextPatternRangeEndpoint.TextPatternRangeEndpoint_End);
+        var moved = suffix.MoveEndpointByUnit(TextPatternRangeEndpoint.TextPatternRangeEndpoint_Start,
+            TextUnit.TextUnit_Line, MaximumRows);
+        if (moved < 1 || moved > rows || suffix.CompareEndpoints(TextPatternRangeEndpoint.TextPatternRangeEndpoint_Start,
+                document, TextPatternRangeEndpoint.TextPatternRangeEndpoint_End) != 0)
+            throw new InvalidOperationException("Terminal row mapping changed.");
+        return rows - moved;
     }
 
     private static IUIAutomationTextRange RowAt(IUIAutomationTextRange document, int index)
@@ -635,9 +661,11 @@ internal sealed class RendererBridge
         return row;
     }
 
-    private static string ViewportKey(IUIAutomationTextPattern pattern, IUIAutomationTextRange visible)
+    private static string ViewportKey(IUIAutomationTextRange document, IUIAutomationTextRange visible)
     {
-        var prefix = pattern.DocumentRange;
+        if (visible.CompareEndpoints(TextPatternRangeEndpoint.TextPatternRangeEndpoint_Start,
+                document, TextPatternRangeEndpoint.TextPatternRangeEndpoint_Start) < 0) return "OutsideCapture";
+        var prefix = document.Clone();
         prefix.MoveEndpointByRange(TextPatternRangeEndpoint.TextPatternRangeEndpoint_End,
             visible, TextPatternRangeEndpoint.TextPatternRangeEndpoint_Start);
         // Kept only in memory. The digest is viewport evidence, never a prompt ID.

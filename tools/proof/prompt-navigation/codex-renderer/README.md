@@ -172,7 +172,10 @@ exact Alt+Shift+Comma (previous) and Alt+Shift+Period (next) presses before Wind
 Terminal clears selection or snaps to live output. Every admitted press must
 then receive a native confirmation made **after** the press, resolve fresh painted
 anchors, and pass scroll/readback checks.
-Renewal never extends an already admitted request's deadline.
+Passive renewal does not extend admitted work. A newer native confirmation made
+after the press may replace the admission lease while that press is still live.
+The work remains bounded by the confirming lease and one second from the original
+press; expired or invalidated presses cannot be revived.
 
 On a US keyboard these are Alt+< and Alt+>; hold Alt and Shift, then press the
 comma or period key. Both modifier orders work. Releasing either modifier first
@@ -252,8 +255,12 @@ Add `--native-admission --navigation-repetitions 10` for the Codex v2 shared-wor
 path, forty navigation attempts, and a 100-character zero-rescan check. Use
 `anchor-fixture <directory> 328` for approximately 1,000 rows or `1300` for
 approximately 3,916 rows. Start with empty scrollback; earlier fixture output
-counts toward the 4,096-row capture limit. The harness waits up to five minutes
-for stable foreground input and sends keys only to the attested proof window.
+counts toward the capture. The helper scans at most the most recent 4,096
+physical rows, so older output does not disable recent prompt navigation. Use
+`1800 dense` and a test Terminal history size above 5,500 to reproduce the
+over-limit case; only the two newest prompts fit in the capture. A partial
+anchor at the cutoff still refuses rather than guessing a boundary. The harness
+waits up to five minutes for stable foreground input and sends keys only to the attested proof window.
 
 Add `dense` after the fixture row count to include indented replies and blank
 rows, for example `anchor-fixture <directory> 328 dense`. Create the directory

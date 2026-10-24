@@ -56,4 +56,52 @@ public class RendererNavigationSessionTests
         session.Publish(Context(1000), 9);
         Assert.Equal(NavigationKeyResult.PassThrough, session.Handle(Up(), 31));
     }
+
+    [Fact]
+    public void FreshConfirmationUsesItsLeaseWithinTheOriginalKeyTimeout()
+    {
+        var session = new RendererNavigationSession();
+        session.Publish(Context(400), 10);
+        session.Handle(Up(), 200);
+        Assert.Null(session.TakeConfirmed(201));
+        session.Publish(Context(900), 300);
+        var request = Assert.IsType<NavigationInputRequest>(session.TakeConfirmed(301));
+        Assert.True(session.CanExecute(request, 450));
+        Assert.False(session.CanExecute(request, 900));
+    }
+
+    [Fact]
+    public void ConfirmationCannotReviveAnExpiredPress()
+    {
+        var session = new RendererNavigationSession();
+        session.Publish(Context(400), 10);
+        session.Handle(Up(), 200);
+        Assert.Null(session.TakeConfirmed(201));
+        session.Publish(Context(900), 500);
+        Assert.Null(session.TakeConfirmed(501));
+    }
+
+    [Fact]
+    public void ConfirmationCannotExtendWorkBeyondOneSecondAfterThePress()
+    {
+        var session = new RendererNavigationSession();
+        session.Publish(Context(900), 150);
+        session.Handle(Up(), 200);
+        session.Publish(Context(1550), 800);
+        var request = Assert.IsType<NavigationInputRequest>(session.TakeConfirmed(801));
+        Assert.True(session.CanExecute(request, 1199));
+        Assert.False(session.CanExecute(request, 1200));
+    }
+
+    [Fact]
+    public void FreshConfirmationStillCancelsOnTypingOrFocusInvalidation()
+    {
+        var session = new RendererNavigationSession();
+        session.Publish(Context(400), 10);
+        session.Handle(Up(), 200);
+        session.Publish(Context(900), 300);
+        var request = Assert.IsType<NavigationInputRequest>(session.TakeConfirmed(301));
+        session.Invalidate();
+        Assert.False(session.CanExecute(request, 302));
+    }
 }

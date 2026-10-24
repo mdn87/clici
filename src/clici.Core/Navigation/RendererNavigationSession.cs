@@ -37,7 +37,9 @@ public sealed class RendererNavigationSession
         {
             if (waiting is not null && !queue.CanExecute(waiting, now)) waiting = null;
             waiting ??= queue.Take(now);
-            return waiting is not null && observedAt > waiting.AcceptedAtMilliseconds ? waiting : null;
+            if (waiting is null || observedAt <= waiting.AcceptedAtMilliseconds) return null;
+            waiting = queue.Confirm(waiting, observedAt, now);
+            return waiting;
         }
     }
 
