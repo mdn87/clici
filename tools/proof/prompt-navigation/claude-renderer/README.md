@@ -7,13 +7,14 @@ terminal screen. It ships inside the renderer bundle that the
 bundled copy to `CLAUDE_CODE_PLUGIN_DIRS` for new Windows Terminal shells, so an
 ordinary `claude` command loads it. Building Clici installs nothing.
 
-The earlier "renderer failure" recorded in the
-[qualification report](../../../../docs/claude-renderer-qualification.md) was a
-fixture artifact: the fake model endpoint answered in 0 ms, and a hooked
-`UserMessage` draws at height 0 until the asynchronous render answer settles.
-With a 500 ms reply the stock, pass-through and full plugin cases all retain
-three prompts and three complete ordered anchor pairs. `--reply-delay 0`
-reproduces the old failure on purpose.
+The [qualification report](../../../../docs/claude-renderer-qualification.md)
+records a timing-dependent renderer failure: a hooked `UserMessage` draws at
+height 0 until the asynchronous render answer settles. The 0 ms fake reply
+reproduces missing rows; the tested 500 ms replies retain all three prompts and
+complete marker pairs. These passing fixtures do not rule out failures in real
+sessions. On October 24, COM verified a missing closing marker in Matt's Claude
+test session; navigation correctly refuses that incomplete map. The cause of
+that particular missing marker remains under investigation.
 
 ## What it does
 

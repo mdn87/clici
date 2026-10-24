@@ -627,7 +627,32 @@ Claude plugin, installer, or launcher source changed in this correction.
 
 Release `codex-0.162.1-d755ab0bf17e3dbb` is installed with startup/config backups.
 The existing CLI processes still use the compatibility helper path. Their helpers
-were refreshed without closing the CLI sessions. Actual-session confirmation
-remains outstanding; the synthetic tests do not establish physical-key behavior
-in those conversations. Evidence is under
+were refreshed without closing the CLI sessions. Evidence is under
 `artifacts/navigation-diagnosis-20261024/over-limit/`.
+
+### Actual-session result and separate Claude rendering failure
+
+Matt confirmed the previous-turn shortcut worked in the existing Lugos Codex
+session on October 24. The native log recorded `Jump reason=Verified` at
+14:17:55 UTC. A read-only viewport watcher observed the pane leave the live edge
+and remain at the older turn while focused. This confirms that jump; it does not
+establish every shortcut or sustained typing performance in real sessions.
+
+Matt identified **Lorem ipsum page filler** as the Claude test session. Its
+native report contained three prompts, but COM found complete marker pairs for
+only the first two. The third start marker was present at row 96; its closing
+marker was absent. Per-cell inspection found default colors in the following
+blank row. A diagnostic scan allowing nonblank candidate rows found the same
+missing marker, ruling out the scanner's blank-row optimization for this case.
+The buffer was only 230 rows, so neither the history limit nor a deadline explains
+this refusal. Complete-pair validation remains enforced.
+
+Fresh isolated tests using Claude 2.1.296 retained all three pairs with ordinary
+replies, short follow-up prompts, ConPTY resizing, and streamed wrapped filler.
+The existing zero-delay test still lost markers; Ctrl+L did not recover them.
+That demonstrates a renderer timing weakness, but does not establish the cause
+of this particular damaged turn. No speculative renderer change is installed.
+The next observation compares one additional turn in Matt's identified test
+session; Claude remains unresolved. Metadata-only evidence is under
+`artifacts/navigation-diagnosis-20261024/claude-lorem-*`; isolated renderer runs
+are under `claude-render-*` in the same directory.

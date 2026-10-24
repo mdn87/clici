@@ -192,7 +192,7 @@
       "chipId": "clici:prompt-navigation-bridge",
       "projectId": "clici",
       "title": "Prompt navigation bridge for Codex and Claude in Windows Terminal",
-      "summary": "Long-history and confirmed-key fixes are installed; physical shortcut and typing confirmation in existing Codex and Claude sessions is still needed.",
+      "summary": "Lugos Codex jump confirmed. Claude is missing a closing marker; a fresh turn in the test session is needed to check whether the damage repeats.",
       "stage": "blocked",
       "sequence": 50,
       "prereqs": [
@@ -208,7 +208,7 @@
       },
       "timestamps": {
         "createdAt": "2026-10-16T02:06:25.000Z",
-        "updatedAt": "2026-10-24T14:10:37.037Z"
+        "updatedAt": "2026-10-24T14:32:31.929Z"
       },
       "evidence": [
         {
@@ -276,6 +276,12 @@
           "at": "2026-10-24T14:10:37.037Z",
           "kind": "note",
           "message": "Existing sessions still failed after rollout. Bounded history and confirmed-key fixes now pass tests and are installed; actual-session results are awaited."
+        },
+        {
+          "entryId": "claude-marker-investigation-20261024",
+          "at": "2026-10-24T14:32:31.929Z",
+          "kind": "note",
+          "message": "Lugos Codex jump confirmed by Matt and viewport evidence. Claude has a missing closing marker; isolated renderer checks pass except the instant-reply case."
         }
       ]
     },

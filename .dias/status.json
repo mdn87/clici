@@ -8,10 +8,10 @@
   "milestonePhase": "integration-proof",
   "portfolioGroup": "developer-tools",
   "displayPriority": 500,
-  "assessedAt": "2026-10-24T14:10:37.037Z",
+  "assessedAt": "2026-10-24T14:32:31.929Z",
   "confidence": "reported",
   "currentMilestone": "Restore navigation in Codex and Claude without typing lag; bounded-history and confirmed-key fixes are installed.",
-  "remainingSummary": "Matt needs to confirm shortcuts and typing in the existing client sessions. Stock Codex launches still bypass integration.",
+  "remainingSummary": "Await a fresh turn in the Claude test session to compare markers, then repair the rendering failure without restoring typing lag.",
   "nextChipId": "clici:prompt-navigation-bridge",
   "source": {
     "label": "Repository review of README, changelog, plans, proof ledger, navigation reports, and git history",
