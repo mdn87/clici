@@ -656,3 +656,34 @@ The next observation compares one additional turn in Matt's identified test
 session; Claude remains unresolved. Metadata-only evidence is under
 `artifacts/navigation-diagnosis-20261024/claude-lorem-*`; isolated renderer runs
 are under `claude-render-*` in the same directory.
+
+
+### Recovery after an older damaged turn
+
+Matt submitted a fourth filler turn and reported that navigation still did not
+work. COM found a complete pair at rows 211 and 214 for that new native prompt;
+the third prompt still had only its start marker at row 96. The helper rejected
+the entire map because it treated every partial pair as a global failure.
+
+`RenderedPromptMap.CompleteSuffix` now retains only the contiguous complete
+suffix ending at the newest native prompt. Missing or partial older markers
+start a capture boundary; the previous shortcut stops there instead of crossing
+the gap or guessing the damaged prompt's extent. A partial or missing newest
+prompt still refuses, as do duplicate markers, repeated IDs/nonces, unknown
+markers, overlap, and inconsistent native/physical order, including discarded
+older evidence. Native identity, input leases, scan limits, and typing safeguards
+are unchanged. The scanner performs no additional COM calls for this recovery.
+
+Three regression cases failed with the old all-or-nothing collection. All eight
+new cases now pass, including both missing boundary directions, interior gaps,
+newest-turn refusal, duplicates, wrong order, and stopping at the gap. All 276
+.NET tests and solution/helper formatting checks pass. Read-only inspection of
+Matt's actual Claude pane maps exactly the fourth prompt in 97 ms. The renderer's
+original marker loss is not repaired; this change contains its effect on later
+complete turns. Evidence is under `artifacts/navigation-diagnosis-20261024/`
+as `suffix-*` and `claude-lorem-after-user-done-*`.
+
+Release `codex-0.162.1-1d6db505b2bef1ab` and the compatibility helper path are
+installed. Both manifests verify all 20 files. Startup settings and previous
+helpers are backed up; all four CLI parent identities were preserved. Physical
+shortcut and typing confirmation in the existing Claude session is pending.

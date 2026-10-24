@@ -123,7 +123,10 @@ The [Codex renderer experiment](../tools/proof/prompt-navigation/codex-renderer/
 implements the identity-to-paint portion in a separate pinned source build.
 Two six-cell RGB signatures in existing blank separator rows bind a rendered
 occurrence to its native item ID. `RenderedPromptMap` requires complete, unique,
-ordered pairs and treats an evicted prefix as a capture boundary. Metadata is
+ordered pairs. Only the contiguous complete suffix ending at the newest native
+prompt is navigable; missing or partial older paint creates a capture boundary.
+Navigation never skips across it. A missing newest boundary, duplicate paint or
+inconsistent order still refuses. Metadata is
 carried over private pipes; the helper verifies actual COM attributes and the
 viewport before accepting a jump. Its process and request bounds are explicit.
 

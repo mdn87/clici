@@ -68,9 +68,10 @@ bundle with the repository's installer. Use `--powershell-profile`,
   every retained prompt. A request to paint does not establish a position.
 - Discovery and scrolling both use UIA physical line units. Counting newlines
   in `GetText` is insufficient because Terminal joins soft-wrapped rows.
-- The observed pairs must match a suffix of the native prompt list. An evicted
-  prefix becomes a capture boundary. Missing interior/newest prompts, repeated
-  IDs/nonces, partial paint, duplicate paint, and invalid order refuse navigation.
+- The observed pairs must match a contiguous suffix ending at the newest native
+  prompt. Missing or partial older paint creates a capture boundary: navigation
+  stops there and never skips across the gap. A missing or partial newest prompt,
+  repeated IDs/nonces, duplicate paint, or invalid order still refuses navigation.
 - Metadata uses private stdin/stdout pipes, contains no prompt text, and carries
   process/session identity, sequence, epoch and a monotonic deadline. A background
   supervisor enforces deadlines independently of the pipe worker. Native input
@@ -259,7 +260,7 @@ counts toward the capture. The helper scans at most the most recent 4,096
 physical rows, so older output does not disable recent prompt navigation. Use
 `1800 dense` and a test Terminal history size above 5,500 to reproduce the
 over-limit case; only the two newest prompts fit in the capture. A partial
-anchor at the cutoff still refuses rather than guessing a boundary. The harness
+anchor at the cutoff bounds navigation to the newer complete pairs. The harness
 waits up to five minutes for stable foreground input and sends keys only to the attested proof window.
 
 Add `dense` after the fixture row count to include indented replies and blank

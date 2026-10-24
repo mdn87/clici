@@ -102,8 +102,9 @@ The installed 2.1.296 declaration and live executable are the authority.
 The operator identified **Lorem ipsum page filler** as the Claude test session.
 Read-only COM inspection found three native prompts, two complete marker pairs,
 and only the start marker for the newest prompt. The next blank row contained
-default foreground colors. The helper correctly refuses the incomplete map;
-this is separate from the repaired long-history and confirmed-key deadline
-failures. Ordinary, resized, and streamed filler fixtures still pass. The exact
-cause and a reliable repair remain unresolved; see the
+default foreground colors. A fourth turn retained both markers, but the helper
+still refused because of the older damage. The helper now admits only the
+contiguous complete recent turns after a gap and stops at that boundary; it never
+navigates to the damaged turn. Missing newest markers, duplicate paint and wrong
+order still refuse. The cause of the lost marker remains unresolved; see the
 [latency investigation](prompt-navigation-latency-plan.md#actual-session-result-and-separate-claude-rendering-failure).
