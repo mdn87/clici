@@ -546,7 +546,8 @@ Small uniform-color ranges reject many unrelated blank rows in one call.
 
 The new mapper found all three prompt identities in sparse (112 rows, 72 ms),
 dense (1,000 rows, 103 ms), and long dense (3,916 rows, 285 ms) fixtures. The
-preceding candidate also preserved coordinates after narrow and wide reflow.
+final candidate also preserved coordinates after narrow and wide reflow (56–62
+ms), and rejected bindings with colliding first colors but different full nonces.
 One-shot traversal in four working terminals took 74–597 ms at 1,268–2,950 rows.
 Those real-window checks used a different session's bindings to measure traversal;
 they do not establish native prompt ownership or successful navigation there.

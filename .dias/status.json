@@ -8,7 +8,7 @@
   "milestonePhase": "integration-proof",
   "portfolioGroup": "developer-tools",
   "displayPriority": 500,
-  "assessedAt": "2026-10-24T13:18:10.155Z",
+  "assessedAt": "2026-10-24T13:21:35.162Z",
   "confidence": "reported",
   "currentMilestone": "Restore navigation in Codex and Claude without typing lag; the shared scanner repair passes mapping and input regression tests.",
   "remainingSummary": "Install the verified bundle and refresh navigation helpers after approval, then confirm behavior in the actual client sessions.",

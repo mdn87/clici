@@ -193,7 +193,7 @@
       "projectId": "clici",
       "title": "Prompt navigation bridge for Codex and Claude in Windows Terminal",
       "summary": "The scanner repair passes dense-history mapping and both client input tests. A verified bundle awaits approval for installation and live helper refresh.",
-      "stage": "active",
+      "stage": "blocked",
       "sequence": 50,
       "prereqs": [
         "clici:v0.1-windows-proof"
@@ -208,7 +208,7 @@
       },
       "timestamps": {
         "createdAt": "2026-10-16T02:06:25.000Z",
-        "updatedAt": "2026-10-24T13:18:10.155Z"
+        "updatedAt": "2026-10-24T13:21:35.162Z"
       },
       "evidence": [
         {
@@ -258,6 +258,12 @@
           "at": "2026-10-24T13:18:10.155Z",
           "kind": "note",
           "message": "Approved scanner rewrite passes both client input tests and dense mapping. Typing adds no scans; installation approval is requested."
+        },
+        {
+          "entryId": "clici:prompt-navigation-bridge:installation-approval-20261024",
+          "at": "2026-10-24T13:21:35.162Z",
+          "kind": "stage-change",
+          "message": "Scanner repair passes both client tests and CI. Installing the verified bundle and refreshing running helpers awaits approval for files outside the project."
         }
       ]
     },
