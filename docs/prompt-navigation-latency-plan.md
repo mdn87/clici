@@ -510,3 +510,74 @@ because the `claude-code` module is unavailable there. No native renderer change
 was made, and neither restored navigation nor a new live performance result is
 claimed. Next, identify the failing launch path and obtain stable fixture focus;
 changes to Dias or installed profiles require authorization for those locations.
+
+### Both clients fail: scan deadline reproduced
+
+Matt subsequently confirmed failure in both Codex and Claude. Fresh process
+inspection found two Codex sessions using the installed patched executable and
+two Claude helpers. One Claude frame contained three prompts and current composer
+eligibility. The stock-executable finding therefore does not explain the whole
+report.
+
+A one-shot diagnostic using the existing bounded mapper exceeded its one-second
+deadline in all four working Terminal windows. Their text captures took about
+1–3 ms; traversal, rather than the initial text capture, exhausted the budget.
+The windows contained approximately 700–1,300 logical lines, including many
+indented and blank lines. These measurements do not prove that every failed
+shortcut has the same cause, but establish a reproducible shared failure path.
+
+The `anchor-fixture <directory> 328 dense` regression has 1,000 physical rows,
+three known prompt identities, indented replies, and blank lines. The original
+mapper times out on it. A uniform-color pruning candidate mapped it in 176.5 ms,
+but still timed out on the working windows. A second approach using provider
+text searches encountered unusable COM ranges for whitespace searches, including
+with the existing bounded-presence guard. Windows Terminal also reports color
+attribute searches as unimplemented. No candidate was installed. The scanner was
+restored to the committed version; the failed patch and raw results remain under
+`artifacts/navigation-diagnosis-20261024/`.
+
+Matt approved the shared scanner rewrite. It keeps the one-second request bound,
+4,096-row and one-MiB capture limits, native identity checks, six-cell anchor
+verification, selection checks, discovery throttle, and typing invalidation.
+The traversal now retains provider ranges instead of recreating them from the
+document origin. Textual blank-row offsets are used only when their row count
+agrees with UIA's physical line count; ranges with soft wraps are subdivided.
+Small uniform-color ranges reject many unrelated blank rows in one call.
+
+The new mapper found all three prompt identities in sparse (112 rows, 72 ms),
+dense (1,000 rows, 103 ms), and long dense (3,916 rows, 285 ms) fixtures. The
+final candidate also preserved coordinates after narrow and wide reflow (56–62
+ms), and rejected bindings with colliding first colors but different full nonces.
+One-shot traversal in four working terminals took 74–597 ms at 1,268–2,950 rows.
+Those real-window checks used a different session's bindings to measure traversal;
+they do not establish native prompt ownership or successful navigation there.
+
+The first focused keyboard run verified six jumps, then a request expired or
+lost its input lease. It is retained as a failed run. After adding small-range
+color pruning, both Codex v2 shared admission and Claude frame-file transport
+passed forty navigation actions plus the selected-text jump. Each preserved
+selection and terminal text, delivered 100 ordinary characters with zero added
+full scans, and passed the ineligible shortcut through. Neither run refused a
+request. Navigation p95/max was 175/234 ms for Codex and 168/181 ms for Claude.
+Hook-chain p95 was 8.6/10.0 ms, with 94/55 ms maximum outliers; these include other
+installed hooks and are not an isolated measurement of Clici or physical typing.
+The harness requests pane focus explicitly but never relaxes foreground checks.
+
+The twenty-file candidate is under
+`artifacts/navigation-diagnosis-20261024/scanner-bundle`. Only the three helper
+binaries differ from the installed bundle; the native CLI is unchanged.
+Installation and running-helper refresh require Matt's approval for writes
+outside this repository. The original installed bundle remains the rollback
+source until that update; its helper directory and manifest must be archived
+before any compatibility refresh for existing CLI processes.
+
+Eight new row-alignment cases pass, including CRLF endings, missing soft-wrap
+boundaries, indented output, short blanks, and Unicode text. All 264 .NET tests,
+14 Node tests, five installer tests, and the explicit Rust/.NET admission ABI
+check passed. Original native Rust test evidence remains applicable because no
+native source changed. No candidate has been installed.
+
+The Taskmaster subagent registered `clici/workspace`; both Codex and Claude
+handoffs report saved. Taskmaster's native configuration validation passed.
+Its host configuration change has no Lugos Audit receipt because that CLI was
+unavailable on the host; the Clici repository receipt is separate.

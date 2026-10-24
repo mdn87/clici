@@ -255,6 +255,16 @@ approximately 3,916 rows. Start with empty scrollback; earlier fixture output
 counts toward the 4,096-row capture limit. The harness waits up to five minutes
 for stable foreground input and sends keys only to the attested proof window.
 
+Add `dense` after the fixture row count to include indented replies and blank
+rows, for example `anchor-fixture <directory> 328 dense`. Create the directory
+first. This reproduces the October 24 scan timeout that the sparse synthetic
+history missed. `renderer-inspect <hwnd> <directory>/anchors.json` checks mapping
+without focus or injected input; the original scanner exceeds its deadline on
+this 1,000-row fixture. The range scanner fixes that mapping regression and keeps
+UIA line coordinates across wrapping. A mapping result alone does not qualify
+keyboard handling: run the dense fixture through both `--native-admission` and
+`--frames`, including the typing and selection checks.
+
 For an isolated actual Codex session with a known synthetic unsent draft, run
 `PromptNavigation.Probe.exe typing-latency <hwnd> CLICI_FIXTURE_UNSENT_DRAFT 100`.
 This appends 100 lowercase `a` characters without submitting the prompt and

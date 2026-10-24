@@ -509,48 +509,90 @@ internal sealed class RendererBridge
         lastRow.ExpandToEnclosingUnit(TextUnit.TextUnit_Line);
         var rowCount = RowIndex(document, lastRow) + 1;
         var viewportRow = RowIndex(document, visible);
-        var pending = new Stack<(int Start, int Count)>();
-        pending.Push((0, rowCount));
+        var pending = new Stack<(IUIAutomationTextRange Range, int Start, int Count)>();
+        pending.Push((document.Clone(), 0, rowCount));
         while (pending.TryPop(out var block))
         {
             CheckLive(request);
-            var row = RowAt(document, block.Start);
-            if (block.Count > 1)
-            {
-                var end = RowAt(document, block.Start + block.Count - 1);
-                row.MoveEndpointByRange(TextPatternRangeEndpoint.TextPatternRangeEndpoint_End,
-                    end, TextPatternRangeEndpoint.TextPatternRangeEndpoint_End);
-            }
+            var row = block.Range;
+            // Reject whole uniform-color blocks that cannot contain an anchor.
+            // Mixed/unsupported attributes still take the complete path below.
+            if (row.GetAttributeValue(UIA_TextAttributeIds.UIA_ForegroundColorAttributeId) is int uniformColor &&
+                !firstColors.ContainsKey(uniformColor)) continue;
             var chunk = row.GetText(MaximumCharacters);
-            // GetText preserves blank logical rows, while joining soft wraps.
-            // Prune noncandidate blocks; use UIA line units for every coordinate.
-            // No offset is inferred from Unicode character counts or CRLF counts.
-            if (!chunk.StartsWith("      ", StringComparison.Ordinal) &&
-                !chunk.Contains("\n      ", StringComparison.Ordinal)) continue;
-            if (block.Count > 1)
+            var (aligned, candidatesByRow) = AnchorRowCandidates.Analyze(chunk, block.Count);
+            if (candidatesByRow.Count == 0) continue;
+            if (!aligned)
             {
+                if (block.Count <= 1)
+                    throw new InvalidOperationException("Terminal row mapping changed.");
                 var half = block.Count / 2;
-                pending.Push((block.Start + half, block.Count - half));
-                pending.Push((block.Start, half));
+                // Subdivide the existing provider range. Recreating every child
+                // from the document origin multiplies cross-process calls and
+                // repeats traversal through the same history on dense output.
+                var left = row.Clone();
+                left.MoveEndpointByRange(TextPatternRangeEndpoint.TextPatternRangeEndpoint_End,
+                    left, TextPatternRangeEndpoint.TextPatternRangeEndpoint_Start);
+                if (left.MoveEndpointByUnit(TextPatternRangeEndpoint.TextPatternRangeEndpoint_End,
+                        TextUnit.TextUnit_Line, half) != half)
+                    throw new InvalidOperationException("Terminal row mapping changed.");
+                var right = row.Clone();
+                right.MoveEndpointByRange(TextPatternRangeEndpoint.TextPatternRangeEndpoint_Start,
+                    left, TextPatternRangeEndpoint.TextPatternRangeEndpoint_End);
+                pending.Push((right, block.Start + half, block.Count - half));
+                pending.Push((left, block.Start, half));
                 continue;
             }
-            var cell = row.Clone();
-            cell.MoveEndpointByRange(TextPatternRangeEndpoint.TextPatternRangeEndpoint_End,
-                cell, TextPatternRangeEndpoint.TextPatternRangeEndpoint_Start);
-            cell.MoveEndpointByUnit(TextPatternRangeEndpoint.TextPatternRangeEndpoint_End, TextUnit.TextUnit_Character, 1);
-            var actual = new List<int>();
-            for (var column = 0; column < 6; column++)
+            row.MoveEndpointByRange(TextPatternRangeEndpoint.TextPatternRangeEndpoint_End,
+                row, TextPatternRangeEndpoint.TextPatternRangeEndpoint_Start);
+            row.ExpandToEnclosingUnit(TextUnit.TextUnit_Line);
+            var position = 0;
+            // A small color range can reject many blank rows at once, even
+            // when text elsewhere in the document uses different colors.
+            foreach (var group in candidatesByRow.GroupBy(index => index / 64))
             {
-                if (cell.GetText(2) != " " ||
-                    cell.GetAttributeValue(UIA_TextAttributeIds.UIA_ForegroundColorAttributeId) is not int color) break;
-                actual.Add(color);
-                cell.Move(TextUnit.TextUnit_Character, 1);
-            }
-            if (actual.Count != 6 || !firstColors.TryGetValue(actual[0], out var candidates)) continue;
-            foreach (var candidate in candidates.Where(candidate => actual.SequenceEqual(candidate.Colors)))
-            {
-                if (!found.TryGetValue(candidate.Nonce, out var pair)) found.Add(candidate.Nonce, pair = []);
-                pair.Add((block.Start, candidate.End));
+                CheckLive(request);
+                var first = group.First();
+                var delta = first - position;
+                if (row.Move(TextUnit.TextUnit_Line, delta) != delta)
+                    throw new InvalidOperationException("Terminal row mapping changed.");
+                position = first;
+                var colorBlock = row.Clone();
+                var span = group.Last() - first;
+                if (colorBlock.MoveEndpointByUnit(TextPatternRangeEndpoint.TextPatternRangeEndpoint_End,
+                        TextUnit.TextUnit_Line, span) != span)
+                    throw new InvalidOperationException("Terminal row mapping changed.");
+                if (colorBlock.GetAttributeValue(UIA_TextAttributeIds.UIA_ForegroundColorAttributeId) is int blockColor &&
+                    !firstColors.ContainsKey(blockColor)) continue;
+                foreach (var candidateRow in group)
+                {
+                    CheckLive(request);
+                    delta = candidateRow - position;
+                    if (row.Move(TextUnit.TextUnit_Line, delta) != delta)
+                        throw new InvalidOperationException("Terminal row mapping changed.");
+                    position = candidateRow;
+                    if (row.GetAttributeValue(UIA_TextAttributeIds.UIA_ForegroundColorAttributeId) is int rowColor &&
+                        !firstColors.ContainsKey(rowColor)) continue;
+                    var cell = row.Clone();
+                    cell.MoveEndpointByRange(TextPatternRangeEndpoint.TextPatternRangeEndpoint_End,
+                        cell, TextPatternRangeEndpoint.TextPatternRangeEndpoint_Start);
+                    cell.MoveEndpointByUnit(TextPatternRangeEndpoint.TextPatternRangeEndpoint_End, TextUnit.TextUnit_Character, 1);
+                    var actual = new List<int>();
+                    for (var column = 0; column < 6; column++)
+                    {
+                        if (cell.GetText(2) != " " ||
+                            cell.GetAttributeValue(UIA_TextAttributeIds.UIA_ForegroundColorAttributeId) is not int color) break;
+                        if (column == 0 && !firstColors.ContainsKey(color)) break;
+                        actual.Add(color);
+                        cell.Move(TextUnit.TextUnit_Character, 1);
+                    }
+                    if (actual.Count != 6 || !firstColors.TryGetValue(actual[0], out var candidates)) continue;
+                    foreach (var candidate in candidates.Where(candidate => actual.SequenceEqual(candidate.Colors)))
+                    {
+                        if (!found.TryGetValue(candidate.Nonce, out var pair)) found.Add(candidate.Nonce, pair = []);
+                        pair.Add((block.Start + candidateRow, candidate.End));
+                    }
+                }
             }
         }
 
