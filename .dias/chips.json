@@ -192,8 +192,8 @@
       "chipId": "clici:prompt-navigation-bridge",
       "projectId": "clici",
       "title": "Prompt navigation bridge for Codex and Claude in Windows Terminal",
-      "summary": "The installed bundle verifies, but stock Codex launches bypass navigation. Confirm the failing launch path and complete the live focus check before choosing the repair.",
-      "stage": "blocked",
+      "summary": "The scanner repair passes dense-history mapping and both client input tests. A verified bundle awaits approval for installation and live helper refresh.",
+      "stage": "active",
       "sequence": 50,
       "prereqs": [
         "clici:v0.1-windows-proof"
@@ -208,7 +208,7 @@
       },
       "timestamps": {
         "createdAt": "2026-10-16T02:06:25.000Z",
-        "updatedAt": "2026-10-24T12:24:20.629Z"
+        "updatedAt": "2026-10-24T13:18:10.155Z"
       },
       "evidence": [
         {
@@ -246,6 +246,18 @@
           "at": "2026-10-24T12:24:20.629Z",
           "kind": "note",
           "message": "Stock Codex launch bypasses the installed bridge. Tests pass, but live navigation lacks stable focus; the failing launch path still needs confirmation."
+        },
+        {
+          "entryId": "clici:prompt-navigation-bridge:dense-scan-regression-20261024",
+          "at": "2026-10-24T12:55:12.674Z",
+          "kind": "note",
+          "message": "Both clients fail. Dense scrollback reproduces scan timeouts; candidate repairs failed validation and were reverted. A scanner scope decision is requested."
+        },
+        {
+          "entryId": "clici:prompt-navigation-bridge:scanner-rewrite-20261024",
+          "at": "2026-10-24T13:18:10.155Z",
+          "kind": "note",
+          "message": "Approved scanner rewrite passes both client input tests and dense mapping. Typing adds no scans; installation approval is requested."
         }
       ]
     },

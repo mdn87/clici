@@ -37,6 +37,7 @@ else:
     raise SystemExit('Input fixture did not start; no input sent.')
 hwnd = window['Handle']
 call('show', hwnd)
+call('activate', hwnd)  # Focus the proof pane, not just its top-level window.
 ctypes.windll.user32.GetForegroundWindow.restype = ctypes.c_void_p
 def await_foreground():
     until = time.monotonic()+args.foreground_timeout

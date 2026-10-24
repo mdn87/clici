@@ -28,9 +28,11 @@ internal static class Program
                 RendererBridge.RunFrames(args[1]);
                 return 0;
             }
-            if (args.Length is 2 or 3 && args[0] == "anchor-fixture")
+            if (args.Length is 2 or 3 or 4 && args[0] == "anchor-fixture")
             {
-                ColorAnchorProbe.Fixture(args[1], args.Length == 3 ? int.Parse(args[2]) : 32);
+                if (args.Length == 4 && args[3] != "dense") throw new ArgumentException("Unknown anchor fixture layout.");
+                ColorAnchorProbe.Fixture(args[1], args.Length >= 3 ? int.Parse(args[2]) : 32,
+                    dense: args.Length == 4);
                 return 0;
             }
             if (args.Length == 0)

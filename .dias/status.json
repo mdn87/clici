@@ -8,10 +8,10 @@
   "milestonePhase": "integration-proof",
   "portfolioGroup": "developer-tools",
   "displayPriority": 500,
-  "assessedAt": "2026-10-24T12:24:20.629Z",
+  "assessedAt": "2026-10-24T13:18:10.155Z",
   "confidence": "reported",
-  "currentMilestone": "Restore prompt navigation without typing lag; the installed bundle verifies, but the observed stock Codex launch has no bridge.",
-  "remainingSummary": "Confirm the failing launch path and obtain stable fixture focus. Any Dias launcher or installed-profile repair needs authorization for that location.",
+  "currentMilestone": "Restore navigation in Codex and Claude without typing lag; the shared scanner repair passes mapping and input regression tests.",
+  "remainingSummary": "Install the verified bundle and refresh navigation helpers after approval, then confirm behavior in the actual client sessions.",
   "nextChipId": "clici:prompt-navigation-bridge",
   "source": {
     "label": "Repository review of README, changelog, plans, proof ledger, navigation reports, and git history",

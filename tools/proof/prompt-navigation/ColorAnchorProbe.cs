@@ -29,7 +29,7 @@ internal static class ColorAnchorProbe
         Console.Write("\x1b[0m\r\n");
     }
 
-    internal static void Fixture(string directory, int replyRows = 32)
+    internal static void Fixture(string directory, int replyRows = 32, bool dense = false)
     {
         if (replyRows is < 0 or > 1300) throw new ArgumentOutOfRangeException(nameof(replyRows));
         Console.OutputEncoding = System.Text.Encoding.UTF8;
@@ -51,7 +51,10 @@ internal static class ColorAnchorProbe
             Print(anchor.nonce, true);
             for (var line = 0; line < replyRows; line++)
             {
-                Console.WriteLine($"CLICI_FIXTURE_REPLY_{anchor.index}_{line:00}");
+                // Real transcripts contain many indented and blank rows. They
+                // must not turn every row into six cross-process color reads.
+                Console.WriteLine(dense && line % 4 == 0 ? "        " :
+                    (dense ? "        " : "") + $"CLICI_FIXTURE_REPLY_{anchor.index}_{line:00}");
             }
         }
 
