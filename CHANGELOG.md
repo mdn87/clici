@@ -11,6 +11,13 @@ between minor versions where a classification proves to be wrong.
 
 ## [Unreleased]
 
+## [0.2.0-preview.1] — 2026-10-25
+
+Unsigned local evaluation prerelease. The Windows proof report records eighteen
+historical manual passes and one observation across earlier builds; it does not
+certify a complete rerun against this installer. See
+[the proof report](docs/v0.1-proof-report.md) for the support boundary.
+
 ### Removed
 
 - Retired experimental turn tracking and keyboard jumping after repeated real

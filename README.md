@@ -332,7 +332,7 @@ installer above is the supported distribution path.
 
 ## Which build is running
 
-`Version` is a fixed `0.1.0`, so `FileVersion` cannot distinguish one build
+`Version` identifies a release, so `FileVersion` cannot distinguish one build
 from another and an installed copy that lags the source looks identical to a
 current one. A feature that is merely absent from the installed binary then
 reads as a feature that is broken.

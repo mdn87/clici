@@ -5,7 +5,7 @@ namespace Clici.App;
 /// <summary>
 /// Identifies which source this binary was built from.
 ///
-/// The hardcoded <c>0.1.0</c> version cannot answer that: every build stamps
+/// The release version cannot answer that: builds of one release stamp
 /// the identical FileVersion, so a stale install is indistinguishable from a
 /// current one by inspection. The SDK records the commit in
 /// <see cref="AssemblyInformationalVersionAttribute"/> and the repository
