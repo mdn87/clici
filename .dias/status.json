@@ -4,17 +4,17 @@
   "projectLabel": "clici",
   "assessmentState": "scored",
   "assessmentScope": "current-milestone",
-  "percentComplete": 55,
+  "percentComplete": 100,
   "milestonePhase": "closeout",
   "portfolioGroup": "developer-tools",
   "displayPriority": 500,
-  "assessedAt": "2026-10-25T14:51:49.322Z",
+  "assessedAt": "2026-10-25T15:03:19.517Z",
   "confidence": "reported",
-  "currentMilestone": "Clipboard proof report and installer dry run complete; next release remains unpublished.",
-  "remainingSummary": "Select the next version and qualify the release candidate with the documented manual-test limits. No publication occurred in this batch.",
-  "nextChipId": "clici:proof-report-and-next-release",
+  "currentMilestone": "Proof report complete and local evaluation preview published; stable release remains 0.1.0.",
+  "remainingSummary": "This milestone is complete. Broader qualification and later feature ideas remain deferred; no next batch selected.",
+  "nextChipId": null,
   "source": {
-    "label": "Proof ledger, current source/tests, completed installer dry run and verified checksum",
+    "label": "Published prerelease, verified installer checksum, successful dry run and tagged CI, and Windows proof report",
     "updatedAt": "2026-10-25"
   }
 }

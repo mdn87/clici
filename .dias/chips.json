@@ -335,8 +335,8 @@
       "chipId": "clici:proof-report-and-next-release",
       "projectId": "clici",
       "title": "v0.1 proof report, spec sync, and the next release",
-      "summary": "Proof report, spec sync and installer dry run complete. Version selection, candidate qualification and publication remain outside this batch.",
-      "stage": "active",
+      "summary": "Proof report and spec sync complete. Unsigned 0.2.0-preview.1 local evaluation prerelease published with verified installer checksum and disclosed manual qualification limits.",
+      "stage": "done",
       "sequence": 70,
       "prereqs": [
         "clici:v0.1-windows-proof"
@@ -346,7 +346,7 @@
       "aheadOfPrereqs": null,
       "timestamps": {
         "createdAt": "2026-09-27T20:55:20.000Z",
-        "updatedAt": "2026-10-25T14:51:49.322Z"
+        "updatedAt": "2026-10-25T15:03:19.517Z"
       },
       "evidence": [
         {
@@ -366,6 +366,12 @@
           "at": "2026-10-25T14:51:49.322Z",
           "kind": "note",
           "message": "Report reconciles 18 passes and M07 observation. All 276 tests pass; Release dry run and downloaded checksum verified. No tag or publication."
+        },
+        {
+          "entryId": "preview-release-20261025",
+          "at": "2026-10-25T15:03:19.517Z",
+          "kind": "stage-change",
+          "message": "Preview published from 8cd798f after dry run and tagged CI passed. Installer version and checksum verified; stable 0.1.0 retained. Manual limits disclosed."
         }
       ]
     },

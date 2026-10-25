@@ -290,6 +290,11 @@ Download `clici-<version>-win-x64-setup.exe` from the
 [latest release](https://github.com/mdn87/clici/releases/latest) and run it. No
 administrator rights are required.
 
+For continued local evaluation, [0.2.0-preview.1](https://github.com/mdn87/clici/releases/tag/v0.2.0-preview.1)
+is available as an unsigned prerelease with image export and clipboard fixes.
+Its release notes state the manual qualification limits. Version 0.1.0 remains
+the latest stable release.
+
 The installer is **unsigned**, so Windows SmartScreen will warn the first time
 you run it: choose **More info** then **Run anyway**. Each release publishes a
 `.sha256` file beside the installer if you want to verify the download first:
