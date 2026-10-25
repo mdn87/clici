@@ -1,3 +1,5 @@
+> Retired on October 25, 2026. This document is historical; activation and further qualification are cancelled. See the [retirement record](../../../../docs/prompt-navigation-retirement.md).
+
 # Claude renderer plugin
 
 This plugin gives Clici native prompt identity and composer-ownership evidence

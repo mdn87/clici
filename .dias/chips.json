@@ -301,9 +301,9 @@
       "schemaVersion": 1,
       "chipId": "clici:prompt-navigation-qualification",
       "projectId": "clici",
-      "title": "Qualify prompt navigation and expose it in the tray",
-      "summary": "Run the full live Alt+Shift sequence and the physical Claude keyboard check, then add the tray enable switch and refusal status that NAV-006 and NAV-007 require.",
-      "stage": "ready",
+      "title": "Retire unreliable prompt navigation",
+      "summary": "Qualification and tray integration cancelled. Automatic loading disabled, all installed helpers archived, and three running helpers stopped while preserving their CLI parents.",
+      "stage": "done",
       "sequence": 60,
       "prereqs": [
         "clici:prompt-navigation-bridge"
@@ -313,7 +313,7 @@
       "aheadOfPrereqs": null,
       "timestamps": {
         "createdAt": "2026-10-24T12:14:56.000Z",
-        "updatedAt": "2026-10-24T12:14:56.000Z"
+        "updatedAt": "2026-10-25T11:06:44.236Z"
       },
       "evidence": [
         {
@@ -321,6 +321,12 @@
           "at": "2026-10-24T12:14:56.000Z",
           "kind": "created",
           "message": "Derived from the open items in the navigation plan, proof report, and Claude qualification notes; tray integration has not started."
+        },
+        {
+          "entryId": "navigation-retired-20261025",
+          "at": "2026-10-25T11:06:44.236Z",
+          "kind": "stage-change",
+          "message": "Matt approved retirement after repeated real-session failures. Shutdown applied and verified; source and backups retained. See docs/prompt-navigation-retirement.md."
         }
       ]
     },
@@ -333,8 +339,7 @@
       "stage": "planned",
       "sequence": 70,
       "prereqs": [
-        "clici:v0.1-windows-proof",
-        "clici:prompt-navigation-qualification"
+        "clici:v0.1-windows-proof"
       ],
       "linkedRunIds": [],
       "confidence": "reported",

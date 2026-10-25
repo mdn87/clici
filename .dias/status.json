@@ -8,13 +8,13 @@
   "milestonePhase": "integration-proof",
   "portfolioGroup": "developer-tools",
   "displayPriority": 500,
-  "assessedAt": "2026-10-24T15:19:24.148Z",
+  "assessedAt": "2026-10-25T11:06:44.236Z",
   "confidence": "reported",
-  "currentMilestone": "Prompt navigation bridge restored; full live qualification and tray controls are next.",
-  "remainingSummary": "Run broader navigation qualification and add tray controls. Older damaged prompt paint remains a known capture boundary.",
-  "nextChipId": "clici:prompt-navigation-qualification",
+  "currentMilestone": "Prompt navigation retired; clipboard proof report and release work remain.",
+  "remainingSummary": "Publish the clipboard proof report and reconcile release documentation. Navigation qualification and tray integration are cancelled.",
+  "nextChipId": "clici:proof-report-and-next-release",
   "source": {
     "label": "Repository review of README, changelog, plans, proof ledger, navigation reports, and git history",
-    "updatedAt": "2026-10-24"
+    "updatedAt": "2026-10-25"
   }
 }

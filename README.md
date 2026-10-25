@@ -381,17 +381,16 @@ you are testing, reinstall before investigating further.
 - There is no MSI, auto-update, or global keyboard hook. (Per-user startup
   registration is supported — see **Start with Windows** in the tray menu.)
 
+## Prompt navigation retired
+
+Turn tracking and Alt+Shift+Comma/Period jumping were retired on October 25,
+2026 after repeated failures in real sessions. Automatic renderer loading and
+the installed keyboard helpers have been disabled. The experiment's source and
+evidence remain available; qualification and tray integration are cancelled.
+See the [retirement record](docs/prompt-navigation-retirement.md).
+
 ## Planned next steps
 
-- evaluate optional previous/next user-prompt navigation in Windows Terminal;
-  the [development probe and proof report](docs/prompt-navigation-proof-report.md)
-  establish COM scrolling, native identity validation and bounded key admission.
-  A Claude metadata probe and an opt-in Codex renderer bridge are implemented.
-  The Codex bridge includes pre-Terminal shortcut interception and fresh native
-  confirmation; broader classic-mode qualification and Claude navigation remain open.
-  See the [native bridge contract](docs/prompt-navigation-native-contract.md) and
-  [implementation plan](docs/prompt-navigation-plan.md). Navigation is not yet
-  available in the tray app;
 - exercise clipboard behavior across Windows Terminal, PowerShell, cmd, WSL,
   Codex, and Claude Code, and build a real source-fingerprint matrix;
 - add focused-control detection (UI Automation) so VS Code and Cursor

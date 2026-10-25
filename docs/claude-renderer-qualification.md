@@ -1,3 +1,5 @@
+> Retired on October 25, 2026. This document is historical; activation and further qualification are cancelled. See the [retirement record](prompt-navigation-retirement.md).
+
 # Claude renderer integration: 2026-10-17 qualification
 
 **Claude navigation is bundled and installable; physical Windows Terminal

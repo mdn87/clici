@@ -1,3 +1,5 @@
+> Retired on October 25, 2026. This document is historical; activation and further qualification are cancelled. See the [retirement record](prompt-navigation-retirement.md).
+
 # Prompt navigation proof report
 
 **2026-10-17 — development prototype, not a supported navigation feature.**

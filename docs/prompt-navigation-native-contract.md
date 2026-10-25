@@ -1,3 +1,5 @@
+> Retired on October 25, 2026. This document is historical; activation and further qualification are cancelled. See the [retirement record](prompt-navigation-retirement.md).
+
 # Native prompt identity and keyboard bridge
 
 **2026-10-16: the Codex renderer bridge now has an experimental pre-Terminal

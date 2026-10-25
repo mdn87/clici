@@ -1,3 +1,5 @@
+> Retired on October 25, 2026. This document is historical; activation and further qualification are cancelled. See the [retirement record](../../../docs/prompt-navigation-retirement.md).
+
 # Windows Terminal navigation probe
 
 Development instrumentation for NAV-001 through NAV-005. It is independent of

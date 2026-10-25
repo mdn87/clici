@@ -1,3 +1,5 @@
+> Retired on October 25, 2026. This document is historical; activation and further qualification are cancelled. See the [retirement record](prompt-navigation-retirement.md).
+
 # Restore responsive Codex typing with prompt navigation
 
 Status: repair implemented, verified, merged in PR #47, and installed with Matt's approval. Physical typing and both shortcuts confirmed working.

@@ -1,3 +1,5 @@
+> Retired on October 25, 2026. This document is historical; activation and further qualification are cancelled. See the [retirement record](../../../../docs/prompt-navigation-retirement.md).
+
 # Codex renderer bridge experiment
 
 This is an experimental, opt-in source patch for Codex **0.162.1**, commit

@@ -1,3 +1,5 @@
+> Retired on October 25, 2026. This document is historical; activation and further qualification are cancelled. See the [retirement record](prompt-navigation-retirement.md).
+
 # Clici prompt navigation implementation plan
 
 - **Status:** The opt-in Codex renderer bridge includes pre-Terminal shortcut interception and fresh native confirmation. The original Ctrl+Up/Down single-pane checks passed. The replacement Alt+Shift punctuation shortcuts pass automated checks; their complete live sequence remains unqualified. Broader qualification, Claude integration and tray controls remain unfinished. Navigation is not globally enabled.

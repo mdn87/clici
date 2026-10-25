@@ -11,6 +11,14 @@ between minor versions where a classification proves to be wrong.
 
 ## [Unreleased]
 
+### Removed
+
+- Retired experimental turn tracking and keyboard jumping after repeated real
+  session failures. Removed automatic activation locally, archived installed
+  helper executables, and stopped keyboard helpers without restarting their
+  owning CLI sessions. Source and proof history are retained; navigation
+  qualification and tray integration are cancelled.
+
 ### Added
 
 - Optional clipboard image export (`clipboardImageExportPath`, off when empty).
