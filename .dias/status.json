@@ -8,13 +8,13 @@
   "milestonePhase": "closeout",
   "portfolioGroup": "developer-tools",
   "displayPriority": 500,
-  "assessedAt": "2026-10-25T15:03:19.517Z",
+  "assessedAt": "2026-10-25T15:47:11.378Z",
   "confidence": "reported",
-  "currentMilestone": "Proof report complete and local evaluation preview published; stable release remains 0.1.0.",
-  "remainingSummary": "This milestone is complete. Broader qualification and later feature ideas remain deferred; no next batch selected.",
+  "currentMilestone": "Proof report and preview release complete; live deployment upgraded and verified.",
+  "remainingSummary": "This milestone is complete. Broader manual qualification and later feature ideas remain deferred; no next batch selected.",
   "nextChipId": null,
   "source": {
-    "label": "Published prerelease, verified installer checksum, successful dry run and tagged CI, and Windows proof report",
+    "label": "Published release and live installation log, running version, listener response and preserved configuration",
     "updatedAt": "2026-10-25"
   }
 }

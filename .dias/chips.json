@@ -346,7 +346,7 @@
       "aheadOfPrereqs": null,
       "timestamps": {
         "createdAt": "2026-09-27T20:55:20.000Z",
-        "updatedAt": "2026-10-25T15:03:19.517Z"
+        "updatedAt": "2026-10-25T15:47:11.378Z"
       },
       "evidence": [
         {
@@ -372,6 +372,12 @@
           "at": "2026-10-25T15:03:19.517Z",
           "kind": "stage-change",
           "message": "Preview published from 8cd798f after dry run and tagged CI passed. Installer version and checksum verified; stable 0.1.0 retained. Manual limits disclosed."
+        },
+        {
+          "entryId": "preview-live-deployment-20261025",
+          "at": "2026-10-25T15:47:11.378Z",
+          "kind": "note",
+          "message": "Published preview installed and restarted locally. One responsive clipboard listener; saved config unchanged. Navigation disabled with zero helpers."
         }
       ]
     },

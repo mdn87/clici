@@ -2,6 +2,33 @@
 
 Manual verification for the Inno Setup installer. Run after `tools/Build-Installer.ps1`.
 
+## Live preview upgrade — October 25, 2026
+
+The published `0.2.0-preview.1` installer upgraded the running local installation
+from `0.1.0+dd7dd89bc897be9f2c0ae0cb8250dad2f7e564a4`. The installer checksum
+was verified against the published release before execution. Setup ran with
+`/VERYSILENT /SUPPRESSMSGBOXES /NORESTART` and a diagnostic log, exited 0, and
+reported that Windows did not need to restart. Its silent-mode launch is skipped
+by design, so the installed executable was explicitly started afterward.
+
+Machine checks confirmed:
+
+- Installed product version is `0.2.0-preview.1+8cd798f9ab860d235d116736a2c8745ced4c151b`.
+- Exactly one `clici.exe` process runs from the normal per-user installation.
+- The clipboard listener belongs to that process and responds within a bounded
+  two-second window-message check. The startup log names the same version.
+- Saved configuration bytes match the pre-install SHA-256 after installation
+  and after startup. The old executable and configuration are backed up locally.
+- Renderer navigation remains disabled, managed activation blocks are absent,
+  and zero navigation helpers run.
+
+Evidence is under `artifacts/live-deployment-20261025-114402/`: installer log,
+before-state metadata, backups and `verification.json`. This was an upgrade and
+restart smoke check, not an uninstall, tray-menu visual check, or a repeat of the
+nineteen clipboard cases. No clipboard contents were read or written by the
+verification. Startup registry state is not claimed from agent-session HKCU
+reads; the existing registry-observation limitation below still applies.
+
 ## Build
 1. Run `tools/Build-Installer.ps1`.
 2. Confirm `artifacts/installer/clici-<version>-win-x64-setup.exe` exists.
