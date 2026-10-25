@@ -381,6 +381,13 @@ you are testing, reinstall before investigating further.
 - There is no MSI, auto-update, or global keyboard hook. (Per-user startup
   registration is supported — see **Start with Windows** in the tray menu.)
 
+## Validation and release status
+
+The [Windows proof report](docs/v0.1-proof-report.md) summarizes the nineteen
+recorded manual cases, current automated checks, and the remaining release
+qualification limits. Historical manual results name their tested builds; they
+do not establish a complete rerun against the latest installer.
+
 ## Prompt navigation retired
 
 Turn tracking and Alt+Shift+Comma/Period jumping were retired on October 25,

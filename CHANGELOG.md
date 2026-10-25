@@ -27,32 +27,6 @@ between minor versions where a classification proves to be wrong.
   pruned). The clipboard itself is unchanged; monitor-processing exclusions and
   unreadable privacy metadata skip the export, and remote UNC paths are refused
   (#6).
-- Claude Code renderer navigation, bundled with the Codex deployment (#33).
-  Prompt anchors use case-insensitive nonces (#35, #38), and the plugin no
-  longer pins Claude 2.1.296 (#39). Still an opt-in developer bundle; physical
-  Terminal qualification remains open (`docs/claude-renderer-qualification.md`).
-- Prompt navigation shortcuts moved to Alt+Shift+Comma (previous) and
-  Alt+Shift+Period (next) (#30), with PowerShell and bash profile autostart for
-  the renderer bundle (#31).
-- Experimental Codex pre-Terminal keyboard adapter for Ctrl+Up/Down (NAV-003).
-  A native confirmation after each press is required before scrolling; focus,
-  pointer, modal, layout and expiry checks cancel stale work. Session-only full
-  CLI bundles provide activation and disable without replacing the installed CLI.
-  This is limited to local, non-elevated, single-pane Windows Terminal sessions;
-  broader qualification, Claude support and tray integration remain open.
-- Development-only Codex 0.162.1 renderer patch and private-pipe COM bridge.
-  Native message IDs map to independently observed colored blank-row anchors;
-  ambiguous or incomplete paint refuses navigation. Native shortcut handling
-  remains a separate diagnostic because Terminal processes those keys first.
-- Development-only native prompt identity validation, bounded key admission with
-  held-key/deadline handling, and navigation-specific arrow parsing (NAV-003,
-  NAV-004, NAV-005). A Claude function-hook probe collects IDs without retaining
-  prompt text. Navigation remains disabled: a classic-mode renderer/key bridge
-  still needs qualification; no input hook or plugin is installed.
-- Development-only Windows Terminal COM navigation probe and isolated fixture
-  runbook, plus pure previous/next prompt decisions with 24 tests (NAV-001,
-  NAV-002, NAV-005). Navigation is not integrated into the tray app. The proof
-  report records native-mark failures and remaining agent-native integration work.
 
 ### Fixed
 
@@ -62,9 +36,6 @@ between minor versions where a classification proves to be wrong.
 - Contended clipboard reads that WinForms surfaced as missing or empty text are
   retried, and a persistent failure is reported as `UnicodeTextUnreadable`
   (M17, `d691793`).
-- A failed Codex or Claude navigation helper is replaced with capped backoff
-  instead of disabling navigation, and frames keep drawing until the
-  replacement is up (#36, #37, #40).
 
 ## 0.1.0 — 2026-08-29
 

@@ -302,7 +302,7 @@
       "chipId": "clici:prompt-navigation-qualification",
       "projectId": "clici",
       "title": "Retire unreliable prompt navigation",
-      "summary": "Qualification and tray integration cancelled. Automatic loading disabled, all installed helpers archived, and three running helpers stopped while preserving their CLI parents.",
+      "summary": "Navigation retired. Qualification and tray integration cancelled; automatic loading disabled and helpers archived/stopped while preserving CLI sessions.",
       "stage": "done",
       "sequence": 60,
       "prereqs": [
@@ -326,7 +326,7 @@
           "entryId": "navigation-retired-20261025",
           "at": "2026-10-25T11:06:44.236Z",
           "kind": "stage-change",
-          "message": "Matt approved retirement after repeated real-session failures. Shutdown applied and verified; source and backups retained. See docs/prompt-navigation-retirement.md."
+          "message": "Matt approved retirement. Automatic loading disabled; helpers archived/stopped and CLI parents preserved. Source and backups retained."
         }
       ]
     },
@@ -335,8 +335,8 @@
       "chipId": "clici:proof-report-and-next-release",
       "projectId": "clici",
       "title": "v0.1 proof report, spec sync, and the next release",
-      "summary": "Write the proof report and release recommendation from the closed ledger, sync spec status and README support claims, then cut a release for the unreleased changes.",
-      "stage": "planned",
+      "summary": "Proof report, spec sync and installer dry run complete. Version selection, candidate qualification and publication remain outside this batch.",
+      "stage": "active",
       "sequence": 70,
       "prereqs": [
         "clici:v0.1-windows-proof"
@@ -346,7 +346,7 @@
       "aheadOfPrereqs": null,
       "timestamps": {
         "createdAt": "2026-09-27T20:55:20.000Z",
-        "updatedAt": "2026-10-24T12:14:56.000Z"
+        "updatedAt": "2026-10-25T14:51:49.322Z"
       },
       "evidence": [
         {
@@ -360,6 +360,12 @@
           "at": "2026-10-24T12:14:56.000Z",
           "kind": "note",
           "message": "Ledger is closed but no proof report exists yet; the unreleased changelog now holds image export, navigation, and two clipboard fixes."
+        },
+        {
+          "entryId": "proof-closeout-20261025",
+          "at": "2026-10-25T14:51:49.322Z",
+          "kind": "note",
+          "message": "Report reconciles 18 passes and M07 observation. All 276 tests pass; Release dry run and downloaded checksum verified. No tag or publication."
         }
       ]
     },

@@ -21,7 +21,11 @@ Confirm these all describe the same behavior for the release:
 - [ ] `tools/proof/fixtures.json` — proof fixtures match the normalizer.
 - [ ] `docs/v0.1-proof-ledger.md` — the nineteen manual functional cases have
       been run against the build being released, or the release notes say which
-      are unverified. As of v0.1.0 none had been run.
+      are unverified. The October ledger records eighteen passes and one
+      historical observation across named builds; it is not a current-installer rerun.
+
+- [ ] `docs/v0.1-proof-report.md` — acceptance results, support boundaries,
+      decisions and release recommendation match the candidate.
 
 ## Configuration
 
