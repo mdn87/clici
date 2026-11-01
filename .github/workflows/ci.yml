@@ -31,7 +31,7 @@ jobs:
         run: node --test tools/proof/prompt-navigation/claude-identity/tests/ledger.node.mjs
       - name: Test Claude renderer anchor registry
         run: node --test tools/proof/prompt-navigation/claude-renderer/tests/anchors.node.mjs
-      - uses: actions/setup-python@v6
+      - uses: actions/setup-python@v7
         with:
           python-version: '3.14'
       - name: Test renderer deployment
