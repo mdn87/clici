@@ -61,7 +61,13 @@ Still present locally: the small evidence, audit, log, and session files in
 their original folders, and
 `artifacts/retired-navigation-evidence-20261120.zip`, which holds a copy of
 those evidence files plus the three patch drafts from the removed Codex
-checkouts. Installed bundles and backups under
-`%LOCALAPPDATA%/Clici/renderer-navigation` were not touched. The tracked patch
-and proof tooling in `tools/proof/prompt-navigation` are unchanged, so a
-bundle can be rebuilt from source.
+checkouts. The tracked patch and proof tooling in
+`tools/proof/prompt-navigation` are unchanged.
+
+Later the same day Matt removed the 15 installed bundles under
+`%LOCALAPPDATA%/Clici/renderer-navigation/releases` (5.47 GB). The settings
+backups, `installation.json`, and `install_renderer.py` in that folder remain;
+`installation.json` still names a bundle that no longer exists and is marked
+disabled. No built bundle is left on this machine, so reinstating the
+experiment now requires rebuilding one from the tracked patch, not restoring
+the archived executables described above.
