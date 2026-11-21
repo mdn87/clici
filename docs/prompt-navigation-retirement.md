@@ -47,3 +47,21 @@ Existing terminals can retain their inherited PATH and renderer variables,
 and existing CLI processes retain their renderer patches until they exit.
 Their helpers cannot restart. Fresh terminal tabs use the ordinary CLI startup
 path. The pinned binaries were not replaced inside live conversations.
+
+## Local cleanup on November 20, 2026
+
+Matt approved removing the regenerable material this experiment left in the
+local checkout. Removed from `artifacts/` and `tools/proof/prompt-navigation/`:
+the Rust package cache, the Codex source checkouts, compiler output, the
+downloaded Windows Terminal and Claude copies, and every built renderer bundle
+executable (10.35 GB in 110,295 files). The `artifacts/` paths cited by the
+prompt-navigation documents no longer hold bundles or binaries.
+
+Still present locally: the small evidence, audit, log, and session files in
+their original folders, and
+`artifacts/retired-navigation-evidence-20261120.zip`, which holds a copy of
+those evidence files plus the three patch drafts from the removed Codex
+checkouts. Installed bundles and backups under
+`%LOCALAPPDATA%/Clici/renderer-navigation` were not touched. The tracked patch
+and proof tooling in `tools/proof/prompt-navigation` are unchanged, so a
+bundle can be rebuilt from source.
